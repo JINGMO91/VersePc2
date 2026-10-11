@@ -1,13 +1,13 @@
 {
-    "version":  "1.5.4",
-    "releaseName":  "v1.5.4",
-    "releaseDate":  "2026-10-10",
-    "releaseNotes":  "VersePC2 v1.5.4\n\n其他:\n- 例行版本更新，无功能性变更（包含 v1.5.3 全部修复）",
+    "version":  "1.5.5",
+    "releaseName":  "v1.5.5",
+    "releaseDate":  "2026-10-11",
+    "releaseNotes":  "VersePC2 v1.5.5\n\n修复:\n- 版本号与发布版本不同步，导致升级器误判并反复提示更新\n- 账户页添加账户后侧边栏无法展开的问题",
     "files":  {
                   "win-x64":  {
-                                  "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.5.4/VersePC2.exe",
-                                  "size":  73991680,
-                                  "sha256":  "f9dfcf266aec1be42decea086117cf1dcf264917fcc968c251fe8d49a384e6df"
+                                  "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.5.5/VersePC2.exe",
+                                  "size":  73959936,
+                                  "sha256":  "1b4e104f3516d5e6dd62d0c68700b818ab9ea631dc188b0b6e9fed940e04d58c"
                               },
                   "linux-x86_64":  {
                                        "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.5.1/VersePC2-linux-x86_64",
