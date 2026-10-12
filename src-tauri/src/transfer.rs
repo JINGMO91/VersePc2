@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
-const SIGNAL_BASE: &str = "https://www.verselauncher.cn";
+const SIGNAL_BASE: &str = "http://124.223.80.73:8746";
 const MAGIC: &[u8; 8] = b"VXFER01\0";
 const CHUNK_SIZE: usize = 256 * 1024;
 
