@@ -1,7 +1,7 @@
-# windows-build.yml — 在 GitHub 上构建 Windows 便携版 exe。
-# 用途：本地磁盘空间不足时，把构建搬到 Actions（产物以 artifact 下载测试）。
-# Windows 便携包为单文件：MSVC 构建会把 WebView2Loader 静态内嵌进 exe，无需随包 DLL。
-# 触发：仅手动 workflow_dispatch（默认分支）。产物不进 release，只上传 Actions artifact。
+# windows-build.yml - ? GitHub ??? Windows ??? exe?
+# ??:?????????,????? Actions(??? artifact ????)?
+# Windows ???????:MSVC ???? WebView2Loader ????? exe,???? DLL?
+# ??:??? workflow_dispatch(????)????? release,??? Actions artifact?
 name: Build Windows Portable
 
 on:
@@ -28,14 +28,14 @@ jobs:
           rustc --version
           cargo --version
 
-      # 前端资源复制到 frontend-tauri（tauri.conf 的 frontendDist，generate_context! 编译期读取）。
-      # vue.global.prod.js 已随 frontend/js 入库，无需 npm install。
+      # ??????? frontend-tauri(tauri.conf ? frontendDist,generate_context! ?????)?
+      # vue.global.prod.js ?? frontend/js ??,?? npm install?
       - name: Prepare frontend assets
         shell: pwsh
         run: node scripts/prepare-frontend.mjs
 
-      # sponsor-orders.json 未入库（避免泄露赞助者信息），但 sponsor.rs 通过 include_str! 编译期嵌入；
-      # CI 中写入空白名单占位让构建通过（与 release-build.yml 的 macOS/Linux 流程一致）。
+      # sponsor-orders.json ???(?????????),? sponsor.rs ?? include_str! ?????;
+      # CI ??????????????(? release-build.yml ? macOS/Linux ????)?
       - name: Ensure sponsor-orders.json exists
         shell: pwsh
         run: |
@@ -47,7 +47,10 @@ jobs:
             Write-Host "sponsor-orders-found"
           }
 
-      # 与 macOS/Linux CI 相同：直接 cargo build bin（bundle targets 为空，tauri build 也不会打包安装器）
+      - name: Run transfer tests
+        shell: pwsh
+        run: cargo test --release --manifest-path src-tauri/Cargo.toml transfer -- --nocapture
+      # ? macOS/Linux CI ??:?? cargo build bin(bundle targets ??,tauri build ????????)
       - name: Build release binary
         shell: pwsh
         run: cargo build --release --bin verse-tauri --manifest-path src-tauri/Cargo.toml

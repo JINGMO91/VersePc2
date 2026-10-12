@@ -1,972 +1,901 @@
-// VersePC Tauri 后端入口
-// 职责：模块声明、窗口控制命令、路径获取命令、命令注册
+<!-- index.html - VersePC ????? -->
+<!--
+  VersePC - Minecraft Launcher
+  Copyright (c) 2026 ??
+  SPDX-License-Identifier: GPL-3.0-only
+-->
 
-mod api;
-mod ai;
-mod auth;
-mod avatar;
-mod crash_analyzer;
-mod dialog;
-mod download;
-mod easytier;
-mod enderlink_online;
-mod favicon;
-mod filesystem;
-mod install;
-mod java;
-pub(crate) mod launch;
-mod modloaders;
-mod modpack;
-mod mods;
-mod nbt;
-mod network;
-mod plugin_exec;
-mod plugins;
-mod private_server;
-mod promote;
-mod redstone_online;
-mod resource;
-mod saves;
-pub mod server_host;
-pub mod server_host_daemon;
-mod storage;
-mod system;
-mod tts;
-mod updater;
-mod utils;
-mod versions;
-mod wallpaper_engine;
-mod scene_renderer;
+<!DOCTYPE html>
+<!-- ==========================================================================
+  VersePC - Minecraft ??? ???? (SPA)
+  ============================================================================
+  ?????? CSS ? .page.active ????,?? page ????????
+  
+  ????:
+  1. ??? (.title-bar) - ???????? + ??????
+  2. ??? (.sidebar) - ??????? + ????
+  3. ??? (.launch-bar) - ?????? + ???? + ????
+  4. ???? (.page-content) - ???????
+  
+  ????:
+  - page-home       ??/??
+  - page-versions   ????
+  - page-mods       ????
+  - page-modpacks   ???
+  - page-settings   ??
+  - page-accounts   ??
+  - page-java       Java??
+  - page-downloads  ????
+  
+  ???:
+  - launch-modal      ?????(?????)
+  - deps-modal        ???????
+  - install-modal     ???????
+  - mod-detail-modal  ???????
+  ========================================================================== -->
+<html lang="zh-CN" data-theme="light" data-no-glass data-liquid-glass>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VersePC2 - Minecraft Launcher</title>
+  <style>
+    body{background:#ffffff!important}[data-theme="dark"] body{background:#0a0a0a!important}[data-theme="custom"] body{background:var(--bg-primary,#0b1020)!important}
+    button,a,input,select,textarea{outline:none!important}
+    button{background:transparent;border:none;color:inherit;font:inherit;cursor:default}
+    a{color:inherit;text-decoration:none}
+    *:focus,*:focus-visible{outline:none!important}
+  </style>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/splash.css">
+  <link rel="stylesheet" href="css/versions.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/launch.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/mods.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/settings.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="v-island/dynamic-island.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/file-browser.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/modal.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/private-server.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/server-host.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/plugins.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/redstone.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="css/sponsor.css" media="print" onload="this.media='all'">
+  <link rel="icon" type="image/svg+xml" href="img/icon.svg">
+  <link rel="icon" type="image/x-icon" href="img/icon.ico">
+</head>
+<body>
+  <!-- SVG ???? -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <!-- ?? - ?? -->
+    <symbol id="icon-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </symbol>
 
-use serde_json::{json, Value};
-use tauri::{Emitter, Manager, PhysicalPosition, Position};
+    <!-- ?? - ???? -->
+    <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </symbol>
 
-// ============== Windows 内存压缩：EmptyWorkingSet ==============
-// 调用 Windows psapi.dll 的 EmptyWorkingSet，将进程不活跃的内存页交换出物理内存
-// 这就是"最小化后内存数字大幅下降"的核心手段
-#[cfg(target_os = "windows")]
-fn trim_working_set() {
-    use std::ffi::c_void;
-    #[link(name = "psapi")]
-    unsafe extern "system" {
-        fn EmptyWorkingSet(hProcess: *mut c_void) -> i32;
-    }
-    #[link(name = "kernel32")]
-    unsafe extern "system" {
-        fn GetCurrentProcess() -> *mut c_void;
-    }
-    unsafe {
-        let handle = GetCurrentProcess();
-        if !handle.is_null() {
-            EmptyWorkingSet(handle);
+    <!-- ?? - ?? -->
+    <symbol id="icon-package" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+      <line x1="12" y1="22.08" x2="12" y2="12"/>
+    </symbol>
+
+    <!-- ?? - ?? -->
+    <symbol id="icon-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </symbol>
+
+    <!-- ??? - ?? -->
+    <symbol id="icon-toolbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+    </symbol>
+
+    <!-- ?? - ?? -->
+    <symbol id="icon-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </symbol>
+
+    <!-- ?? - ?? -->
+    <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </symbol>
+
+    <!-- Java - ??? -->
+    <symbol id="icon-java" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+      <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+      <line x1="6" y1="1" x2="6" y2="4"/>
+      <line x1="10" y1="1" x2="10" y2="4"/>
+      <line x1="14" y1="1" x2="14" y2="4"/>
+    </symbol>
+
+    <!-- ?? - ??? -->
+    <symbol id="icon-plugins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16.5 9.4 7.55 4.24"/>
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+      <line x1="12" y1="22.08" x2="12" y2="12"/>
+    </symbol>
+
+    <!-- ????? - ??? -->
+    <symbol id="icon-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+      <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+      <circle cx="6" cy="6" r="1" fill="currentColor"/>
+      <circle cx="6" cy="18" r="1" fill="currentColor"/>
+    </symbol>
+
+    <!-- ?? - ???? -->
+    <symbol id="icon-server-host" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2"/>
+      <path d="M8 21h8"/>
+      <path d="M12 17v4"/>
+      <path d="M10 10l4 2-4 2v-4z" fill="currentColor" stroke="none"/>
+    </symbol>
+
+    <!-- ???? - ????????? -->
+    <symbol id="icon-feedback" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.6 8.6 0 0 1-3.6-.8L3 21l1.8-5.5A8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5z"/>
+      <line x1="12.5" y1="7.5" x2="12.5" y2="12"/>
+      <circle cx="12.5" cy="15" r="0.9" fill="currentColor" stroke="none"/>
+    </symbol>
+  </svg>
+
+  <!-- ???? -->
+  <div id="splash-overlay" style="position:fixed;inset:0;z-index:999999;overflow:hidden;transition:opacity 0.3s ease,transform 0.3s ease;transform-origin:center center;background:var(--bg-primary, #ffffff);">
+    <div id="splash-content" style="position:relative;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;">
+      <div id="splash-logo" style="margin-bottom:20px;opacity:0;transform:translateY(20px) scale(0.95);">
+        <img src="img/icon.svg" alt="VersePC2" width="80" height="80"/>
+      </div>
+
+      <div id="splash-text" style="text-align:center;opacity:0;transform:translateY(10px);">
+        <div id="splash-title" style="font-size:28px;font-weight:800;letter-spacing:-0.03em;margin-bottom:6px;font-family:system-ui,-apple-system,sans-serif;">
+          Verse<span id="splash-title-accent">PC2</span>
+        </div>
+        <div id="splash-subtitle" style="font-size:13px;letter-spacing:0.15em;text-transform:uppercase;font-weight:500;">
+          Minecraft Launcher
+        </div>
+      </div>
+
+      <div id="splash-progress-container" style="margin-top:50px;width:200px;opacity:0;transform:translateY(10px);">
+        <div id="splash-track" style="position:relative;height:3px;border-radius:2px;overflow:hidden;">
+          <div id="splash-progress" style="position:absolute;top:0;left:0;height:100%;width:0%;border-radius:2px;transition:width 0.4s ease-out;"></div>
+        </div>
+        <div id="splash-status" style="margin-top:12px;font-size:11px;letter-spacing:0.05em;text-align:center;min-height:16px;">
+          ?????...
+        </div>
+      </div>
+    </div>
+
+    <div id="splash-version" style="position:absolute;bottom:20px;right:25px;font-size:10px;letter-spacing:0.1em;">
+      v1.3.3
+    </div>
+  </div>
+
+  <!-- ??????:splash ????? Tauri ?? API ????(?????????),???????????? -->
+  <script>
+    (function(){
+      var ids = ['splash-logo','splash-text','splash-progress-container'];
+      for (var i=0;i<ids.length;i++){
+        var el = document.getElementById(ids[i]);
+        if (el){ el.style.opacity='1'; el.style.transform='none'; el.style.animation='none'; }
+      }
+      // ??:splash ???,??? Tauri ?? API ????,??
+      try {
+        if (window.__TAURI__ && window.__TAURI__.window) {
+          window.__TAURI__.window.getCurrentWindow().show();
         }
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn trim_working_set() {
-    // 非 Windows 平台不做处理
-}
-
-/// 压缩整个进程树的工作集（本进程 + 所有 WebView2 子进程）。
-/// 说明：250MB 内存里绝大部分来自 WebView2 的渲染/GPU 子进程，
-/// 只压缩主进程意义不大；这里枚举子进程逐个压缩，任务管理器里的数字才会真正降下来。
-#[cfg(target_os = "windows")]
-fn trim_working_set_tree() {
-    use std::collections::HashMap;
-    use std::ffi::c_void;
-    use std::mem;
-
-    #[repr(C)]
-    struct PROCESSENTRY32W {
-        dwSize: u32,
-        cntUsage: u32,
-        th32ProcessID: u32,
-        th32DefaultHeapID: usize,
-        th32ModuleID: u32,
-        cntThreads: u32,
-        th32ParentProcessID: u32,
-        pcPriClassBase: i32,
-        dwFlags: u32,
-        szExeFile: [u16; 260],
-    }
-
-    #[link(name = "kernel32")]
-    unsafe extern "system" {
-        fn GetCurrentProcessId() -> u32;
-        fn CreateToolhelp32Snapshot(dwFlags: u32, th32ProcessID: u32) -> *mut c_void;
-        fn Process32FirstW(hSnapshot: *mut c_void, lppe: *mut PROCESSENTRY32W) -> i32;
-        fn Process32NextW(hSnapshot: *mut c_void, lppe: *mut PROCESSENTRY32W) -> i32;
-        fn OpenProcess(dwDesiredAccess: u32, bInheritHandle: i32, dwProcessId: u32) -> *mut c_void;
-        fn CloseHandle(hObject: *mut c_void) -> i32;
-    }
-    #[link(name = "psapi")]
-    unsafe extern "system" {
-        fn EmptyWorkingSet(hProcess: *mut c_void) -> i32;
-    }
-
-    const TH32CS_SNAPPROCESS: u32 = 0x0000_0002;
-    // OpenProcess 需要这两个权限才能打开 WebView2 子进程并压缩其工作集
-    const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
-    const PROCESS_SET_QUOTA: u32 = 0x0100;
-
-    unsafe {
-        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if snapshot.is_null() {
-            return;
+      } catch (e) {}
+      // ??:electronAPI ??????????
+      function _tryShow(){
+        if (window.electronAPI && window.electronAPI.showWindowEarly) {
+          window.electronAPI.showWindowEarly();
         }
-        let mut pe = PROCESSENTRY32W {
-            dwSize: mem::size_of::<PROCESSENTRY32W>() as u32,
-            cntUsage: 0,
-            th32ProcessID: 0,
-            th32DefaultHeapID: 0,
-            th32ModuleID: 0,
-            cntThreads: 0,
-            th32ParentProcessID: 0,
-            pcPriClassBase: 0,
-            dwFlags: 0,
-            szExeFile: [0; 260],
-        };
-        // 建立 父PID -> [子PID] 映射
-        let mut children: HashMap<u32, Vec<u32>> = HashMap::new();
-        if Process32FirstW(snapshot, &mut pe) != 0 {
-            loop {
-                children
-                    .entry(pe.th32ParentProcessID)
-                    .or_default()
-                    .push(pe.th32ProcessID);
-                if Process32NextW(snapshot, &mut pe) == 0 {
-                    break;
-                }
-            }
-        }
-        CloseHandle(snapshot);
+      }
+      _tryShow();
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _tryShow);
+      } else {
+        _tryShow();
+      }
+    })();
+  </script>
 
-        // 从当前进程出发，按进程树遍历所有后代并逐个压缩
-        let root = GetCurrentProcessId();
-        let mut stack: Vec<u32> = vec![root];
-        while let Some(pid) = stack.pop() {
-            if let Some(cs) = children.get(&pid) {
-                for &c in cs {
-                    stack.push(c);
-                }
-            }
-            if pid == root {
-                continue;
-            }
-            let handle = OpenProcess(
-                PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SET_QUOTA,
-                0,
-                pid,
-            );
-            if !handle.is_null() {
-                EmptyWorkingSet(handle);
-                CloseHandle(handle);
-            }
-        }
 
-        // 主进程自身也压一次
-        trim_working_set();
-    }
-}
+  <div id="wallpaper-bg" style="position:fixed;inset:0;z-index:0;background:var(--bg-primary,#0a0a0a);"></div>
+  <div id="wallpaper-video-container" style="position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;display:none;"></div>
+  <div id="wallpaper-web-container" style="position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;display:none;"></div>
+  <div id="wallpaper-scene-container" style="position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;display:none;"></div>
+  <canvas id="wallpaper-canvas" style="position:fixed;inset:0;z-index:0;pointer-events:none;width:100%;height:100%;"></canvas>
+  <canvas id="wallpaper-canvas-gl" style="position:fixed;inset:0;z-index:0;pointer-events:none;width:100%;height:100%;display:none;"></canvas>
+  <div id="wallpaper-overlay" style="position:fixed;inset:0;z-index:1;pointer-events:none;"></div>
+  <!-- ???????(Tauri):???????,?????????(????????????),????????????? -->
+  <div id="global-drag-strip" data-tauri-drag-region class="global-drag-strip"></div>
+  <!-- ???????:???,????,??? -->
+  <div class="floating-window-bar">
+    <div id="window-update-pill" class="window-update-pill" style="display:none" role="button" onclick="handleWindowUpdatePillClick()">
+      <span class="window-update-pill__spinner" id="window-update-pill-spinner"></span>
+      <span id="window-update-pill-text"></span>
+    </div>
+    <div class="floating-window-controls" id="window-controls" style="display:none">
+      <button class="win-btn win-btn-minimize" id="win-btn-minimize" title="???">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect y="5" width="12" height="1.5" fill="currentColor"/></svg>
+      </button>
+      <button class="win-btn win-btn-maximize" id="win-btn-maximize" title="???">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+      </button>
+      <button class="win-btn win-btn-restore" id="win-btn-restore" title="??" style="display:none">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="3" y="0" width="9" height="9" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="0" y="3" width="9" height="9" stroke="currentColor" stroke-width="1.2" fill="var(--bg-secondary)"/></svg>
+      </button>
+      <button class="win-btn win-btn-close" id="win-btn-close" title="??">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </div>
+  </div>
 
-#[cfg(not(target_os = "windows"))]
-fn trim_working_set_tree() {
-    trim_working_set();
-}
+  <!-- ???????:??,????????(?????,?????) -->
+  <button class="sidebar-toggle-fab" id="sidebar-toggle-btn" title="??/?????" aria-label="????????" aria-expanded="false">
+    <svg class="fab-icon-menu" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    <svg class="fab-icon-close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+  </button>
 
-/// 执行一次完整的内存优化
-/// 1. 提示前端做垃圾回收 + 壁纸挂起
-/// 2. 压缩整个进程树的工作集（含 WebView2 子进程，任务管理器里可见的内存明显下降）
-fn do_full_memory_optimize(app_handle: &tauri::AppHandle) {
-    // 1. 通知前端执行内存清理（壁纸挂起、释放可选缓存、提示GC）
-    if let Some(win) = app_handle.get_webview_window("main") {
-        let _ = win.emit("memory-optimize-request", ());
-    }
-    // 2. Windows API 工作集压缩（覆盖 WebView2 子进程，这步让任务管理器里的数字明显变小）
-    trim_working_set_tree();
-}
+  <!-- ????? -->
+  <div id="app" style="position:relative;z-index:2;">
+    <!-- ?????:????? #app ?????,??????????? -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <!-- ??? -->
+    <div class="main-container no-titlebar">
+      <!-- ????? -->
+      <nav class="sidebar">
+        <div class="sidebar-nav">
+          <button class="nav-btn active" data-page="home" title="??">
+            <svg class="nav-icon-svg"><use href="#icon-home"/></svg>
+            <span>??</span>
+          </button>
+          <button class="nav-btn" data-page="versions" title="??">
+            <svg class="nav-icon-svg"><use href="#icon-download"/></svg>
+            <span>??</span>
+          </button>
+          <div class="nav-submenu-group">
+            <button class="nav-btn nav-submenu-toggle" title="??">
+              <svg class="nav-icon-svg"><use href="#icon-package"/></svg>
+              <span>??</span>
+              <svg class="submenu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M7 10L12 15L17 10"/></svg>
+            </button>
+            <div class="nav-submenu">
+              <button class="nav-sub-btn" data-page="mods" title="??">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/></svg>
+                ??
+              </button>
+              <button class="nav-sub-btn" data-page="modpacks" title="???">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M12 2L21 7V17L12 22L3 17V7L12 2Z"/><path d="M12 8L16 10.5V15.5L12 18L8 15.5V10.5L12 8Z"/></svg>
+                ???
+              </button>
+              <button class="nav-sub-btn" data-page="datapacks" title="???">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="3" y="5" width="18" height="4"/><rect x="3" y="10" width="18" height="4"/><rect x="3" y="15" width="18" height="4"/><line x1="12" y1="5" x2="12" y2="9"/><line x1="12" y1="10" x2="12" y2="14"/><line x1="12" y1="15" x2="12" y2="19"/></svg>
+                ???
+              </button>
+              <button class="nav-sub-btn" data-page="resourcepacks" title="???">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect x="3" y="3" width="18" height="18"/><rect x="6" y="6" width="5" height="5"/><path d="M14 6H21V13"/><path d="M21 6L14 13"/><path d="M3 17L10 10"/></svg>
+                ???
+              </button>
+              <button class="nav-sub-btn" data-page="shaders" title="???">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><circle cx="12" cy="12" r="4"/><path d="M12 2V5"/><path d="M12 19V22"/><path d="M2 12H5"/><path d="M19 12H22"/><path d="M4.93 4.93L7.05 7.05"/><path d="M16.95 16.95L19.07 19.07"/><path d="M4.93 19.07L7.05 16.95"/><path d="M16.95 7.05L19.07 4.93"/></svg>
+                ???
+              </button>
+            </div>
+          </div>
+          <div class="nav-submenu-group" id="lan-submenu-group">
+            <button class="nav-btn nav-submenu-toggle" title="??">
+              <svg class="nav-icon-svg"><use href="#icon-globe"/></svg>
+              <span>??</span>
+              <svg class="submenu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M7 10L12 15L17 10"/></svg>
+            </button>
+            <div class="nav-submenu">
+              <button class="nav-btn" data-page="transfer" title="??">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+                ??
+              <button class="nav-sub-btn" data-page="lan-terracotta" title="????">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7"/><rect x="3" y="13" width="18" height="7"/><line x1="10" y1="4" x2="10" y2="11"/><line x1="15" y1="13" x2="15" y2="20"/></svg>
+                ????
+              </button>
+              <button class="nav-sub-btn" data-page="lan-portmap" title="????">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.4"/><path d="M7.6 7.6a6.2 6.2 0 0 0 0 8.8"/><path d="M16.4 7.6a6.2 6.2 0 0 1 0 8.8"/><path d="M4.7 4.7a10.3 10.3 0 0 0 0 14.6"/><path d="M19.3 4.7a10.3 10.3 0 0 1 0 14.6"/></svg>
+                ????
+              </button>
+              <button class="nav-sub-btn" data-page="lan-enderlink" title="EnderLink??">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/></svg>
+                EnderLink??
+              </button>
+              <button class="nav-sub-btn" data-page="private-server" title="???">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="3.2"/><path d="M22 20v-1.5a4 4 0 0 0-3-3.87"/><path d="M16.5 3.6a4 4 0 0 1 0 7.3"/></svg>
+                ???
+              </button>
+            </div>
+          </div>
+          <button class="nav-btn" data-page="toolbox" title="???">
+            <svg class="nav-icon-svg"><use href="#icon-toolbox"/></svg>
+            <span>???</span>
+          </button>
+          <button class="nav-btn" data-page="accounts" title="??">
+            <svg class="nav-icon-svg"><use href="#icon-user"/></svg>
+            <span>??</span>
+          </button>
+          <div class="nav-submenu-group" id="settings-submenu-group">
+            <button class="nav-btn nav-submenu-toggle" title="??">
+              <svg class="nav-icon-svg"><use href="#icon-settings"/></svg>
+              <span>??</span>
+              <svg class="submenu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><path d="M7 10L12 15L17 10"/></svg>
+            </button>
+            <div class="nav-submenu">
+              <button class="nav-sub-btn" data-page="settings-launch" title="????">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2"/><path d="M12.5 4.5c3-3 7-2.5 7-2.5s.5 4-2.5 7l-4.5 4.5-4-4z"/><circle cx="15" cy="9" r="1.4"/></svg>
+                ??
+              </button>
+              <button class="nav-sub-btn" data-page="settings-personalize" title="?????">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1.1.9-2 2-2h2.5A5.5 5.5 0 0 0 22 12 10 10 0 0 0 12 2z"/><circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none"/><circle cx="16" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="6.5" cy="13" r="1.2" fill="currentColor" stroke="none"/></svg>
+                ???
+              </button>
+              <button class="nav-sub-btn" data-page="settings-other" title="????">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="8" r="2.2"/><circle cx="15" cy="16" r="2.2"/></svg>
+                ??
+              </button>
+            </div>
+          </div>
+          <button class="nav-btn" data-page="java" title="Java??">
+            <svg class="nav-icon-svg"><use href="#icon-java"/></svg>
+            <span>Java</span>
+          </button>
+          <button class="nav-btn nav-btn-experimental" data-page="plugins" title="??" id="nav-plugins-btn">
+            <span class="nav-btn-experimental-badge">??</span>
+            <svg class="nav-icon-svg"><use href="#icon-plugins"/></svg>
+            <span>??</span>
+          </button>
+        </div>
+        <div class="sidebar-footer">
+          <button class="nav-btn" data-page="feedback" title="????">
+            <svg class="nav-icon-svg"><use href="#icon-feedback"/></svg>
+            <span>??</span>
+          </button>
+        </div>
+      </nav>
 
-// ============== 窗口控制 ==============
+      <div class="content-area">
+        <div id="page-home" class="page active">
+          <!-- Vue ?????:??? PageHome ???? -->
+        </div>
 
-#[tauri::command]
-fn window_minimize(window: tauri::WebviewWindow) {
-    let _ = window.minimize();
-}
+        <div id="page-versions" class="page">
+          <!-- Vue ?????:??? PageVersions ???? -->
+        </div>
 
-#[tauri::command]
-fn window_maximize(window: tauri::WebviewWindow) {
-    if window.is_fullscreen().unwrap_or(false) {
-        let _ = window.set_fullscreen(false);
-    } else if window.is_maximized().unwrap_or(false) {
-        let _ = window.unmaximize();
-    } else {
-        let _ = window.maximize();
-    }
-}
+      <div id="page-installed-versions" class="page">
+        <!-- Vue ?????:??? PageInstalledVersions ???? -->
+      </div>
 
-/// 显示主窗口（前端 splash 首屏渲染完成后调用，避免启动时"黑屏闪一下"）
-#[tauri::command]
-fn window_show(window: tauri::WebviewWindow) {
-    if !window.is_visible().unwrap_or(false) {
-        let _ = window.show();
-        let _ = window.set_focus();
-    }
-}
+      <div id="page-version-detail" class="page">
+        <!-- Vue ?????:??? PageVersionDetail ???? -->
+      </div>
 
-#[tauri::command]
-async fn window_close(window: tauri::WebviewWindow) {
-    // 自动更新：若已有下载完成的更新包，直接进入"替换+重启"流程（安装脚本会退出进程并重启新版本），
-    // 不再播放关闭动画，避免旧进程占用 exe 导致替换失败。
-    if crate::updater::auto_install_on_close(&window.app_handle()) {
+      <div id="page-version-settings" class="page">
+        <!-- Vue ?????:??? PageVersionSettings ???? -->
+      </div>
+
+      <div id="page-mods" class="page">
+        <!-- Vue ?????:??? PageMods ???? -->
+      </div>
+
+        <div id="page-mod-detail" class="page">
+          <!-- Vue ?????:??? PageModDetail ???? -->
+        </div>
+
+        <div id="page-mod-favorites" class="page">
+          <!-- Vue ?????:??? PageModFavorites ???? -->
+        </div>
+
+        <div id="page-modpacks" class="page">
+          <!-- Vue ?????:??? PageModpacks ???? -->
+        </div>
+
+        <div id="page-datapacks" class="page">
+          <!-- Vue ?????:??? PageDatapacks ???? -->
+        </div>
+
+        <div id="page-resourcepacks" class="page">
+          <!-- Vue ?????:??? PageResourcepacks ???? -->
+        </div>
+
+        <div id="page-shaders" class="page">
+          <!-- Vue ?????:??? PageShaders ???? -->
+        </div>
+
+        <div id="page-lan-terracotta" class="page">
+          <div id="page-transfer" class="page"></div>
+          <!-- Vue ?????:??? PageLanTerracotta ???? -->
+        </div>
+
+        <div id="page-lan-portmap" class="page">
+          <!-- Vue ?????:??? PageLanPortmap ???? -->
+        </div>
+
+        <div id="page-lan-enderlink" class="page">
+          <!-- Vue ?????:??? PageLanEnderlink ???? -->
+        </div>
+
+        <div id="page-plugins" class="page">
+          <!-- Vue ?????:??? PagePlugins ???? -->
+        </div>
+
+        <div id="page-private-server" class="page">
+          <!-- ???????(???,????????) -->
+        </div>
+
+        <div id="page-toolbox" class="page">
+          <!-- Vue ?????:??? PageToolbox ???? -->
+        </div>
+
+        <div id="page-accounts" class="page">
+          <!-- Vue ?????:??? PageAccounts ???? -->
+        </div>
+
+        <div id="game-launch-overlay" class="launch-overlay" style="display:none">
+          <button class="launch-back-btn" onclick="cancelLaunchFlow()" title="????">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>??</span>
+          </button>
+          <div class="launch-splash-content">
+            <div id="launch-splash-logo" class="launch-splash-logo">
+              <div class="spinner" style="width:120px;height:120px;color:var(--accent,#4a9eff)" role="status"></div>
+            </div>
+            <div class="launch-splash-progress-container">
+              <div id="launch-splash-track" class="launch-splash-track">
+                <div id="launch-splash-progress" class="launch-splash-progress"></div>
+              </div>
+              <div id="launch-splash-status" class="launch-splash-status">????????...</div>
+            </div>
+            <div class="launch-splash-error" id="launch-error-section" style="display:none">
+              <div class="launch-splash-error-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              </div>
+              <div class="launch-splash-error-text">
+                <div class="launch-splash-error-title">????</div>
+                <div class="launch-splash-error-msg" id="launch-error-msg">????</div>
+                <button class="btn btn-secondary btn-sm" onclick="exportGameLog()" style="margin-top:8px;font-size:11px">????</button>
+              </div>
+            </div>
+            <div class="launch-splash-repair" id="launch-repair-guide" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="20" height="20"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <span>??????,???<strong>??????</strong>??<strong>??????</strong>?????</span>
+              <button class="btn btn-accent btn-sm" onclick="openVersionSettingsForRepair()">??</button>
+            </div>
+            <div id="launch-log-section" style="display:none;margin-top:12px">
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">????</div>
+              <div id="launch-log-output" style="background:var(--bg-primary);border-radius:6px;padding:8px;max-height:150px;overflow-y:auto;font-family:monospace;font-size:11px;color:var(--text-secondary);white-space:pre-wrap;word-break:break-all"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ??????? -->
+        <div id="support-modal" class="modal" style="display:none">
+          <div class="modal-content support-modal-content">
+            <div class="support-modal-body">
+              <div class="support-modal-title">??????!</div>
+              <div class="support-modal-subtitle">????? VersePC2 ?? <span class="support-modal-count" id="support-modal-count">0</span> ??</div>
+              <div class="support-modal-desc">????,??????????</div>
+              <div class="support-modal-actions">
+                <button class="btn btn-accent" onclick="openSupportPage()">
+                  ???
+                </button>
+                <button class="btn btn-secondary" onclick="dismissSupportModal()">????</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ?????? -->
+        <div id="announcement-modal" class="modal" style="display:none" data-no-close-on-backdrop>
+          <div class="modal-content announcement-modal-content">
+            <div class="modal-header">
+              <h3>????</h3>
+              <button class="modal-close" onclick="dismissAnnouncementModal()">&times;</button>
+            </div>
+            <div class="modal-body announcement-modal-body">
+              <div class="announcement-version" id="announcement-version-badge"></div>
+              <div class="announcement-content" id="announcement-content">
+                <p>??????</p>
+              </div>
+            </div>
+            <div class="modal-footer announcement-modal-footer">
+              <label class="checkbox-label announcement-checkbox">
+                <input type="checkbox" id="announcement-dismiss-check">
+                <span>????????</span>
+              </label>
+              <div style="display:flex;gap:8px;margin-left:auto;">
+                <button class="modal-btn modal-btn--secondary" onclick="announcementGotoUpdateSettings()">????</button>
+                <button class="modal-btn modal-btn--primary" onclick="dismissAnnouncementModal()">????</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="update-modal" class="modal" style="display:none">
+          <div class="modal-content announcement-modal-content" style="max-width:520px;">
+            <div class="modal-header">
+              <h3 id="update-modal-title">?????</h3>
+              <button class="modal-close" onclick="dismissUpdateModal()">&times;</button>
+            </div>
+            <div class="modal-body announcement-modal-body">
+              <div class="announcement-version" id="update-modal-version"></div>
+              <div class="announcement-content" id="update-modal-content">
+                <p>??????</p>
+              </div>
+            </div>
+            <div class="modal-footer announcement-modal-footer" style="justify-content:flex-end;gap:10px;">
+              <button class="modal-btn modal-btn--primary" id="update-modal-goto-btn" onclick="gotoUpdateSettings()">????</button>
+              <button class="modal-btn modal-btn--secondary" id="update-modal-quark-btn" onclick="downloadFromQuark()">??????</button>
+              <button class="modal-btn modal-btn--primary" id="update-modal-acknowledge-btn" onclick="dismissUpdateModal()" style="display:none;">????</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="screenshot-modal" class="modal" style="display:none;">
+          <div class="modal-content" style="max-width:800px;">
+            <div class="modal-header">
+              <h3>????</h3>
+              <button class="modal-close" onclick="closeScreenshotModal()">&times;</button>
+            </div>
+            <div id="screenshot-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;max-height:60vh;overflow-y:auto;padding:12px;">
+            </div>
+          </div>
+        </div>
+
+        <div id="page-settings-launch" class="page">
+          <!-- Vue ?????:??? PageSettingsLaunch ???? -->
+        </div>
+
+        <div id="page-settings-personalize" class="page">
+          <!-- Vue ?????:??? PageSettingsPersonalize ???? -->
+        </div>
+
+        <div id="page-settings-other" class="page">
+          <!-- Vue ?????:??? PageSettingsOther ???? -->
+        </div>
+
+        <div id="page-java" class="page">
+          <!-- Vue ?????:??? PageJava ???? -->
+        </div>
+
+
+
+        <div id="page-downloads" class="page">
+          <!-- Vue ?????:??? PageDownloads ???? -->
+        </div>
+
+        <div id="page-feedback" class="page">
+          <!-- Vue ?????:??? PageFeedback ???? -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ??? -->
+    <div class="launch-bar">
+      <div class="launch-bar-left">
+        <div class="custom-select" id="launch-version-select-wrapper">
+          <div class="custom-select-trigger" id="launch-version-select-trigger">
+            <span class="custom-select-value placeholder" id="launch-version-select-value">????...</span>
+            <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+          <div class="custom-select-dropdown" id="launch-version-select-dropdown">
+            <div class="custom-select-options" id="launch-version-select-options"></div>
+          </div>
+        </div>
+        <div class="launch-account-info">
+          <div class="account-avatar-sm" id="launch-avatar"><img src="img/icon.png" alt="" class="account-avatar-img"></div>
+          <span id="launch-player-name">Player</span>
+        </div>
+      </div>
+      <div class="launch-bar-right">
+        <button id="launch-btn" class="btn btn-launch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>????</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="dl-fab" class="dl-fab" style="display:none" onclick="navigateToPage('downloads')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span class="dl-fab-badge" id="dl-fab-badge" style="display:none">0</span>
+    </div>
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- ??????(????)                                                 -->
+  <!--                                                                        -->
+  <!-- 1. js/utils.js / js/api.js  ????:API ????????             -->
+  <!-- 2. js/app/*.js             ??????:?????? API??? DOM    -->
+  <!--    - ?? HTML ??(??? js/vue/ ?)                                -->
+  <!--    - ???:utils.js / ui-components.js / custom-select.js ?          -->
+  <!--    - ???:versions.js / launch.js / mod-browse.js ?                -->
+  <!-- 3. js/vue/*.js             ?????:Vue template ???              -->
+  <!--    - ?? HTML ??,?????? js/app/*.js ????                 -->
+  <!--    - ??????? vue/,??? app/ ?? HTML ???                  -->
+  <!-- ====================================================================== -->
+  <!-- Tauri ???:? Tauri ????? window.electronAPI,??????? js ???? -->
+  <script src="js/tauri-bridge.js" defer></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/wallpaper-engine.js" defer></script>
+  <script src="js/rose-loader.js" defer></script>
+
+  <!-- ???????(js/app/):?????? API??? DOM -->
+  <script src="js/app/lan.js" defer></script>
+  <script src="js/app/private-server.js" defer></script>
+  <script src="js/app/favorites.js" defer></script>
+  <script src="js/app/mod-detail.js" defer></script>
+  <script src="js/app/mod-install.js" defer></script>
+  <script src="js/app/skin-figure.js" defer></script>
+  <script src="js/app/accounts.js" defer></script>
+  <script src="js/app/launch.js" defer></script>
+  <script src="js/app/java.js" defer></script>
+  <script src="js/app/versions.js" defer></script>
+  <script src="js/app/mod-browse.js" defer></script>
+  <script src="js/app/sponsors.js" defer></script>
+  <script src="js/app/dino-game.js" defer></script>
+  <script src="js/app/custom-theme.js" defer></script>
+  <script src="js/app/liquid-glass.js" defer></script>
+  <script src="js/app/personalize.js" defer></script>
+  <script src="js/app/other-settings.js" defer></script>
+  <script src="js/app/utils.js" defer></script>
+  <script src="js/app/custom-select.js" defer></script>
+  <script src="js/app/resource.js" defer></script>
+  <script src="js/app/version-settings.js" defer></script>
+  <script src="js/app/launch-settings.js" defer></script>
+  <script src="js/app/announcement.js" defer></script>
+  <script src="js/app/window-theme.js" defer></script>
+  <script src="js/app/settings-misc.js" defer></script>
+  <script src="js/app/ui-components.js" defer></script>
+  <script src="js/app/custom-download.js" defer></script>
+  <script src="js/app/java-mgr.js" defer></script>
+  <script src="js/app/console-log.js" defer></script>
+  <script src="js/app/feedback.js" defer></script>
+  <script src="js/app/settings-load-save.js" defer></script>
+  <script src="js/app/init-setup.js" defer></script>
+  <script src="js/app.js" defer></script>
+  <script src="js/mod-slug-map.js" defer></script>
+  <!-- mod-chinese-names.js ???? -->
+  <!-- file-browser.js ???? -->
+  <!-- crashAnalyzerUI.js ???? -->
+  <!-- v-island/dynamic-island.js ???? -->
+  <!-- modpack-import.js ???? -->
+  <!-- updater-ui.js ???? -->
+
+  <!-- ?????(js/vue/):Vue template ???,???? js/app/*.js -->
+  <!-- ?? Vue 3 ??? -->
+  <script src="js/vue.global.prod.js" defer></script>
+  <script src="js/vue/pinned-store.js" defer></script>
+  <script src="js/vue/page-home.js" defer></script>
+  <script src="js/vue/page-versions.js" defer></script>
+  <script src="js/vue/page-installed-versions.js" defer></script>
+  <script src="js/vue/page-version-detail.js" defer></script>
+  <script src="js/vue/page-version-settings.js" defer></script>
+  <script src="js/vue/page-mods.js" defer></script>
+  <script src="js/vue/page-mod-detail.js" defer></script>
+  <script src="js/vue/page-mod-favorites.js" defer></script>
+  <script src="js/vue/page-modpacks.js" defer></script>
+  <script src="js/vue/page-datapacks.js" defer></script>
+  <script src="js/vue/page-resourcepacks.js" defer></script>
+  <script src="js/vue/page-shaders.js" defer></script>
+  <script src="js/vue/page-lan-terracotta.js" defer></script>
+          <script src="js/vue/page-transfer.js" defer></script>
+  <script src="js/vue/page-lan-portmap.js" defer></script>
+  <script src="js/vue/page-lan-enderlink.js" defer></script>
+  <script src="js/vue/page-plugins.js" defer></script>
+  <script src="js/app/plugin-runtime.js" defer></script>
+  <script src="js/vue/page-private-server.js" defer></script>
+  <script src="js/app/server-host.js" defer></script>
+  <script src="js/vue/page-server-host.js" defer></script>
+  <script src="js/vue/page-toolbox.js" defer></script>
+  <script src="js/vue/page-accounts.js" defer></script>
+  <script src="js/vue/page-settings-launch.js" defer></script>
+  <script src="js/vue/page-settings-personalize.js" defer></script>
+  <script src="js/vue/page-settings-other.js" defer></script>
+  <script src="js/vue/page-java.js" defer></script>
+  <script src="js/vue/page-downloads.js" defer></script>
+  <script src="js/vue/page-feedback.js" defer></script>
+  <script>
+    // ?? Vue ???????(????,?????????????)
+    // ????????(??????),????? requestIdleCallback ????
+    // ????(loadAccounts ?)??? window._vueMountDone=true ????,??????
+    window.addEventListener('DOMContentLoaded', function() {
+      if (!window.Vue || !window.VersePC) {
+        window._vueMountDone = true;
+        if (window._vueMountResolve) window._vueMountResolve();
         return;
-    }
+      }
 
-    // 关闭前触发前端 CSS 关闭动画
-    let _ = window.emit("request-close-animate", ());
+      // ???:????????,???????
+      if (window.VersePC.PageHome) Vue.createApp(PageHome).mount('#page-home');
 
-    let win = window.clone();
-    tauri::async_runtime::spawn(async move {
-        let (start_x, start_y, win_h) = match win.outer_position() {
-            Ok(pos) => {
-                let h = win
-                    .inner_size()
-                    .ok()
-                    .map(|s| s.height as i32)
-                    .unwrap_or(800);
-                (pos.x, pos.y, h)
-            }
-            Err(_) => return,
-        };
+      // ??????(21 ?),? requestIdleCallback ????
+      var _otherPages = [
+        ['PageVersions', '#page-versions'],
+        ['PageInstalledVersions', '#page-installed-versions'],
+        ['PageVersionDetail', '#page-version-detail'],
+        ['PageVersionSettings', '#page-version-settings'],
+        ['PageMods', '#page-mods'],
+        ['PageModDetail', '#page-mod-detail'],
+        ['PageModFavorites', '#page-mod-favorites'],
+        ['PageModpacks', '#page-modpacks'],
+        ['PageDatapacks', '#page-datapacks'],
+        ['PageResourcepacks', '#page-resourcepacks'],
+        ['PageShaders', '#page-shaders'],
+        ['PageLanTerracotta', '#page-lan-terracotta'],
+        ['PageLanPortmap', '#page-lan-portmap'],
+        ['PageLanEnderlink', '#page-lan-enderlink'],
+        ['PageTransfer', '#page-transfer'],
+        ['PagePlugins', '#page-plugins'],
+        ['PagePrivateServer', '#page-private-server'],
+        ['PageToolbox', '#page-toolbox'],
+        ['PageAccounts', '#page-accounts'],
+        ['PageSettingsLaunch', '#page-settings-launch'],
+        ['PageSettingsPersonalize', '#page-settings-personalize'],
+        ['PageSettingsOther', '#page-settings-other'],
+        ['PageJava', '#page-java'],
+        ['PageDownloads', '#page-downloads'],
+        ['PageFeedback', '#page-feedback']
+      ];
 
-        // 移动距离 = 窗口高度 + 100px，确保完全移出屏幕
-        let distance = win_h + 100;
-        let target_y = start_y - distance;
-        // 总时长 300ms，20 步×15ms
-        let steps = 20u32;
-        let step_delay_ms = 15u64;
+      window._vueMountDone = false;
+      var _batchSize = 4;   // ???? 4 ?,???????? UI ??
+      var _idx = 0;
 
-        for i in 1..=steps {
-            tokio::time::sleep(std::time::Duration::from_millis(step_delay_ms)).await;
-            let progress = i as f64 / steps as f64;
-            // easeOutCubic 缓动：先快后慢
-            let eased = 1.0 - (1.0 - progress).powi(3);
-            let y = start_y + ((target_y - start_y) as f64 * eased) as i32;
-            let _ = win.set_position(Position::Physical(PhysicalPosition {
-                x: start_x,
-                y,
-            }));
+      function _mountBatch() {
+        var end = Math.min(_idx + _batchSize, _otherPages.length);
+        for (; _idx < end; _idx++) {
+          var name = _otherPages[_idx][0];
+          var sel = _otherPages[_idx][1];
+          try {
+            if (window.VersePC[name]) Vue.createApp(window.VersePC[name]).mount(sel);
+          } catch (e) { console.error('Vue mount failed:', name, e); }
         }
-        let _ = win.hide();
-        let _ = win.close();
+        if (_idx >= _otherPages.length) {
+          // ????????,???????????
+          window._vueMountDone = true;
+          if (window._vueMountResolve) window._vueMountResolve();
+          return;
+        }
+        // ?????,?????????
+        (window.requestIdleCallback || function(cb){ return setTimeout(cb, 16); })(_mountBatch, { timeout: 100 });
+      }
+
+      // ? setTimeout(0) ????????,? splash ????????
+      setTimeout(function() {
+        (window.requestIdleCallback || function(cb){ return setTimeout(cb, 16); })(_mountBatch, { timeout: 100 });
+      }, 0);
     });
-}
+  </script>
 
-#[tauri::command]
-fn window_destroy(window: tauri::WebviewWindow) {
-    let _ = window.close();
-}
+  <!-- ????????:????????,?????? -->
+  <script>
+    (function() {
+      var _lazyScripts = [
+        'js/mod-chinese-names.js',
+        'js/file-browser.js',
+        'js/crashAnalyzerUI.js',
+        'js/modpack-import.js',
+        'js/updater-ui.js',
+        'v-island/dynamic-island.js'
+      ];
+      function _loadLazyScripts() {
+        _lazyScripts.forEach(function(src) {
+          var s = document.createElement('script');
+          s.src = src;
+          s.async = false;
+          document.head.appendChild(s);
+        });
+      }
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        setTimeout(_loadLazyScripts, 50);
+      } else {
+        window.addEventListener('DOMContentLoaded', function() {
+          setTimeout(_loadLazyScripts, 50);
+        });
+      }
+    })();
+  </script>
 
-#[tauri::command]
-fn open_devtools(window: tauri::WebviewWindow) {
-    window.open_devtools();
-}
+  <!-- ?????? -->
+  <div id="mod-translate-modal" class="modal" style="display:none">
+    <div class="modal-content" style="max-width:560px;">
+      <div class="modal-header">
+        <h3>????</h3>
+        <button class="modal-close" onclick="hideModal('mod-translate-modal')">&times;</button>
+      </div>
+      <div class="modal-body" id="mod-translate-body">
+        <div id="mod-translate-loading" style="text-align:center;padding:30px 0;">
+          <div class="modal-spinner"></div>
+          <p style="color:var(--text-muted);margin-top:12px;">??????????...</p>
+        </div>
+        <div id="mod-translate-content" style="display:none;">
+          <div id="mod-translate-info" style="margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:8px;">
+            <div style="font-weight:600;margin-bottom:4px;" id="mod-translate-modname"></div>
+            <div style="font-size:12px;color:var(--text-muted);" id="mod-translate-langinfo"></div>
+          </div>
+          <div id="mod-translate-tabs" style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border-color);">
+            <button class="mod-translate-tab active" data-tab="quick" onclick="switchTranslateTab('quick')">????</button>
+            <button class="mod-translate-tab" data-tab="auto" onclick="switchTranslateTab('auto')">AI ??</button>
+            <button class="mod-translate-tab" data-tab="manual" onclick="switchTranslateTab('manual')">????</button>
+          </div>
+          <div id="mod-translate-tab-quick" class="mod-translate-panel">
+            <p style="color:var(--text-secondary);font-size:13px;line-height:1.7;margin-bottom:12px;">
+              ??????????,????,??????????,???????
+            </p>
+            <div id="mod-translate-quick-progress" style="display:none;margin-bottom:12px;">
+              <div style="height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;">
+                <div id="mod-translate-quick-progress-bar" style="height:100%;width:0%;background:var(--accent-color);transition:width 0.3s;"></div>
+              </div>
+              <p id="mod-translate-quick-progress-text" style="font-size:12px;color:var(--text-muted);margin-top:6px;">???...</p>
+            </div>
+            <div id="mod-translate-quick-result" style="display:none;padding:10px 12px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
+            <button class="btn btn-primary" id="mod-translate-quick-btn" onclick="startQuickTranslate()">
+              ??????
+            </button>
+          </div>
+          <div id="mod-translate-tab-auto" class="mod-translate-panel" style="display:none;">
+            <p style="color:var(--text-secondary);font-size:13px;line-height:1.7;margin-bottom:12px;">
+              ???????????????,?????????????? AI ??,???????????
+            </p>
+            <div id="mod-translate-ai-warning" style="display:none;padding:10px 12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;margin-bottom:12px;font-size:12px;color:#f59e0b;">
+              ??? AI ???,??? V?????? AI ?????
+            </div>
+            <div id="mod-translate-progress" style="display:none;margin-bottom:12px;">
+              <div style="height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;">
+                <div id="mod-translate-progress-bar" style="height:100%;width:0%;background:var(--accent-color);transition:width 0.3s;"></div>
+              </div>
+              <p id="mod-translate-progress-text" style="font-size:12px;color:var(--text-muted);margin-top:6px;">???...</p>
+            </div>
+            <div id="mod-translate-result" style="display:none;padding:10px 12px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
+            <button class="btn btn-primary" id="mod-translate-start-btn" onclick="startAutoTranslate()">
+              ????
+            </button>
+          </div>
+          <div id="mod-translate-tab-manual" class="mod-translate-panel" style="display:none;">
+            <p style="color:var(--text-secondary);font-size:13px;line-height:1.7;margin-bottom:12px;">
+              ????????????,????????????
+            </p>
+            <div style="background:var(--bg-secondary);border-radius:8px;padding:14px 16px;margin-bottom:12px;">
+              <ol style="margin:0;padding-left:20px;color:var(--text-secondary);font-size:13px;line-height:2;">
+                <li>????"??????"??,???????????</li>
+                <li>????? <code style="background:var(--bg-tertiary);padding:2px 6px;border-radius:3px;">en_us.json</code> ??</li>
+                <li>??????????(?????????)</li>
+                <li>?????? <code style="background:var(--bg-tertiary);padding:2px 6px;border-radius:3px;">zh_cn.json</code></li>
+                <li>??"????????"???????????</li>
+              </ol>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary" onclick="exportModLangFile()">??????</button>
+              <button class="btn btn-secondary" onclick="importModLangFile()">????????</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="mod-translate-file-input" style="display:none" accept=".json,.lang">
 
-/// 记录启动阶段耗时（诊断用）：把前端 init() 各阶段耗时追加写入 logs/startup-timing.log
-#[tauri::command]
-fn write_startup_timing(content: String) -> bool {
-    let dir = storage::resolve_data_dir().join("logs");
-    let _ = std::fs::create_dir_all(&dir);
-    use std::io::Write;
-    let ts = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
-    std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(dir.join("startup-timing.log"))
-        .and_then(|mut f| {
-            writeln!(f, "[{}] {}", ts, content)
-        })
-        .is_ok()
-}
-
-#[tauri::command]
-fn window_is_maximized(window: tauri::WebviewWindow) -> bool {
-    window.is_maximized().unwrap_or(false)
-}
-
-#[tauri::command]
-fn window_is_fullscreen(window: tauri::WebviewWindow) -> bool {
-    window.is_fullscreen().unwrap_or(false)
-}
-
-#[tauri::command]
-fn window_restore(window: tauri::WebviewWindow) {
-    if window.is_minimized().unwrap_or(false) {
-        let _ = window.unminimize();
-    }
-    let _ = window.set_focus();
-}
-
-#[tauri::command]
-fn window_is_minimized(window: tauri::WebviewWindow) -> bool {
-    window.is_minimized().unwrap_or(false)
-}
-
-#[tauri::command]
-fn window_set_size(window: tauri::WebviewWindow, width: f64, height: f64) -> bool {
-    use tauri::LogicalSize;
-    window.set_size(LogicalSize { width, height }).is_ok()
-}
-
-#[tauri::command]
-fn get_app_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
-}
-
-// ============== 设置存储命令（store.json KV 存储） ==============
-#[tauri::command]
-fn store_get(state: tauri::State<storage::Store>, key: String) -> Option<Value> {
-    state.get(&key)
-}
-
-#[tauri::command]
-fn store_set(state: tauri::State<storage::Store>, key: String, value: Value) -> bool {
-    state.set(key, value)
-}
-
-#[tauri::command]
-fn store_delete(state: tauri::State<storage::Store>, key: String) -> bool {
-    state.delete(&key)
-}
-
-// ============== 系统工具命令 ==============
-
-#[tauri::command]
-fn open_external(url: String) -> bool {
-    // 在默认浏览器中打开 URL（支持 http/https/mailto 等协议）
-    // 使用 `open` crate，跨平台实现
-    if !url.starts_with("http://") && !url.starts_with("https://") && !url.starts_with("mailto:") {
-        return false;
-    }
-    match open::that(&url) {
-        Ok(_) => true,
-        Err(e) => {
-            eprintln!("[open_external] 打开 URL 失败: {} - {}", url, e);
-            false
-        }
-    }
-}
-
-// ============== 路径获取命令 ==============
-
-#[tauri::command]
-fn get_default_mod_path(
-    state: tauri::State<storage::Store>,
-    version_id: Option<String>,
-) -> Value {
-    let data_dir = storage::resolve_data_dir();
-    let versions_dir = data_dir.join("versions");
-    let settings_file = data_dir.join("settings.json");
-    let minecraft_dir = dirs::home_dir()
-        .map(|h| h.join(".minecraft"))
-        .unwrap_or_else(|| data_dir.clone());
-
-    // 读取 settings.json
-    let settings: Value = std::fs::read_to_string(&settings_file)
-        .ok()
-        .and_then(|c| serde_json::from_str(&c).ok())
-        .unwrap_or(Value::Null);
-
-    let requested = version_id.unwrap_or_default();
-
-    let mut version_id = settings
-        .get("selectedVersion")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    // 没有选中版本则取 versions 目录下第一个子目录
-    if version_id.is_empty() {
-        if let Ok(entries) = std::fs::read_dir(&versions_dir) {
-            for entry in entries.flatten() {
-                if entry.path().is_dir() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        version_id = name.to_string();
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    // 显式传入且为已安装版本目录时，以传入版本为准
-    if !requested.is_empty() {
-        let cand = versions_dir.join(&requested);
-        if cand.is_dir() {
-            version_id = requested;
-        }
-    }
-
-    // 没有版本：回退到 .minecraft/mods
-    if version_id.is_empty() {
-        let default_path = minecraft_dir.join("mods");
-        let _ = std::fs::create_dir_all(&default_path);
-        return json!({ "success": true, "path": default_path.to_string_lossy() });
-    }
-
-    // 判断游戏目录
-    let game_dir;
-    if version_id.contains("[外部]") {
-        let folders = state
-            .get("externalVersionFolders")
-            .and_then(|v| v.as_array().cloned());
-        let clean_id = version_id.replace(" [外部]", "").replace("[外部]", "");
-        let mut found = None;
-        if let Some(arr) = folders {
-            for folder in arr {
-                if let Some(fs) = folder.as_str() {
-                    let candidate = std::path::PathBuf::from(fs).join(&clean_id);
-                    if candidate.exists() {
-                        found = Some(candidate);
-                        break;
-                    }
-                    let candidate2 = std::path::PathBuf::from(fs).join(&version_id);
-                    if candidate2.exists() {
-                        found = Some(candidate2);
-                        break;
-                    }
-                }
-            }
-        }
-        game_dir = found.unwrap_or_else(|| versions_dir.join(clean_id));
-    } else {
-        // 读取版本设置判断隔离
-        let ver_settings_file = versions_dir.join(&version_id).join("version-settings.json");
-        let mut effective_isolation: Option<bool> = None;
-        if let Ok(content) = std::fs::read_to_string(&ver_settings_file) {
-            if let Ok(vs) = serde_json::from_str::<Value>(&content) {
-                match vs.get("isolation").and_then(|v| v.as_str()) {
-                    Some("on") => effective_isolation = Some(true),
-                    Some("off") => effective_isolation = Some(false),
-                    _ => {}
-                }
-            }
-        }
-        if effective_isolation.is_none() {
-            effective_isolation = Some(
-                settings
-                    .get("versionIsolation")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(true),
-            );
-        }
-        let eff = effective_isolation.unwrap_or(true);
-        if !eff {
-            let version_dir = versions_dir.join(&version_id);
-            let has_mods = version_dir.join("mods").exists();
-            let has_saves = version_dir.join("saves").exists();
-            let has_config = version_dir.join("config").exists();
-            if has_mods || has_saves || has_config {
-                game_dir = version_dir;
-            } else {
-                game_dir = settings
-                    .get("gameDir")
-                    .and_then(|v| v.as_str())
-                    .map(std::path::PathBuf::from)
-                    .unwrap_or(data_dir);
-            }
-        } else {
-            game_dir = versions_dir.join(&version_id);
-        }
-    }
-
-    let default_path = game_dir.join("mods");
-    let _ = std::fs::create_dir_all(&default_path);
-    eprintln!("[get_default_mod_path] version={} path={}", version_id, default_path.display());
-    json!({ "success": true, "path": default_path.to_string_lossy() })
-}
-
-/// 解析下载 Mod 时的默认保存文件夹。
-/// 查找顺序：
-///   1. 当前选中版本兼容（游戏版本 + 加载器匹配）时，使用其 mods 文件夹
-///   2. 否则在全部已安装版本中找兼容版本，按其 mods 文件夹的修改时间、文件数择优
-///   3. 否则回退到 MC 根目录的 mods 文件夹
-/// 返回 { path, compatible, selectedCompatible }
-#[tauri::command]
-fn get_default_mod_save_folder(game_version: String, loader: String) -> Value {
-    let settings = storage::load_settings();
-    let data_dir = storage::resolve_data_dir();
-
-    let allowed = match loader.to_lowercase().as_str() {
-        "forge" => 1,
-        "liteloader" => 2,
-        "fabric" => 4,
-        "neoforge" => 16,
-        _ => 0,
-    };
-    eprintln!(
-        "[mod-folder] 输入: game={:?} loader={:?} allowed_mask={}",
-        game_version, loader, allowed
-    );
-
-    // 收集已安装版本：(id, 原版版本名, 加载器掩码)
-    let mut versions: Vec<(String, String, i32)> = Vec::new();
-    for v in crate::versions::scan_local_versions()
-        .into_iter()
-        .chain(crate::versions::scan_external_versions())
-    {
-        let id = v.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string();
-        if id.is_empty() {
-            continue;
-        }
-        let base = v.get("baseVersion").and_then(|x| x.as_str()).unwrap_or("").to_string();
-        let mut mask = 0i32;
-        if v.get("isForge").and_then(|x| x.as_bool()).unwrap_or(false) {
-            mask |= 1;
-        }
-        if v.get("isFabric").and_then(|x| x.as_bool()).unwrap_or(false) {
-            mask |= 4;
-        }
-        if v.get("isNeoForge").and_then(|x| x.as_bool()).unwrap_or(false) {
-            mask |= 16;
-        }
-        if v.get("isLiteLoader").and_then(|x| x.as_bool()).unwrap_or(false) {
-            mask |= 2;
-        }
-        let vanilla = if base.is_empty() {
-            id.split('-').next().unwrap_or("").to_string()
-        } else {
-            base
-        };
-        versions.push((id, vanilla, mask));
-    }
-
-    let loader_ok = |mask: i32| allowed == 0 || (mask & allowed) != 0;
-    let match_tier = |vanilla: &str, masked: i32| -> i32 {
-        if !loader_ok(masked) {
-            return -1;
-        }
-        let base_known = crate::resource::mcversion::is_mc_version(vanilla);
-        if base_known
-            && !game_version.is_empty()
-            && crate::resource::mcversion::version_snapshot_match(&game_version, vanilla)
-        {
-            return 0;
-        }
-        if base_known
-            && !game_version.is_empty()
-            && crate::resource::mcversion::version_prefix_match(&game_version, vanilla)
-        {
-            return 1;
-        }
-        if !base_known || game_version.is_empty() {
-            return 2;
-        }
-        -1
-    };
-
-    let selected_id = settings
-        .get("selectedVersion")
-        .and_then(|x| x.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let mut selected_tier = -1;
-    let mut selected_path = String::new();
-    for inst in &versions {
-        if inst.0 == selected_id {
-            selected_tier = match_tier(&inst.1, inst.2);
-            selected_path = crate::mods::list::resolve_mods_dir_for(&settings, &inst.0)
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_default();
-            break;
-        }
-    }
-    let selected_compatible = selected_tier == 0 || selected_tier == 1;
-    let mut matched_version = selected_compatible;
-
-    let mut path = String::new();
-    if (selected_tier == 0 || selected_tier == 1) && !selected_path.is_empty() {
-        path = selected_path;
-    }
-
-    for t in 0..3 {
-        if !path.is_empty() {
-            break;
-        }
-        let mut bm: i64 = -1;
-        let mut bc: usize = 0;
-        let mut bp = String::new();
-        for inst in &versions {
-            if match_tier(&inst.1, inst.2) != t {
-                continue;
-            }
-            let Some(d) = crate::mods::list::resolve_mods_dir_for(&settings, &inst.0) else {
-                continue;
-            };
-            let mtime = std::fs::metadata(&d)
-                .and_then(|m| m.modified())
-                .ok()
-                .and_then(|x| x.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|x| x.as_secs() as i64)
-                .unwrap_or(0);
-            let count = std::fs::read_dir(&d).map(|rd| rd.count()).unwrap_or(0);
-            let d = d.to_string_lossy().to_string();
-            if bp.is_empty() || mtime > bm || (mtime == bm && count > bc) {
-                bm = mtime;
-                bc = count;
-                bp = d;
-            }
-        }
-        if !bp.is_empty() {
-            path = bp;
-            matched_version = true;
-        }
-    }
-
-    if path.is_empty() {
-        let game_dir = settings
-            .get("gameDir")
-            .and_then(|x| x.as_str())
-            .filter(|s| !s.is_empty())
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| data_dir.clone());
-        path = game_dir.join("mods").to_string_lossy().to_string();
-    }
-
-    let debug_versions: Vec<Value> = versions
-        .iter()
-        .map(|(id, vanilla, mask)| json!({ "id": id, "vanilla": vanilla, "mask": mask }))
-        .collect();
-
-    json!({
-        "success": true,
-        "path": path,
-        "compatible": matched_version,
-        "selectedCompatible": selected_compatible,
-        "selectedVersion": selected_id,
-        "versions": debug_versions
-    })
-}
-
-// ============== TTS 语音合成命令 ==============
-
-#[tauri::command]
-async fn tts_speak(text: String, voice: Option<String>) -> Result<Vec<u8>, String> {
-    let voice = voice.unwrap_or_else(|| "zh-CN-XiaoxiaoNeural".to_string());
-    tts::synthesize(&text, &voice).await
-}
-
-// ============== 崩溃记录器 ==============
-// 程序任何地方发生 panic（异常）时，先把原因写入 logs/crash.log 再退出，
-// 避免出现"软件直接消失却查不到原因"。release 下 panic=abort，回调在退出前执行。
-
-fn install_panic_hook() {
-    std::panic::set_hook(Box::new(|info| {
-        let msg = if let Some(s) = info.payload().downcast_ref::<&str>() {
-            (*s).to_string()
-        } else if let Some(s) = info.payload().downcast_ref::<String>() {
-            s.clone()
-        } else {
-            "未知错误".to_string()
-        };
-        let loc = info
-            .location()
-            .map(|l| format!("{}:{}", l.file(), l.line()))
-            .unwrap_or_default();
-        let ts = chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
-        let line = format!("[{}] PANIC: {} @ {}\n", ts, msg, loc);
-        eprintln!("{}", line);
-
-        // 追加写入日志（resolve_data_dir 无锁无 unwrap，崩溃回调中可安全调用）
-        let dir = storage::resolve_data_dir().join("logs");
-        let _ = std::fs::create_dir_all(&dir);
-        use std::io::Write;
-        let _ = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(dir.join("crash.log"))
-            .and_then(|mut f| f.write_all(line.as_bytes()));
-    }));
-}
-
-// ============== 应用入口 ==============
-
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    install_panic_hook();
-
-    // 提权子进程模式：由主进程通过 runas 启动，仅作为命名管道执行端，
-    // 不启动完整的 Tauri（窗口/异步 runtime），执行完命令后直接退出。
-    if crate::promote::try_run_promote_process() {
-        return;
-    }
-
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        // wewp:// 协议：为 Wallpaper Engine web 壁纸按原相对路径提供本地文件服务
-        .register_uri_scheme_protocol("wewp", |_app, request| {
-            wallpaper_engine::handle_wewp_request(&request)
-        })
-        .setup(|app| {
-            println!("[boot] setup start {}", chrono::Local::now().format("%H:%M:%S%.3f"));
-            // 初始化存储：使用便携版数据目录（数据跟 exe 走）
-            // 目录创建失败不阻塞启动：resolve_data_dir 已尽量保证可写（不可写会回退用户目录），
-            // 若仍失败则继续启动，避免"数据目录异常导致软件打不开"。
-            let data_dir = storage::resolve_data_dir();
-            if let Err(e) = std::fs::create_dir_all(&data_dir) {
-                eprintln!("[boot] 数据目录创建失败（继续启动）: {} -> {}", data_dir.display(), e);
-            }
-            println!("[boot] after data_dir {}", chrono::Local::now().format("%H:%M:%S%.3f"));
-
-            let store = storage::Store::new();
-            println!("[boot] after Store::new {}", chrono::Local::now().format("%H:%M:%S%.3f"));
-            println!("[store] 数据目录: {:?}", data_dir);
-            println!("[store] 存储文件: {:?}", store.path);
-            println!("[store] 加载条目数: {}", store.data.lock().unwrap().len());
-
-            // 首次运行：检测旧版 Electron VersePC 数据目录并迁移个性化设置
-            let migrated = storage::migrate_legacy_if_first_run(&store);
-            if migrated {
-                println!("[store] 已完成旧版 Electron 数据迁移");
-            }
-            println!("[boot] after migrate {}", chrono::Local::now().format("%H:%M:%S%.3f"));
-
-            // 首次运行/环境检查：WebView2 内核缺失则提示安装
-            println!("[boot] before ensure {}", chrono::Local::now().format("%H:%M:%S%.3f"));
-            crate::system::ensure_webview2();
-            println!("[boot] after ensure {}", chrono::Local::now().format("%H:%M:%S%.3f"));
-
-            app.manage(store);
-            println!("[boot] after manage {}\n", chrono::Local::now().format("%H:%M:%S%.3f"));
-
-            // 后台预热 Java 探测缓存：在启动时后台刷新 Java 列表，
-            // 避免真正启动游戏时才在启动流程里同步跑每个 Java 的 -version 探测，造成卡顿
-            tauri::async_runtime::spawn_blocking(|| {
-                let list = crate::java::detect_all();
-                println!("[boot] 后台预热 Java 列表完成: {} 个", list.len());
-            });
-
-            // 窗口默认隐藏（visible:false），等前端 splash 首屏渲染后调用 window_show 显示，避免启动黑屏闪一下。
-            // 兜底：若前端因脚本异常始终未调用 show，延迟强制显示，确保窗口不会一直不出现。
-            if let Some(main_win) = app.get_webview_window("main") {
-                tauri::async_runtime::spawn(async move {
-                    tokio::time::sleep(std::time::Duration::from_secs(8)).await;
-                    if !main_win.is_visible().unwrap_or(false) {
-                        let _ = main_win.show();
-                    }
-                });
-            }
-
-            // 最小化/恢复内存优化
-            // - 最小化：延迟 1.5s 后第一次优化，之后每 30s 循环执行
-            // - 恢复：立即停止循环，通知前端恢复壁纸
-            // - 空闲 3 分钟无操作：自动执行一次优化
-            if let Some(main_win) = app.get_webview_window("main") {
-                let app_handle = app.handle().clone();
-                let main_win_for_min = main_win.clone();
-                tauri::async_runtime::spawn(async move {
-                    let mut last_min = false;
-                    let mut _minimize_timer: Option<tokio::task::JoinHandle<()>> = None;
-
-                    loop {
-                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                        let Ok(min) = main_win_for_min.is_minimized() else { continue };
-
-                        if min != last_min {
-                            // 状态变化：先通知前端（壁纸挂起/恢复）
-                            let ev = if min { "window-minimized" } else { "window-restored" };
-                            let _ = main_win_for_min.emit(ev, ());
-
-                            if min {
-                                // ===== 最小化了：启动定时优化循环 =====
-                                // 取消上一次可能存在的定时器
-                                if let Some(t) = _minimize_timer.take() {
-                                    t.abort();
-                                }
-                                let ah = app_handle.clone();
-                                _minimize_timer = Some(tokio::task::spawn(async move {
-                                    // 第一次：延迟 1.5 秒
-                                    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-                                    do_full_memory_optimize(&ah);
-                                    // 之后每 30 秒循环
-                                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
-                                    loop {
-                                        interval.tick().await;
-                                        do_full_memory_optimize(&ah);
-                                    }
-                                }));
-                            } else {
-                                // ===== 恢复了：停止循环 =====
-                                if let Some(t) = _minimize_timer.take() {
-                                    t.abort();
-                                }
-                                // 恢复时也做一次轻量清理（移除不再需要的临时缓存）
-                                tokio::task::spawn(async move {
-                                    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
-                                    trim_working_set();
-                                });
-                            }
-
-                            last_min = min;
-                        }
-                    }
-                });
-
-                // ===== 每 2 分钟自动优化（窗口正常显示时也保持低内存） =====
-                let main_win_for_idle = main_win.clone();
-                tauri::async_runtime::spawn(async move {
-                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(120));
-                    loop {
-                        interval.tick().await;
-                        // 如果此时正最小化（有单独的优化循环在跑），跳过
-                        let minimized = main_win_for_idle.is_minimized().unwrap_or(false);
-                        if !minimized {
-                            // 压缩整个进程树（含 WebView2 子进程），任务管理器内存稳定在低位
-                            trim_working_set_tree();
-                            // 同步提示前端做 GC + 清理隐藏图片缓存
-                            let _ = main_win_for_idle.emit("memory-optimize-request", ());
-                        }
-                    }
-                });
-            }
-
-            // 初始化 theseus 事件系统：把 Tauri AppHandle 注入 theseus，
-            // 这样 theseus 内部的 emit_install_job / emit_loading 才能向前端推送事件
-            let app_handle = app.handle().clone();
-            modpack::theseus::event::set_app_handle(app_handle);
-
-            println!("[boot] setup done {}", chrono::Local::now().format("%H:%M:%S%.3f"));
-            Ok(())
-        })
-        .invoke_handler(tauri::generate_handler![
-            // 窗口控制
-            window_minimize,
-            window_maximize,
-            window_show,
-            window_close,
-            window_destroy,
-            window_is_maximized,
-            window_is_fullscreen,
-            window_restore,
-            window_is_minimized,
-            window_set_size,
-            // 应用信息
-            get_app_version,
-            // 设置存储（KV）
-            store_get,
-            store_set,
-            store_delete,
-            // 文件对话框
-            dialog::dialog_open,
-            dialog::select_folder,
-            dialog::select_file,
-            filesystem::read_file_buffer,
-            // 路径获取
-            get_default_mod_path,
-            get_default_mod_save_folder,
-            // API 代理分发
-            api::api_proxy,
-            // 头像
-            avatar::get_avatar,
-            avatar::get_skin_texture,
-            // 版本图标
-            versions::get_version_icon,
-            // 网站图标
-            favicon::get_favicon,
-            // 开发工具
-            open_devtools,
-            // 启动计时诊断
-            write_startup_timing,
-            // 系统工具
-            open_external,
-            // TTS 语音合成
-            tts_speak,
-            // AI 对话代理
-            ai::ai_chat,
-            // 自动更新（便携版全量替换）
-            updater::updater_check_for_updates,
-            updater::updater_download_update,
-            updater::updater_install_update,
-            updater::updater_skip_version,
-            updater::updater_open_release_page,
-            updater::updater_get_pending_notice,
-            // 私人服务器管理
-            private_server::private_server_list,
-            private_server::private_server_save,
-            private_server::private_server_add,
-            private_server::private_server_update,
-            private_server::private_server_delete,
-            private_server::private_server_check,
-            private_server::private_server_copy_address,
-            private_server::private_server_icon,
-            // 本地开服
-            server_host::server_host_list,
-            server_host::server_host_create,
-            server_host::server_host_start,
-            server_host::server_host_stop,
-            server_host::server_host_command,
-            server_host::server_host_status,
-            server_host::server_host_delete,
-            server_host::server_host_open_dir,
-            server_host::server_host_resolve_version,
-            server_host::server_host_detect_loader,
-            server_host::server_host_sync_mods,
-            // 插件框架
-            plugins::plugin_list,
-            plugins::plugin_uninstall,
-            plugins::plugin_market_index,
-            plugins::plugin_download_install,
-            // 插件「安全执行外部进程」（可信插件声明 native:exec 时可用）
-            plugin_exec::plugin_process_exec,
-            plugin_exec::plugin_process_stop,
-            plugin_exec::plugin_process_status,
-            // 红石联机内网穿透
-            redstone_online::redstone_servers,
-            redstone_online::redstone_scan_port,
-            redstone_online::redstone_start,
-            redstone_online::redstone_stop,
-            redstone_online::redstone_status,
-            // EnderLink 联机
-            enderlink_online::enderlink_rooms,
-            enderlink_online::enderlink_nodes,
-            enderlink_online::enderlink_download,
-            enderlink_online::enderlink_start,
-            enderlink_online::enderlink_stop,
-            enderlink_online::enderlink_status,
-            // Wallpaper Engine 壁纸扫描
-            wallpaper_engine::wallpaper_engine_list,
-            // Wallpaper Engine 场景壁纸渲染进程
-            scene_renderer::scene_renderer_start,
-            scene_renderer::scene_renderer_stop,
-            scene_renderer::scene_renderer_status,
-            // 场景渲染器组件（可选下载，安装到数据目录）
-            scene_renderer::scene_renderer_installed,
-            scene_renderer::scene_renderer_download,
-            // 存档管理
-            saves::version_list_saves,
-            saves::version_save_update,
-        ])
-        .on_window_event(|window, event| {
-            // 主窗口关闭时清理 Wallpaper Engine 场景壁纸渲染进程，防止残留
-            if window.label() == "main" {
-                if let tauri::WindowEvent::Destroyed = event {
-                    crate::scene_renderer::shutdown_renderer();
-                }
-            }
-            // 自动更新：主窗口被系统关闭（Alt+F4 / 任务栏关闭）时，若已有下载完成的更新包，
-            // 阻止默认关闭并进入"替换+重启"流程（安装脚本负责退出进程并重启新版本）。
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main"
-                    && crate::updater::auto_install_on_close(&window.app_handle())
-                {
-                    api.prevent_close();
-                }
-            }
-        })
-        .on_page_load(|_window, _payload| {
-            println!("[boot] page_load {}", chrono::Local::now().format("%H:%M:%S%.3f"));
-        })
-        .run(tauri::generate_context!())
-        .expect("启动 Tauri 应用时出错");
-}
+</body>
+</html>
