@@ -55,20 +55,19 @@ jobs:
         shell: pwsh
         run: cargo test --release --manifest-path src-tauri/Cargo.toml transfer -- --nocapture
 
-      # 打包：exe + 构建产出的全部 DLL（如 WebView2Loader.dll 等），压缩为 zip
+      # 打包：exe + VC 运行库 DLL + 构建产出的全部 DLL，压缩为 zip，解压即用
       - name: Package portable zip
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item src-tauri/target/release/verse-tauri.exe dist/VersePC2.exe
           $dlls = Get-ChildItem src-tauri/target/release/*.dll -ErrorAction SilentlyContinue
-          if ($dlls) {
-            Copy-Item $dlls.FullName dist/
-            Write-Host "随包 DLL：$($dlls.Name -join ', ')"
-          } else {
-            Write-Host "构建未产出独立 DLL（WebView2Loader 已静态内嵌）"
+          if ($dlls) { Copy-Item $dlls.FullName dist/; Write-Host "构建产出 DLL：$($dlls.Name -join ', ')" }
+          # VC 运行库随包（干净系统免装运行库）
+          foreach ($dll in @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll")) {
+            $src = Join-Path $env:SystemRoot "System32\$dll"
+            if (Test-Path $src) { Copy-Item $src dist/; Write-Host "随包 $dll" }
           }
-          # 依赖检查：列出 exe 引用且位于 release 目录的动态库，确保不遗漏
           Compress-Archive -Path dist/* -DestinationPath dist/VersePC2-windows-x64.zip -Force
           Get-ChildItem dist | Select-Object Name, Length
 
