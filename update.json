@@ -1,28 +1,28 @@
 {
-    "version":  "1.5.5",
-    "releaseName":  "v1.5.5",
-    "releaseDate":  "2026-10-11",
-    "releaseNotes":  "VersePC2 v1.5.5\n\n修复:\n- 版本号与发布版本不同步，导致升级器误判并反复提示更新\n- 账户页添加账户后侧边栏无法展开的问题",
+    "version":  "1.6.0",
+    "releaseName":  "v1.6.0",
+    "releaseDate":  "2026-10-13",
+    "releaseNotes":  "VersePC2 v1.6.0\n\n新增:\n- 互传功能: 与手机端 Verse 点对点互传版本、模组与存档（发送需激活码，接收免费）\n- 互传安全: 激活码设备绑定、月卡有效期 30 天\n- 识别码直传: 服务器只做信令不中转文件数据\n\n优化:\n- 互传页全新界面: 激活流程 + 版本/模组/存档类型化传输向导",
     "files":  {
                   "win-x64":  {
-                                  "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.5.5/VersePC2.exe",
-                                  "size":  73959936,
-                                  "sha256":  "1b4e104f3516d5e6dd62d0c68700b818ab9ea631dc188b0b6e9fed940e04d58c"
+                                  "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.6.0/VersePC2.exe",
+                                  "size":  74339840,
+                                  "sha256":  "8c50d75459f4eb2e35fdd13b663ae58dd029cb98fb94eb5e3b706bbb1137bb97"
                               },
                   "linux-x86_64":  {
-                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.5.1/VersePC2-linux-x86_64",
-                                       "size":  70120608,
-                                       "sha256":  "aaadd31cc4b3872d07cbb0d96975eccbb4799cd4ad04d809e1beb8d3f5328503"
+                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.6.0/VersePC2-linux-x86_64",
+                                       "size":  70377216,
+                                       "sha256":  "3c67a5e9bb67af04e96af871adc357629040c99fbc1c9c3de176f721ce046345"
                                    },
                   "macos-x86_64":  {
-                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.5.1/VersePC2-macos-x86_64.zip",
-                                       "size":  62348504,
-                                       "sha256":  "50d684e9af11501554667a403b075777253a5f744ddb0bb99ff1eb5e494c8580"
+                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.6.0/VersePC2-macos-x86_64.zip",
+                                       "size":  62465273,
+                                       "sha256":  "6c84f4242e6288057b94e44f184ba6eafe544a5118d0028aec008aef295483af"
                                    },
                   "macos-aarch64":  {
-                                        "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.5.1/VersePC2-macos-aarch64.zip",
-                                        "size":  62451652,
-                                        "sha256":  "8914a2ecba6f936fe13072ed0b3a2cc1ac56ac81619c40fe88572ce3578fd5a9"
+                                        "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.6.0/VersePC2-macos-aarch64.zip",
+                                        "size":  62560213,
+                                        "sha256":  "17e4cd7b5e47bc54598a24b5999bccc5b93cf467b443a5b77101e503cb435b55"
                                     }
               }
 }
