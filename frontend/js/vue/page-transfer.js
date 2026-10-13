@@ -146,3 +146,7 @@ const PageTransfer = {
     </div>
   `
 };
+
+// 注册到全局组件表（index.html 的 _mountBatch 从 window.VersePC 取组件挂载）
+window.VersePC = window.VersePC || {};
+window.VersePC.PageTransfer = PageTransfer;
