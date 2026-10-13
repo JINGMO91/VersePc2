@@ -5,22 +5,22 @@
     "releaseNotes":  "VersePC2 v1.6.0\n\n新增:\n- 互传功能: 与手机端 Verse 点对点互传版本、模组与存档（发送需激活码，接收免费）\n- 互传安全: 激活码设备绑定、月卡有效期 30 天\n- 识别码直传: 服务器只做信令不中转文件数据\n\n优化:\n- 互传页全新界面: 激活流程 + 版本/模组/存档类型化传输向导",
     "files":  {
                   "win-x64":  {
-                                  "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.6.0/VersePC2.exe",
+                                  "url":  "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.6.0/VersePC2.exe",
                                   "size":  74339840,
                                   "sha256":  "8c50d75459f4eb2e35fdd13b663ae58dd029cb98fb94eb5e3b706bbb1137bb97"
                               },
                   "linux-x86_64":  {
-                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.6.0/VersePC2-linux-x86_64",
+                                       "url":  "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.6.0/VersePC2-linux-x86_64",
                                        "size":  70377216,
                                        "sha256":  "3c67a5e9bb67af04e96af871adc357629040c99fbc1c9c3de176f721ce046345"
                                    },
                   "macos-x86_64":  {
-                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.6.0/VersePC2-macos-x86_64.zip",
+                                       "url":  "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.6.0/VersePC2-macos-x86_64.zip",
                                        "size":  62465273,
                                        "sha256":  "6c84f4242e6288057b94e44f184ba6eafe544a5118d0028aec008aef295483af"
                                    },
                   "macos-aarch64":  {
-                                        "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.6.0/VersePC2-macos-aarch64.zip",
+                                        "url":  "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.6.0/VersePC2-macos-aarch64.zip",
                                         "size":  62560213,
                                         "sha256":  "17e4cd7b5e47bc54598a24b5999bccc5b93cf467b443a5b77101e503cb435b55"
                                     }
