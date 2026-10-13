@@ -101,28 +101,36 @@ const PageTransfer = {
       this.receiving = false;
     }
   },
+  mounted() {
+    // 样式注入（用标准 DOM API 确保生效，只注入一次）
+    if (!document.getElementById('transfer-page-style')) {
+      var st = document.createElement('style');
+      st.id = 'transfer-page-style';
+      st.textContent = [
+        '.transfer-wrap { max-width: 680px; margin: 0 auto; padding: 22px 24px 30px; }',
+        '.transfer-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg, 16px); padding: 18px 20px 20px; margin-bottom: 16px; }',
+        '.transfer-card-head { display: flex; flex-direction: column; gap: 3px; margin-bottom: 14px; }',
+        '.transfer-card-title { font-size: 17px; font-weight: 700; color: var(--text-primary); }',
+        '.transfer-card-sub { font-size: 12.5px; color: var(--text-muted); }',
+        '.transfer-card-body { display: flex; flex-direction: column; gap: 10px; }',
+        '.transfer-file { font-size: 12.5px; color: var(--text-secondary); word-break: break-all; }',
+        '.transfer-input { height: 40px; border-radius: var(--radius-md, 10px); border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); padding: 0 12px; font-size: 14px; outline: none; letter-spacing: 2px; }',
+        '.transfer-input:focus { border-color: var(--accent); }',
+        '.transfer-btn { height: 40px; border-radius: var(--radius-md, 10px); border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 14px; font-weight: 600; cursor: pointer; transition: background var(--transition, .15s); }',
+        '.transfer-btn:hover:not(:disabled) { background: var(--bg-hover, var(--bg-tertiary)); }',
+        '.transfer-btn:disabled { opacity: .45; cursor: not-allowed; }',
+        '.transfer-btn.primary { background: var(--accent); border: none; color: var(--accent-text); font-size: 15px; }',
+        '.transfer-btn.primary:hover:not(:disabled) { background: var(--accent-hover); }',
+        '.transfer-code { font-size: 26px; font-weight: 800; letter-spacing: 5px; color: var(--accent); font-family: Consolas, "Courier New", monospace; text-align: center; padding: 8px 0 2px; }',
+        '.transfer-hint { font-size: 12.5px; color: var(--text-muted); }',
+        '.transfer-ok { font-size: 13px; color: var(--green); }',
+        '.transfer-err { font-size: 13px; color: var(--red); }',
+        '.transfer-note { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 4px; }'
+      ].join('\n');
+      document.head.appendChild(st);
+    }
+  },
   template: `
-    <style>
-      .transfer-wrap { max-width: 680px; margin: 0 auto; padding: 22px 24px 30px; }
-      .transfer-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg, 16px); padding: 18px 20px 20px; margin-bottom: 16px; }
-      .transfer-card-head { display: flex; flex-direction: column; gap: 3px; margin-bottom: 14px; }
-      .transfer-card-title { font-size: 17px; font-weight: 700; color: var(--text-primary); }
-      .transfer-card-sub { font-size: 12.5px; color: var(--text-muted); }
-      .transfer-card-body { display: flex; flex-direction: column; gap: 10px; }
-      .transfer-file { font-size: 12.5px; color: var(--text-secondary); word-break: break-all; }
-      .transfer-input { height: 40px; border-radius: var(--radius-md, 10px); border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); padding: 0 12px; font-size: 14px; outline: none; letter-spacing: 2px; }
-      .transfer-input:focus { border-color: var(--accent); }
-      .transfer-btn { height: 40px; border-radius: var(--radius-md, 10px); border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 14px; font-weight: 600; cursor: pointer; transition: background var(--transition, .15s); }
-      .transfer-btn:hover:not(:disabled) { background: var(--bg-hover, var(--bg-tertiary)); }
-      .transfer-btn:disabled { opacity: .45; cursor: not-allowed; }
-      .transfer-btn.primary { background: var(--accent); border: none; color: var(--accent-text); font-size: 15px; }
-      .transfer-btn.primary:hover:not(:disabled) { background: var(--accent-hover); filter: none; }
-      .transfer-code { font-size: 26px; font-weight: 800; letter-spacing: 5px; color: var(--accent); font-family: Consolas, 'Courier New', monospace; text-align: center; padding: 8px 0 2px; }
-      .transfer-hint { font-size: 12.5px; color: var(--text-muted); }
-      .transfer-ok { font-size: 13px; color: var(--green); }
-      .transfer-err { font-size: 13px; color: var(--red); }
-      .transfer-note { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 4px; }
-    </style>
     <div class="transfer-wrap">
       <div class="transfer-card">
         <div class="transfer-card-head">
