@@ -1,13 +1,18 @@
 /* page-transfer.js - 互传页 Vue 组件
  * 流程：
- *   发送：选择文件 → 生成 8 位识别码 → 对端连接后自动直传（SHA-256 校验）
- *   接收：输入识别码 → 选择保存目录 → 连接发送方接收并校验
+ *   发送：输入激活码 → 选择文件 → 生成 8 位识别码（信令服务器向官网核验激活码，通过才发码）
+ *         → 对端连接后自动直传（SHA-256 校验）
+ *   接收：输入识别码 → 选择保存目录 → 连接发送方接收并校验（接收方免费）
  * 文件数据在两台设备间 TCP 直连，服务器只做信令不中转。
  */
 const PageTransfer = {
   name: 'PageTransfer',
   data() {
+    var savedKey = '';
+    try { savedKey = localStorage.getItem('verse_activation_key') || ''; } catch (e) {}
     return {
+      // 激活码（发送方需要，本机记住）
+      activationKey: savedKey,
       // 发送
       sendFilePath: '',
       sendFileName: '',
@@ -16,6 +21,7 @@ const PageTransfer = {
       sendStatus: null,
       sendTimer: null,
       sendDone: false,
+      sendError: '',
       // 接收
       receiveCode: '',
       saveDir: '',
@@ -37,17 +43,24 @@ const PageTransfer = {
           this.sendFileName = picked.replace(/\\/g, '/').split('/').pop();
         }
       } catch (e) {
-        this.status = '选择文件失败';
+        this.sendError = '选择文件失败';
       }
     },
     async startSend() {
       if (!this.sendFilePath || this.sending) return;
+      const key = (this.activationKey || '').trim();
+      if (!key) {
+        this.sendError = '请先输入激活码（发送方需要激活，接收方免费）';
+        return;
+      }
       this.sending = true;
       this.sendDone = false;
       this.sendStatus = null;
+      this.sendError = '';
       try {
+        try { localStorage.setItem('verse_activation_key', key); } catch (e) { /* 忽略存储失败 */ }
         const invoke = window.__TAURI__.core.invoke;
-        const session = await invoke('transfer_start_send', { path: this.sendFilePath });
+        const session = await invoke('transfer_start_send', { path: this.sendFilePath, activationKey: key });
         this.sendCode = session.code;
         this.sendFileName = session.fileName;
         this.sendTimer = setInterval(async () => {
@@ -62,7 +75,7 @@ const PageTransfer = {
           } catch (e) { /* 轮询失败忽略 */ }
         }, 1000);
       } catch (e) {
-        this.sendStatus = { error: String(e) };
+        this.sendError = String(e);
         this.sending = false;
       }
     },
@@ -74,6 +87,7 @@ const PageTransfer = {
       this.sendStatus = null;
       this.sendDone = false;
       this.sending = false;
+      this.sendError = '';
     },
     async pickSaveDir() {
       if (!this.isTauri()) return;
@@ -113,6 +127,7 @@ const PageTransfer = {
         '.transfer-card-title { font-size: 17px; font-weight: 700; color: var(--text-primary); }',
         '.transfer-card-sub { font-size: 12.5px; color: var(--text-muted); }',
         '.transfer-card-body { display: flex; flex-direction: column; gap: 10px; }',
+        '.transfer-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }',
         '.transfer-file { font-size: 12.5px; color: var(--text-secondary); word-break: break-all; }',
         '.transfer-input { height: 40px; border-radius: var(--radius-md, 10px); border: 1px solid var(--border); background: var(--bg-tertiary); color: var(--text-primary); padding: 0 12px; font-size: 14px; outline: none; letter-spacing: 2px; }',
         '.transfer-input:focus { border-color: var(--accent); }',
@@ -138,9 +153,13 @@ const PageTransfer = {
           <span class="transfer-card-sub">生成识别码，等待对端连接后自动直传</span>
         </div>
         <div v-if="!sendCode" class="transfer-card-body">
+          <label class="transfer-label">激活码</label>
+          <input class="transfer-input" v-model="activationKey" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" />
           <button class="transfer-btn" @click="pickFile">选择文件</button>
           <span class="transfer-file" v-if="sendFileName">{{ sendFileName }}</span>
           <button class="transfer-btn primary" :disabled="!sendFilePath || sending" @click="startSend">生成识别码并等待连接</button>
+          <div v-if="sendError" class="transfer-err">{{ sendError }}</div>
+          <div class="transfer-hint">发送方需要激活码（生成识别码时自动核验），接收方免费</div>
         </div>
         <div v-else class="transfer-card-body">
           <div class="transfer-code">{{ sendCode }}</div>

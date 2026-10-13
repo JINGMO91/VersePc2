@@ -1,6 +1,7 @@
-// transfer.rs — VersePC 互传：信令走官网(8.217)，文件在两台设备间 TCP 直传。
+// transfer.rs — VersePC 互传：信令走信令服务(124.223.80.73:8746)，文件在两台设备间 TCP 直传。
 // 协议：魔数VXFER01 + 文件名(u32长度) + 大小(u64) + sha256(32B) + 文件字节流(256KB分块)，接收端最后回 1 字节确认。
 // 只做信令不做中转：文件数据不经过任何服务器。
+// 激活规则：发送方生成识别码时信令服务器向官网校验激活码，通过才发码；接收方免费。
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -49,6 +50,30 @@ fn offers() -> &'static Mutex<HashMap<String, Arc<Offer>>> {
     OFFERS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+/// 设备标识：Windows 读注册表 MachineGuid（重装系统才会变，稳定不丢），
+/// 其他平台退回机器名。用于官网激活码的设备绑定。
+fn device_id() -> String {
+    #[cfg(windows)]
+    {
+        use winreg::enums::HKEY_LOCAL_MACHINE;
+        use winreg::RegKey;
+        if let Ok(hk) = RegKey::predef(HKEY_LOCAL_MACHINE)
+            .open_subkey(r"SOFTWARE\Microsoft\Cryptography")
+        {
+            if let Ok(v) = hk.get_value::<String, _>("MachineGuid") {
+                let v = v.trim().to_string();
+                if !v.is_empty() {
+                    return format!("pc-{v}");
+                }
+            }
+        }
+    }
+    let host = hostname::get()
+        .map(|h| h.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "unknown".into());
+    format!("pc-{host}")
+}
+
 async fn hash_file(path: &PathBuf) -> Result<(String, u64), String> {
     let mut file = tokio::fs::File::open(path)
         .await
@@ -70,9 +95,14 @@ async fn hash_file(path: &PathBuf) -> Result<(String, u64), String> {
 }
 
 /// 发送方：为指定文件创建互传会话，返回 8 位识别码。
+/// 生成识别码前信令服务器会携带激活码向官网核验，未通过则拒绝。
 /// 后台任务持续监听 TCP，任何拿到识别码的对端都可直接拉取文件。
 #[tauri::command]
-pub async fn transfer_start_send(path: String) -> Result<SendSession, String> {
+pub async fn transfer_start_send(path: String, activation_key: String) -> Result<SendSession, String> {
+    let key = activation_key.trim().to_string();
+    if key.is_empty() {
+        return Err("请先输入激活码（发送方需要激活，接收方免费）".into());
+    }
     let file_path = PathBuf::from(&path);
     if !file_path.is_file() {
         return Err("文件不存在".into());
@@ -92,7 +122,8 @@ pub async fn transfer_start_send(path: String) -> Result<SendSession, String> {
         .map_err(|e| format!("获取端口失败: {e}"))?
         .port();
 
-    // 向信令服务器注册会话（携带监听端口，服务端记录发送方公网 IP）
+    // 向信令服务器注册会话：携带监听端口（服务端记录发送方公网 IP）
+    // 以及激活码 + 设备标识（服务端代为向官网核验，通过才返回识别码）
     let client = reqwest::Client::new();
     let resp = client
         .post(format!("{SIGNAL_BASE}/api/transfer/register"))
@@ -101,6 +132,8 @@ pub async fn transfer_start_send(path: String) -> Result<SendSession, String> {
             "fileSize": size,
             "fileHash": hash,
             "port": port,
+            "activationKey": key,
+            "deviceId": device_id(),
         }))
         .send()
         .await
@@ -111,7 +144,7 @@ pub async fn transfer_start_send(path: String) -> Result<SendSession, String> {
         .and_then(|v| v.as_str())
         .ok_or_else(|| {
             format!(
-                "注册失败: {}",
+                "生成识别码失败: {}",
                 reg.get("error").and_then(|v| v.as_str()).unwrap_or("未知错误")
             )
         })?
@@ -132,34 +165,41 @@ pub async fn transfer_start_send(path: String) -> Result<SendSession, String> {
     });
     offers().lock().unwrap().insert(code.clone(), offer.clone());
 
-    tokio::spawn(async move {
-        loop {
-            match listener.accept().await {
-                Ok((stream, _peer)) => {
-                    let offer = offer.clone();
-                    tokio::spawn(async move {
-                        let offer2 = offer.clone();
-                        if let Err(e) = send_file_to(stream, offer2).await {
-                            let mut st = offer.status.lock().unwrap();
-                            st.error = Some(e);
-                        }
-                    });
-                }
-                Err(e) => {
-                    let mut st = status.lock().unwrap();
-                    st.listening = false;
-                    st.error = Some(format!("接受连接失败: {e}"));
-                    break;
-                }
-            }
-        }
-    });
+    tokio::spawn(serve_file(listener, offer, status));
 
     Ok(SendSession {
         code,
         file_name: resp_file_name,
         file_size: size,
     })
+}
+
+/// 发送方后台任务：监听 TCP，接受对端连接并直传文件
+async fn serve_file(
+    listener: tokio::net::TcpListener,
+    offer: Arc<Offer>,
+    status: Arc<Mutex<SendStatus>>,
+) {
+    loop {
+        match listener.accept().await {
+            Ok((stream, _peer)) => {
+                let offer = offer.clone();
+                tokio::spawn(async move {
+                    let offer2 = offer.clone();
+                    if let Err(e) = send_file_to(stream, offer2).await {
+                        let mut st = offer.status.lock().unwrap();
+                        st.error = Some(e);
+                    }
+                });
+            }
+            Err(e) => {
+                let mut st = status.lock().unwrap();
+                st.listening = false;
+                st.error = Some(format!("接受连接失败: {e}"));
+                break;
+            }
+        }
+    }
 }
 
 /// 发送方：查询会话状态（前端轮询展示进度）
@@ -250,7 +290,7 @@ pub async fn transfer_receive(code: String, save_dir: String) -> Result<Transfer
         return Err("请输入识别码".into());
     }
 
-    // 信令：换取发送方端点
+    // 信令：换取发送方端点（接收方免费，无需激活码）
     let client = reqwest::Client::new();
     let resp = client
         .get(format!("{SIGNAL_BASE}/api/transfer/lookup"))
@@ -292,8 +332,16 @@ pub async fn transfer_receive(code: String, save_dir: String) -> Result<Transfer
             }
         }
     }
-    let mut stream = stream.ok_or("无法连接到发送方（可能不在线或端口不可达）")?;
+    let stream = stream.ok_or("无法连接到发送方（可能不在线或端口不可达）")?;
 
+    receive_from_stream(stream, save_dir).await
+}
+
+/// 接收核心逻辑：按协议读取头部 + 文件流 + 回执（供 transfer_receive 与本地回路测试复用）
+async fn receive_from_stream(
+    mut stream: tokio::net::TcpStream,
+    save_dir: String,
+) -> Result<TransferResult, String> {
     use tokio::io::AsyncReadExt;
     use tokio::io::AsyncWriteExt;
     // 头部
@@ -377,20 +425,11 @@ pub async fn transfer_receive(code: String, save_dir: String) -> Result<Transfer
         .await
         .ok();
 
-    if !hash_ok {
-        return Ok(TransferResult {
-            file_name: safe_name,
-            saved_path: save_path.to_string_lossy().to_string(),
-            file_size: received,
-            hash_ok: false,
-        });
-    }
-
     Ok(TransferResult {
         file_name: safe_name,
         saved_path: save_path.to_string_lossy().to_string(),
         file_size: received,
-        hash_ok: true,
+        hash_ok,
     })
 }
 
@@ -410,29 +449,50 @@ fn hex_to_bytes(s: &str) -> Result<Vec<u8>, String> {
 mod tests {
     use super::*;
 
-    /// 完整回路测试：真实信令服务器注册 → 本机 TCP 直传 → SHA-256 校验
+    /// 本地 TCP 回路测试（不经信令，信令+激活校验链路由部署侧实测）：
+    /// serve_file ↔ receive_from_stream，验证协议、分块流与 SHA-256 校验
     #[tokio::test(flavor = "multi_thread")]
-    async fn transfer_roundtrip_via_signal() {
+    async fn transfer_roundtrip_local() {
         let dir = std::env::temp_dir().join(format!("vxfer_test_{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("创建临时目录失败");
         let file_path = dir.join("sample.bin");
         let data: Vec<u8> = (0..1_000_000u32).map(|i| (i % 251) as u8).collect();
         std::fs::write(&file_path, &data).expect("写入测试文件失败");
 
-        let session = transfer_start_send(file_path.to_string_lossy().to_string())
-            .await
-            .expect("创建发送会话失败");
-        assert_eq!(session.file_size, data.len() as u64);
-        assert_eq!(session.code.len(), 8);
+        let (hash, size) = hash_file(&file_path).await.expect("计算哈希失败");
+        assert_eq!(size, data.len() as u64);
 
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("绑定端口失败");
+        let port = listener.local_addr().unwrap().port();
+
+        let status = Arc::new(Mutex::new(SendStatus {
+            listening: true,
+            total_bytes: size,
+            ..Default::default()
+        }));
+        let offer = Arc::new(Offer {
+            path: file_path.clone(),
+            file_name: "sample.bin".into(),
+            file_size: size,
+            hash: hash.clone(),
+            status: status.clone(),
+        });
+        tokio::spawn(serve_file(listener, offer, status));
+
+        let stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{port}"))
+            .await
+            .expect("连接发送方失败");
         let save_dir = dir.join("received");
         std::fs::create_dir_all(&save_dir).expect("创建接收目录失败");
-        let result = transfer_receive(session.code.clone(), save_dir.to_string_lossy().to_string())
+        let result = receive_from_stream(stream, save_dir.to_string_lossy().to_string())
             .await
             .expect("接收失败");
         assert!(result.hash_ok, "哈希校验未通过");
+        assert_eq!(result.file_name, "sample.bin");
         assert_eq!(result.file_size, data.len() as u64);
-        let got = std::fs::read(save_dir.join(&result.file_name)).expect("读取接收文件失败");
+        let got = std::fs::read(save_dir.join("sample.bin")).expect("读取接收文件失败");
         assert_eq!(got, data, "接收内容与发送内容不一致");
 
         std::fs::remove_dir_all(&dir).ok();
