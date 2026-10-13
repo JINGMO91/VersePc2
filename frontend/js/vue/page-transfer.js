@@ -357,7 +357,7 @@ const PageTransfer = {
         <div style="text-align:center;margin-bottom:14px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:44px;height:44px;color:var(--accent)"><path d="M17 4l4 4-4 4"/><path d="M21 8H9"/><path d="M7 20l-4-4 4-4"/><path d="M3 16h12"/></svg>
           <div class="transfer-card-title" style="margin-top:8px;">欢迎使用 Verse 互传</div>
-          <div class="transfer-card-sub">与手机/其他电脑之间互传版本、模组与存档</div>
+          <div class="transfer-card-sub">与手机/其他电脑之间互传版本、模组与存档（激活后有效期 30 天）</div>
         </div>
         <div class="transfer-card-body">
           <label class="transfer-label">激活码（首次使用需激活，发送需要激活，接收免费）</label>

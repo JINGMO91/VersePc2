@@ -127,6 +127,8 @@ pub async fn transfer_verify_activation(key: String) -> Result<serde_json::Value
         Ok(serde_json::json!({
             "ok": true,
             "name": v.get("name").and_then(|x| x.as_str()).unwrap_or(""),
+            "activatedAt": v.get("activatedAt").cloned().unwrap_or(serde_json::Value::Null),
+            "expireAt": v.get("expireAt").cloned().unwrap_or(serde_json::Value::Null),
         }))
     } else {
         Err(v.get("error")
