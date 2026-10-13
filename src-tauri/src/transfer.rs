@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
+use tauri::Emitter;
 
 const SIGNAL_BASE: &str = "http://124.223.80.73:8746";
 const VERIFY_URL: &str = "https://www.verselauncher.cn/api/afdian/key-verify";
@@ -143,8 +144,9 @@ fn versions_dir() -> PathBuf {
 
 fn sanitize_dir_name(name: &str) -> String {
     // 防路径穿越：仅取末段并剔除非法字符
-    let s = name.replace('\\', "/").rsplit('/').next().unwrap_or("");
-    s.replace([':', '*', '?', '"', '<', '>', '|'], "_")
+    let owned = name.replace('\\', "/");
+    let last = owned.rsplit('/').next().unwrap_or("");
+    last.replace([':', '*', '?', '"', '<', '>', '|'], "_")
 }
 
 /// 列出本地已有版本（versions 目录下的子目录名）
@@ -182,7 +184,7 @@ pub async fn transfer_list_mods(version_id: String) -> Result<Vec<serde_json::Va
     while let Ok(Some(entry)) = rd.next_entry().await {
         let p = entry.path();
         if p.is_file() {
-            let meta = entry.metadata().ok();
+            let meta = entry.metadata().await.ok();
             out.push(serde_json::json!({
                 "name": entry.file_name().to_string_lossy(),
                 "size": meta.as_ref().map(|m| m.len()).unwrap_or(0),
@@ -408,7 +410,8 @@ pub async fn transfer_start_send_game(
             if !base.is_dir() {
                 return Err("版本目录不存在".into());
             }
-            (base, collect_files(&base), vid.clone())
+            let files = collect_files(&base);
+            (base, files, vid.clone())
         }
         KIND_MODS => {
             let base = versions_dir().join(&vid).join("mods");
@@ -434,7 +437,8 @@ pub async fn transfer_start_send_game(
             if !base.is_dir() {
                 return Err("存档目录不存在".into());
             }
-            (base, collect_files(&base), save_name)
+            let files = collect_files(&base);
+            (base, files, save_name)
         }
         _ => return Err("未知的传输类型".into()),
     };
@@ -736,7 +740,7 @@ fn resolve_dest(kind: u8, item_name: &str, target_version: &str) -> Result<PathB
     let safe_item = sanitize_dir_name(if item_name.is_empty() { "item" } else { item_name });
     match kind {
         KIND_VERSION => {
-            let mut name = safe_item;
+            let mut name = safe_item.clone();
             let mut n = 1;
             while versions.join(&name).exists() {
                 n += 1;
@@ -751,7 +755,7 @@ fn resolve_dest(kind: u8, item_name: &str, target_version: &str) -> Result<PathB
         KIND_SAVE => {
             let t = sanitize_dir_name(if target_version.is_empty() { "item" } else { target_version });
             let saves = versions.join(t).join("saves");
-            let mut name = safe_item;
+            let mut name = safe_item.clone();
             let mut n = 1;
             while saves.join(&name).exists() {
                 n += 1;
