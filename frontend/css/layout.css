@@ -2182,6 +2182,34 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
     cursor: pointer;
 }
 
+/* CSS 默认位置（未拖动过的控件）：标题/头像/版本卡/启动按钮精确水平居中，
+   存档坞右侧停靠，运行卡片左下角；用户拖动后由内联 left/top 接管 */
+.home-page > .home-avatar-widget {
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.home-page > .home-version-card-wrap {
+    top: 52%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.home-page > .home-launch-btn {
+    top: 66%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.home-page > .home-save-dock {
+    top: 22%;
+    right: 28px;
+}
+.home-page > .home-running-card {
+    top: auto;
+    bottom: 24px;
+    left: 28px;
+}
+
+
 /* 头像控件：主体拖动 + 滚轮缩放（含头像与账户信息条，整体缩放） */
 .home-avatar-widget {
     z-index: 3;

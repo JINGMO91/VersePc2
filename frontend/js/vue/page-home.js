@@ -142,32 +142,30 @@ const PageHome = {
       }[key];
     },
     // ── 可移动控件系统（参考 ZalithLauncher2 主页卡片：按住拖动 + 位置持久化） ──
+    // 有保存位置 → 应用（clamp 到窗口内）；没有 → 清除内联样式回退 CSS 默认（精确居中/停靠）。
     applyLayout(force) {
       const page = this.$refs.homePage;
       if (!page) return;
       const layout = force ? {} : loadHomeLayout();
       const pw = page.clientWidth, ph = page.clientHeight;
-      const self = this;
-      const defaults = {
-        title:   function (w, h) { return { x: (pw - w) / 2, y: 14 }; },
-        avatar:  function (w, h) { return { x: (pw - w) / 2, y: Math.max(56, ph * 0.16) }; },
-        version: function (w, h) { return { x: (pw - w) / 2, y: ph * 0.54 }; },
-        launch:  function (w, h) {
-          const vEl = self.$refs.versionEl;
-          const vy = vEl ? (parseFloat(vEl.style.top) || ph * 0.54) : ph * 0.54;
-          const vh = vEl ? vEl.offsetHeight : 60;
-          return { x: (pw - w) / 2, y: Math.min(ph - h - 12, vy + vh + 44) };
-        },
-        saves:   function (w, h) { return { x: Math.max(12, pw - w - 28), y: ph * 0.24 }; },
-        running: function (w, h) { return { x: 28, y: Math.max(70, ph - h - 24) }; }
-      };
-      for (const key in defaults) {
+      for (const key of ['title', 'avatar', 'version', 'launch', 'saves', 'running']) {
         const el = this.widgetByKey(key);
         if (!el) continue;
-        const w = el.offsetWidth || 10, h = el.offsetHeight || 10;
-        const pos = (!force && layout[key]) ? layout[key] : defaults[key].call(this, w, h);
-        el.style.left = clampPos(pos.x, 0, Math.max(0, pw - w)) + 'px';
-        el.style.top = clampPos(pos.y, 0, Math.max(0, ph - h)) + 'px';
+        const pos = (!force && layout[key]) ? layout[key] : null;
+        if (pos) {
+          const w = el.offsetWidth || 10, h = el.offsetHeight || 10;
+          el.style.left = clampPos(pos.x, 0, Math.max(0, pw - w)) + 'px';
+          el.style.top = clampPos(pos.y, 0, Math.max(0, ph - h)) + 'px';
+          el.style.right = 'auto';
+          el.style.bottom = 'auto';
+        } else {
+          // 回退 CSS 默认：标题/头像/版本卡/启动按钮水平居中，存档坞右侧停靠，运行卡片左下
+          el.style.left = '';
+          el.style.top = '';
+          el.style.right = '';
+          el.style.bottom = '';
+          el.style.transform = '';
+        }
       }
       // 头像缩放（恢复默认时重置为 1）
       const s = (!force && layout.avatar && layout.avatar.s) || 1;
@@ -210,6 +208,11 @@ const PageHome = {
           if (!moved) {
             moved = true;
             el.classList.add('home-dragging');
+            // 退出 CSS 默认定位（水平居中 transform / 右侧停靠 right），此后由内联 left/top 全权控制。
+            // ox/oy 取自 getBoundingClientRect（真实视觉位置），清 transform 不会产生跳变。
+            el.style.transform = 'none';
+            el.style.right = 'auto';
+            el.style.bottom = 'auto';
           }
           ev.preventDefault();
           const w = el.offsetWidth || 10, h = el.offsetHeight || 10;
@@ -284,14 +287,18 @@ const PageHome = {
         this.currentVersionId = vid;
         await this.loadSaves();
       }
-      // 运行卡片是 v-if 挂载的：出现后补一次位置应用
+      // 运行卡片是 v-if 挂载的：出现后按保存位置应用，无保存则回退 CSS 默认（左下角）
       const rEl = this.$refs.runningEl;
       if (rEl && !rEl.style.left) {
         const layout = loadHomeLayout();
         const page = this.$refs.homePage;
-        const pos = layout.running || { x: 28, y: Math.max(70, page.clientHeight - rEl.offsetHeight - 24) };
-        rEl.style.left = clampPos(pos.x, 0, Math.max(0, page.clientWidth - rEl.offsetWidth)) + 'px';
-        rEl.style.top = clampPos(pos.y, 0, Math.max(0, page.clientHeight - rEl.offsetHeight)) + 'px';
+        const pos = layout.running;
+        if (pos) {
+          rEl.style.left = clampPos(pos.x, 0, Math.max(0, page.clientWidth - (rEl.offsetWidth || 10))) + 'px';
+          rEl.style.top = clampPos(pos.y, 0, Math.max(0, page.clientHeight - (rEl.offsetHeight || 10))) + 'px';
+          rEl.style.right = 'auto';
+          rEl.style.bottom = 'auto';
+        }
         this.bindDrag(rEl, 'running', null, '.home-running-stop');
       }
     },
