@@ -2139,7 +2139,7 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
 
 /* ============================================================
    主页可移动控件系统（参考 ZalithLauncher2 主页卡片模式）
-   - 控件绝对定位 + 拖动柄悬停显示，位置持久化 localStorage
+   - 控件绝对定位 + 按住主体直接拖动，位置持久化 localStorage
    - 存档坞：常驻卡片（替代原底部展开抽屉）
    ============================================================ */
 .home-page > .home-page-title,
@@ -2152,51 +2152,39 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
     margin: 0 !important;
 }
 
-/* 拖动柄：悬停控件时显示 */
-.home-widget-grip {
-    position: absolute;
-    top: -22px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 30px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 6px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
+/* 按住拖动：控件主体可抓取，拖动中加视觉反馈；文本不可选中避免拖出选区 */
+.home-page-title,
+.home-avatar-widget,
+.home-version-card-wrap,
+.home-launch-btn,
+.home-running-card,
+.home-save-dock {
     cursor: grab;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    z-index: 6;
     touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
-.home-widget-grip svg {
-    width: 16px;
-    height: 16px;
-    pointer-events: none;
-}
-.home-widget-grip:active {
+.home-page-title:active,
+.home-avatar-widget:active,
+.home-version-card-wrap:active,
+.home-launch-btn:active,
+.home-running-card:active,
+.home-save-dock:active {
     cursor: grabbing;
 }
-.home-page-title:hover > .home-widget-grip,
-.home-avatar-widget:hover > .home-widget-grip,
-.home-version-card-wrap:hover > .home-widget-grip,
-.home-launch-btn:hover > .home-widget-grip,
-.home-running-card:hover > .home-widget-grip {
-    opacity: 1;
+.home-dragging {
+    opacity: 0.92;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18) !important;
+    z-index: 20 !important;
+}
+/* 运行卡片的「停止」按钮保留指针（不参与拖动） */
+.home-running-card .home-running-stop {
+    cursor: pointer;
 }
 
 /* 头像控件：主体拖动 + 滚轮缩放（含头像与账户信息条，整体缩放） */
 .home-avatar-widget {
-    cursor: grab;
-    touch-action: none;
     z-index: 3;
-}
-.home-avatar-widget:active {
-    cursor: grabbing;
 }
 .home-avatar-widget .home-avatar-scale {
     transform-origin: center center;
@@ -2212,10 +2200,6 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
     margin-top: 0;
 }
 
-/* 启动按钮内的拖动柄悬浮于按钮上方 */
-.home-launch-btn .home-widget-grip {
-    top: -26px;
-}
 
 /* 存档坞：zL2 网格卡风格的常驻卡片 */
 .home-save-dock {

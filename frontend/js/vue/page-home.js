@@ -1,10 +1,12 @@
 /* page-home.js - 首页 Vue 组件（页面结构层）
  * 主页可移动控件系统（参考 ZalithLauncher2 主页卡片模式）：
  *   - 每个控件（软件名/头像/版本卡/启动按钮/存档坞/运行卡片）均为绝对定位，
- *     按住拖动柄（悬停显示的 ⠿ 把手；头像直接拖主体）自由移动，
+ *     按住控件主体直接拖动（移动超过 5px 视为拖动，原地点击保持原有交互），
  *     位置与头像缩放持久化到 localStorage（versepc_home_layout_v1）。
  *   - 头像：拖动移动 + 滚轮缩放（0.5x ~ 2.0x），点击进入账户管理。
- *   - 存档坞：常驻卡片（不再从底部展开），显示当前版本存档，点击存档直接启动。
+ *   - 存档坞：常驻卡片，显示当前版本存档，点击存档直接启动。
+ *   - 个性化设置页「恢复主页默认布局」会派发 versepc-home-layout-reset 事件，
+ *     本组件监听后清空已保存布局并回到默认位置。
  * 交互逻辑调用 js/app/*.js 的全局函数，全局状态变量在 js/app.js。
  */
 
@@ -42,19 +44,13 @@ const PageHome = {
   },
   template: `
     <div class="home-page" ref="homePage">
-      <!-- 软件名称（可移动，点击回主页） -->
-      <div class="home-page-title topbar-title" ref="titleEl" data-widget="title">
-        <span class="home-widget-grip" title="拖动移动" @click.stop>
-          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
-        </span>
+      <!-- 软件名称（按住拖动，点击回主页） -->
+      <div class="home-page-title topbar-title" ref="titleEl" data-widget="title" title="按住拖动 · 点击回主页">
         Verse<span class="home-page-title-accent">PC2</span>
       </div>
 
-      <!-- 头像控件（可移动 + 滚轮缩放；点击进入账户管理） -->
-      <div class="home-avatar-widget" ref="avatarEl" data-widget="avatar" title="拖动移动 · 滚轮缩放 · 点击进入账户">
-        <span class="home-widget-grip" title="拖动移动" @click.stop>
-          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
-        </span>
+      <!-- 头像控件（按住拖动 + 滚轮缩放；点击进入账户管理） -->
+      <div class="home-avatar-widget" ref="avatarEl" data-widget="avatar" title="按住拖动 · 滚轮缩放 · 点击进入账户">
         <div class="home-avatar-scale" ref="avatarScale">
           <div class="home-avatar-box" id="home-avatar-box">
             <div class="home-avatar-img-wrap" id="home-avatar"><img src="img/icon.png" alt="" class="home-avatar-img"></div>
@@ -66,30 +62,21 @@ const PageHome = {
         </div>
       </div>
 
-      <!-- 版本列表卡片（可移动） -->
-      <div class="home-version-card-wrap" ref="versionEl" data-widget="version">
-        <span class="home-widget-grip" title="拖动移动" @click.stop>
-          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
-        </span>
+      <!-- 版本列表卡片（按住拖动） -->
+      <div class="home-version-card-wrap" ref="versionEl" data-widget="version" title="按住拖动">
         <div class="home-current-version-card" id="home-current-version-card" title="点击切换版本">
           <!-- 由 JS 渲染：图标 + 版本名 + 加载器标签 + 右侧箭头 -->
         </div>
       </div>
 
-      <!-- 启动按钮（可移动） -->
-      <button id="home-launch-btn" ref="launchEl" class="btn btn-primary btn-lg home-launch-btn">
-        <span class="home-widget-grip" title="拖动移动" @click.stop>
-          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
-        </span>
+      <!-- 启动按钮（按住拖动，点击启动） -->
+      <button id="home-launch-btn" ref="launchEl" class="btn btn-primary btn-lg home-launch-btn" title="按住拖动 · 点击启动">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         启动游戏
       </button>
 
-      <!-- 启动任务 / 运行中游戏卡片（可移动，有运行实例时显示） -->
-      <div class="home-running-card" ref="runningEl" v-if="gameInstances.length > 0">
-        <span class="home-widget-grip" title="拖动移动" @click.stop>
-          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
-        </span>
+      <!-- 启动任务 / 运行中游戏卡片（按住拖动，有运行实例时显示） -->
+      <div class="home-running-card" ref="runningEl" v-if="gameInstances.length > 0" title="按住拖动">
         <div class="home-running-card-header">
           <span class="home-running-dot"></span>
           <span class="home-running-title">启动任务</span>
@@ -106,9 +93,9 @@ const PageHome = {
         </div>
       </div>
 
-      <!-- 存档坞：常驻卡片（可移动），显示当前版本存档，点击直接启动 -->
-      <div class="home-save-dock" ref="dockEl" data-widget="saves">
-        <div class="home-save-dock-header" title="拖动移动">
+      <!-- 存档坞：常驻卡片（按住拖动），显示当前版本存档，点击直接启动 -->
+      <div class="home-save-dock" ref="dockEl" data-widget="saves" title="按住拖动">
+        <div class="home-save-dock-header">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px;color:var(--accent)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           <span class="home-save-dock-title">{{ currentVersionName }} · 存档</span>
         </div>
@@ -154,35 +141,37 @@ const PageHome = {
         running: this.$refs.runningEl
       }[key];
     },
-    // ── 可移动控件系统（参考 ZalithLauncher2 主页卡片：自由拖动 + 位置持久化） ──
-    applyLayout() {
+    // ── 可移动控件系统（参考 ZalithLauncher2 主页卡片：按住拖动 + 位置持久化） ──
+    applyLayout(force) {
       const page = this.$refs.homePage;
       if (!page) return;
-      const layout = loadHomeLayout();
+      const layout = force ? {} : loadHomeLayout();
       const pw = page.clientWidth, ph = page.clientHeight;
+      const self = this;
       const defaults = {
         title:   function (w, h) { return { x: (pw - w) / 2, y: 14 }; },
-        avatar:  function (w, h) { return { x: (pw - w) / 2, y: Math.max(56, ph * 0.14) }; },
-        version: function (w, h) { return { x: (pw - w) / 2, y: ph * 0.52 }; },
+        avatar:  function (w, h) { return { x: (pw - w) / 2, y: Math.max(56, ph * 0.16) }; },
+        version: function (w, h) { return { x: (pw - w) / 2, y: ph * 0.54 }; },
         launch:  function (w, h) {
-          const vEl = this.$refs.versionEl;
-          const vy = vEl ? (parseFloat(vEl.style.top) || ph * 0.52) : ph * 0.52;
+          const vEl = self.$refs.versionEl;
+          const vy = vEl ? (parseFloat(vEl.style.top) || ph * 0.54) : ph * 0.54;
           const vh = vEl ? vEl.offsetHeight : 60;
-          return { x: (pw - w) / 2, y: vy + vh + 16 };
+          return { x: (pw - w) / 2, y: Math.min(ph - h - 12, vy + vh + 44) };
         },
-        saves:   function (w, h) { return { x: Math.max(12, pw - w - 28), y: ph * 0.22 }; },
+        saves:   function (w, h) { return { x: Math.max(12, pw - w - 28), y: ph * 0.24 }; },
         running: function (w, h) { return { x: 28, y: Math.max(70, ph - h - 24) }; }
       };
       for (const key in defaults) {
         const el = this.widgetByKey(key);
         if (!el) continue;
         const w = el.offsetWidth || 10, h = el.offsetHeight || 10;
-        const pos = layout[key] || defaults[key].call(this, w, h);
+        const pos = (!force && layout[key]) ? layout[key] : defaults[key].call(this, w, h);
         el.style.left = clampPos(pos.x, 0, Math.max(0, pw - w)) + 'px';
         el.style.top = clampPos(pos.y, 0, Math.max(0, ph - h)) + 'px';
       }
-      // 头像缩放
-      const s = (layout.avatar && layout.avatar.s) || 1;
+      // 头像缩放（恢复默认时重置为 1）
+      const s = (!force && layout.avatar && layout.avatar.s) || 1;
+      this._avatarScale = s;
       if (this.$refs.avatarScale) {
         this.$refs.avatarScale.style.transform = 'scale(' + s + ')';
       }
@@ -198,22 +187,16 @@ const PageHome = {
       saveHomeLayout(layout);
     },
     /**
-     * 绑定拖动：grip 上 pointerdown → 移动超阈值 = 拖动控件并持久化；
-     * 未超阈值松手 = 视为点击，执行 onTap。
-     * @param el 被移动的控件元素
-     * @param grip 拖动柄元素（null = 控件自身作为拖动区）
-     * @param key 布局持久化键
-     * @param onTap 未发生拖动时的点击回调（可为 null）
+     * 按住控件主体直接拖动：移动超过阈值 = 拖动并持久化位置；
+     * 原地松手（未拖动）= 正常派发 click，保持控件内部原有交互。
+     * 拖动结束后的一次 click 会被捕获拦截，防止误触内部交互。
      */
-    bindDrag(el, grip, key, onTap) {
+    bindDrag(el, key, onTap, excludeSelector) {
       if (!el) return;
-      const handle = grip || el;
       const self = this;
-      handle.addEventListener('pointerdown', function (e) {
+      el.addEventListener('pointerdown', function (e) {
         if (e.button !== 0) return;
-        // 不拦截控件内部交互元素（按钮/输入等）：仅把手与头像主体走拖动
-        if (grip === null && e.target.closest && e.target.closest('button, input, select, a')) return;
-        e.preventDefault();
+        if (excludeSelector && e.target.closest && e.target.closest(excludeSelector)) return;
         const page = self.$refs.homePage;
         const rect = el.getBoundingClientRect();
         const pageRect = page.getBoundingClientRect();
@@ -221,48 +204,48 @@ const PageHome = {
         const oy = rect.top - pageRect.top;
         const sx = e.clientX, sy = e.clientY;
         let moved = false;
-        try { handle.setPointerCapture(e.pointerId); } catch (err) {}
         const onMove = function (ev) {
           const dx = ev.clientX - sx, dy = ev.clientY - sy;
           if (!moved && Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
-          moved = true;
+          if (!moved) {
+            moved = true;
+            el.classList.add('home-dragging');
+          }
+          ev.preventDefault();
           const w = el.offsetWidth || 10, h = el.offsetHeight || 10;
           el.style.left = clampPos(ox + dx, 0, Math.max(0, pageRect.width - w)) + 'px';
           el.style.top = clampPos(oy + dy, 0, Math.max(0, pageRect.height - h)) + 'px';
         };
         const onUp = function () {
-          handle.removeEventListener('pointermove', onMove);
-          handle.removeEventListener('pointerup', onUp);
-          handle.removeEventListener('pointercancel', onUp);
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          document.removeEventListener('pointercancel', onUp);
+          el.classList.remove('home-dragging');
           if (moved) {
             self.persistPos(key, el);
-          } else if (onTap) {
-            onTap();
+            // 吞掉拖动结束后派发的 click，防止误触内部交互（启动/进账户/启动存档）
+            const swallow = function (ev) {
+              ev.stopPropagation();
+              ev.preventDefault();
+              el.removeEventListener('click', swallow, true);
+            };
+            el.addEventListener('click', swallow, true);
+            setTimeout(function () { el.removeEventListener('click', swallow, true); }, 350);
           }
         };
-        handle.addEventListener('pointermove', onMove);
-        handle.addEventListener('pointerup', onUp);
-        handle.addEventListener('pointercancel', onUp);
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        document.addEventListener('pointercancel', onUp);
       });
     },
     setupWidgets() {
       const self = this;
-      // 软件名：把手拖动 + 点击回主页
-      this.bindDrag(this.$refs.titleEl, this.$refs.titleEl.querySelector('.home-widget-grip'), 'title', function () {
+      // 软件名：按住拖动 + 点击回主页
+      this.bindDrag(this.$refs.titleEl, 'title', function () {
         if (typeof navigateToPage === 'function') navigateToPage('home');
       });
-      // 版本卡：把手拖动（内部点击留给版本选择）
-      this.bindDrag(this.$refs.versionEl, this.$refs.versionEl.querySelector('.home-widget-grip'), 'version', null);
-      // 启动按钮：把手拖动 + 按钮本体点击启动（拖把手不会误触启动）
-      this.bindDrag(this.$refs.launchEl, this.$refs.launchEl.querySelector('.home-widget-grip'), 'launch', function () {
-        if (typeof handleLaunch === 'function') handleLaunch();
-      });
-      // 运行卡片：把手拖动
-      this.bindDrag(this.$refs.runningEl, this.$refs.runningEl.querySelector('.home-widget-grip'), 'running', null);
-      // 存档坞：标题栏整条拖动（列表内交互不受影响）
-      this.bindDrag(this.$refs.dockEl, this.$refs.dockEl.querySelector('.home-save-dock-header'), 'saves', null);
-      // 头像：主体直接拖动 + 点击进账户 + 滚轮缩放
-      this.bindDrag(this.$refs.avatarEl, null, 'avatar', function () {
+      // 头像：按住拖动 + 点击进账户 + 滚轮缩放
+      this.bindDrag(this.$refs.avatarEl, 'avatar', function () {
         if (typeof navigateToPage === 'function') navigateToPage('accounts');
       });
       const avatarEl = this.$refs.avatarEl;
@@ -278,8 +261,20 @@ const PageHome = {
           self.persistPos('avatar', avatarEl);
         }, { passive: false });
       }
+      // 版本卡：按住拖动（内部点击切版本不受影响）
+      this.bindDrag(this.$refs.versionEl, 'version', null);
+      // 启动按钮：按住拖动 + 点击启动
+      this.bindDrag(this.$refs.launchEl, 'launch', function () {
+        if (typeof handleLaunch === 'function') handleLaunch();
+      });
+      // 运行卡片：按住拖动（排除内部「停止」按钮，避免点击停止被拖动吞掉）
+      this.bindDrag(this.$refs.runningEl, 'running', null, '.home-running-stop');
+      // 存档坞：按住拖动（存档卡点击启动不受影响）
+      this.bindDrag(this.$refs.dockEl, 'saves', null);
       // 窗口尺寸变化时把控件收回可视区域
       window.addEventListener('resize', function () { self.applyLayout(); });
+      // 个性化页「恢复主页默认布局」
+      window.addEventListener('versepc-home-layout-reset', function () { self.applyLayout(true); });
     },
     // ── 存档坞 ──
     async pollVersionChange() {
@@ -297,7 +292,7 @@ const PageHome = {
         const pos = layout.running || { x: 28, y: Math.max(70, page.clientHeight - rEl.offsetHeight - 24) };
         rEl.style.left = clampPos(pos.x, 0, Math.max(0, page.clientWidth - rEl.offsetWidth)) + 'px';
         rEl.style.top = clampPos(pos.y, 0, Math.max(0, page.clientHeight - rEl.offsetHeight)) + 'px';
-        this.bindDrag(rEl, rEl.querySelector('.home-widget-grip'), 'running', null);
+        this.bindDrag(rEl, 'running', null, '.home-running-stop');
       }
     },
     async loadSaves() {
