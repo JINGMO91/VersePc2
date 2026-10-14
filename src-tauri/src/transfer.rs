@@ -1,7 +1,7 @@
 // transfer.rs — VersePC 互传：信令走信令服务(124.223.80.73:8746)，文件在两台设备间 TCP 直传。
 // 协议：魔数VXFER01 + 文件名(u32长度) + 大小(u64) + sha256(32B) + 文件字节流(256KB分块)，接收端最后回 1 字节确认。
 // 只做信令不做中转：文件数据不经过任何服务器。
-// 激活规则：发送方生成识别码时信令服务器向官网校验激活码，通过才发码；接收方免费。
+// 免费使用（2026-10-14 起）：互传不再要求激活码，安全依赖信令限流与用户守则。
 // 游戏数据互传：版本/模组/存档先打包为 zip（VXFER01 单文件协议不变），
 // 信令注册时透传 meta（kind/itemName/versionId），接收端按类型解压落地到对应文件夹。
 use serde::Serialize;
@@ -12,7 +12,6 @@ use std::sync::{Arc, Mutex, OnceLock};
 use tauri::Emitter;
 
 const SIGNAL_BASE: &str = "http://124.223.80.73:8746";
-const VERIFY_URL: &str = "https://www.verselauncher.cn/api/afdian/key-verify";
 const MAGIC: &[u8; 8] = b"VXFER01\0";
 const CHUNK_SIZE: usize = 256 * 1024;
 
@@ -104,38 +103,6 @@ async fn hash_file(path: &PathBuf) -> Result<(String, u64), String> {
         size += n as u64;
     }
     Ok((format!("{:x}", hasher.finalize()), size))
-}
-
-// ============== 激活 ==============
-
-/// 初次激活：把激活码与设备标识提交官网核验（存在且未绑定其他设备即有效，首次核对绑定本机）
-#[tauri::command]
-pub async fn transfer_verify_activation(key: String) -> Result<serde_json::Value, String> {
-    let key = key.trim().to_string();
-    if key.is_empty() {
-        return Err("请输入激活码".into());
-    }
-    let client = reqwest::Client::new();
-    let resp = client
-        .post(VERIFY_URL)
-        .json(&serde_json::json!({ "key": key, "device_id": device_id() }))
-        .send()
-        .await
-        .map_err(|e| format!("无法连接官网校验服务: {e}"))?;
-    let v: serde_json::Value = resp.json().await.map_err(|e| format!("官网响应异常: {e}"))?;
-    if v.get("valid").and_then(|x| x.as_bool()).unwrap_or(false) {
-        Ok(serde_json::json!({
-            "ok": true,
-            "name": v.get("name").and_then(|x| x.as_str()).unwrap_or(""),
-            "activatedAt": v.get("activatedAt").cloned().unwrap_or(serde_json::Value::Null),
-            "expireAt": v.get("expireAt").cloned().unwrap_or(serde_json::Value::Null),
-        }))
-    } else {
-        Err(v.get("error")
-            .and_then(|x| x.as_str())
-            .unwrap_or("激活码无效")
-            .to_string())
-    }
 }
 
 // ============== 本地游戏数据列举 ==============
@@ -361,10 +328,8 @@ fn insert_offer(
 /// 发送方：任意文件互传（保留兼容：拖选单个文件）
 #[tauri::command]
 pub async fn transfer_start_send(path: String, activation_key: String) -> Result<SendSession, String> {
+    // 免费使用：激活码参数保留兼容旧前端，不再校验
     let key = activation_key.trim().to_string();
-    if key.is_empty() {
-        return Err("请先输入激活码（发送方需要激活，接收方免费）".into());
-    }
     let file_path = PathBuf::from(&path);
     if !file_path.is_file() {
         return Err("文件不存在".into());
@@ -387,7 +352,7 @@ pub async fn transfer_start_send(path: String, activation_key: String) -> Result
 /// 发送方：游戏数据互传（版本/模组/存档）。
 /// kind: 1=版本(version_id 的整个版本目录) 2=模组(version_id 版本的 mods 下 selection 列出的文件)
 ///       3=存档(version_id 版本下 saves/item_name 存档目录)
-/// 流程：收集文件 → 打 zip → 注册（携带 meta，信令向官网核验激活码）→ 监听等待对端直传
+/// 流程：收集文件 → 打 zip → 注册（携带 meta，信令发识别码）→ 监听等待对端直传
 #[tauri::command]
 pub async fn transfer_start_send_game(
     kind: u8,
@@ -396,10 +361,8 @@ pub async fn transfer_start_send_game(
     selection: Vec<String>,
     activation_key: String,
 ) -> Result<SendSession, String> {
+    // 免费使用：激活码参数保留兼容旧前端，不再校验
     let key = activation_key.trim().to_string();
-    if key.is_empty() {
-        return Err("请先激活后再发送（发送方需要激活，接收方免费）".into());
-    }
     let vid = sanitize_dir_name(&version_id);
     if vid.is_empty() {
         return Err("版本名无效".into());

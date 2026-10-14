@@ -1,24 +1,17 @@
 /* page-transfer.js - 互传页 Vue 组件（游戏数据互传）
- * 流程：
- *   初次使用：输入激活码 → 官网核验并绑定本机（信令发送时还会二次核验）
+ * 流程（免费使用，无需激活码）：
  *   发送：选择类型（版本/模组/存档）→ 选版本（模组再选模组文件、存档再选存档）
- *         → 生成 8 位识别码（打包 zip，信令携带激活码向官网核验通过才发码）
+ *         → 生成 8 位识别码（打包 zip，信令注册）
  *         → 对端连接后自动直传（SHA-256 校验）
  *   接收：输入识别码 → 预览落地信息（版本/模组/存档自动落到对应文件夹，可选目标版本）
  *         → 接收 zip 并解压到对应目录（同名自动加"(互传)"后缀）
  * 文件数据在两台设备间 TCP 点对点直连，服务器只做信令不中转。
+ * 安全使用：仅传输自己有权分享的内容，请勿传播违规文件。
  */
 const PageTransfer = {
   name: 'PageTransfer',
   data() {
-    var savedKey = '';
-    try { savedKey = localStorage.getItem('verse_activation_key') || ''; } catch (e) {}
     return {
-      activated: !!savedKey,
-      actInput: '',
-      actLoading: false,
-      actMsg: '',
-
       view: 'home', // home | send | recv
       // 发送流程
       sendStep: 'type', // type | pick | code
@@ -76,20 +69,6 @@ const PageTransfer = {
       if (n > 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
       if (n > 1024) return (n / 1024).toFixed(0) + ' KB';
       return n + ' B';
-    },
-    async activate() {
-      const key = (this.actInput || '').trim();
-      if (!key || this.actLoading) return;
-      this.actLoading = true;
-      this.actMsg = '';
-      try {
-        await this.invoke()('transfer_verify_activation', { key: key });
-        try { localStorage.setItem('verse_activation_key', key); } catch (e) {}
-        this.activated = true;
-      } catch (e) {
-        this.actMsg = String(e);
-      }
-      this.actLoading = false;
     },
     async loadVersions() {
       this.versionsLoading = true;
@@ -168,13 +147,12 @@ const PageTransfer = {
       this.sendDone = false;
       this.sendStatus = '正在打包内容.';
       try {
-        const key = localStorage.getItem('verse_activation_key') || '';
         const session = await this.invoke()('transfer_start_send_game', {
           kind: this.sendKind,
           versionId: this.sendVersion,
           itemName: this.sendKind === 3 ? this.sendSave : this.sendVersion,
           selection: this.sendKind === 2 ? this.sendMods : [],
-          activationKey: key
+          activationKey: ''
         });
         this.sendCode = session.code;
         this.sendStep = 'code';
@@ -352,31 +330,11 @@ const PageTransfer = {
   },
   template: `
     <div class="transfer-wrap">
-      <!-- ===== 初次使用：激活 ===== -->
-      <div v-if="!activated" class="transfer-card" style="max-width:460px;margin:40px auto 0;">
-        <div style="text-align:center;margin-bottom:14px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:44px;height:44px;color:var(--accent)"><path d="M17 4l4 4-4 4"/><path d="M21 8H9"/><path d="M7 20l-4-4 4-4"/><path d="M3 16h12"/></svg>
-          <div class="transfer-card-title" style="margin-top:8px;">欢迎使用 Verse 互传</div>
-          <div class="transfer-card-sub">与手机/其他电脑之间互传版本、模组与存档（激活后有效期 30 天）</div>
-        </div>
-        <div class="transfer-card-body">
-          <label class="transfer-label">激活码（首次使用需激活，发送需要激活，接收免费）</label>
-          <input class="transfer-input" v-model="actInput" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" @keyup.enter="activate" />
-          <button class="transfer-btn primary" :disabled="!actInput.trim() || actLoading" @click="activate">
-            {{ actLoading ? '激活中…' : '激活' }}
-          </button>
-          <div v-if="actMsg" class="transfer-err">{{ actMsg }}</div>
-          <div class="transfer-hint" style="text-align:center;">前往 verselauncher.cn 使用爱发电订单号获取激活码</div>
-        </div>
-      </div>
-
-      <!-- ===== 已激活 ===== -->
-      <template v-else>
-        <!-- 首页：双大卡片 -->
-        <div v-if="view === 'home'">
+      <!-- ===== 首页：双大卡片 ===== -->
+      <div v-if="view === 'home'">
           <div class="transfer-header">
             <h2>互传</h2>
-            <p>版本、模组、存档，跨设备点对点直传</p>
+            <p>版本、模组、存档，跨设备点对点直传（免费使用）</p>
           </div>
           <div class="transfer-actions">
             <button class="transfer-bigcard" @click="startSend">
@@ -390,8 +348,9 @@ const PageTransfer = {
               <span class="d">输入对方的识别码，自动放入对应文件夹</span>
             </button>
           </div>
-          <div class="transfer-note" style="margin-top:18px;">文件在两台设备间点对点直连，服务器只负责信令不中转数据；接收方免费</div>
-        </div>
+          <div class="transfer-note" style="margin-top:18px;">文件在两台设备间点对点直连，服务器只负责信令不中转数据，免费使用</div>
+          <div class="transfer-note" style="margin-top:6px;">安全提示：请仅传输自己有权分享的内容，勿传播违规文件；建议在可信网络环境下使用</div>
+      </div>
 
         <!-- 发送流程 -->
         <div v-if="view === 'send'">
@@ -546,7 +505,6 @@ const PageTransfer = {
             </div>
           </div>
         </div>
-      </template>
     </div>
   `
 };

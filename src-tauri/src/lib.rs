@@ -866,7 +866,6 @@ pub fn run() {
             transfer::transfer_start_send,
             transfer::transfer_send_status,
             transfer::transfer_receive,
-            transfer::transfer_verify_activation,
             transfer::transfer_list_versions,
             transfer::transfer_list_mods,
             transfer::transfer_list_saves,
