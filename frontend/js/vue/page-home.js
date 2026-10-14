@@ -1,8 +1,11 @@
 /* page-home.js - 首页 Vue 组件（页面结构层）
- * 本文件只负责 HTML 模板，交互逻辑调用 js/app/*.js 的全局函数，
- * 全局状态变量在 js/app.js；新增页面交互请写到 js/app/ 对应文件。
- * 「启动任务 / 运行中游戏」卡片：由 launch.js 的 updateGameInstanceList 写入
- * 共享响应式 store（window.VersePCGameStore），本组件读取并渲染。
+ * 主页可移动控件系统（参考 ZalithLauncher2 主页卡片模式）：
+ *   - 每个控件（软件名/头像/版本卡/启动按钮/存档坞/运行卡片）均为绝对定位，
+ *     按住拖动柄（悬停显示的 ⠿ 把手；头像直接拖主体）自由移动，
+ *     位置与头像缩放持久化到 localStorage（versepc_home_layout_v1）。
+ *   - 头像：拖动移动 + 滚轮缩放（0.5x ~ 2.0x），点击进入账户管理。
+ *   - 存档坞：常驻卡片（不再从底部展开），显示当前版本存档，点击存档直接启动。
+ * 交互逻辑调用 js/app/*.js 的全局函数，全局状态变量在 js/app.js。
  */
 
 // 共享响应式 store（launch.js 写入，主页卡片读取）
@@ -12,66 +15,81 @@ if (!window.VersePCGameStore) {
   setInterval(function () { window.VersePCGameStore.now = Date.now(); }, 1000);
 }
 
-const PIN_TABS = [
-  { key: 'save', label: '存档' },
-  { key: 'version', label: '版本' },
-  { key: 'shader', label: '光影' },
-  { key: 'mod', label: '模组' }
-];
-const PIN_TAB_LABEL = { save: '存档', version: '版本', shader: '光影', mod: '模组' };
-const PIN_TAB_ICON_LABEL = { save: '钉子', version: '星星', shader: '钉子', mod: '钉子' };
+const LAYOUT_KEY = 'versepc_home_layout_v1';
+const AVATAR_MIN = 0.5, AVATAR_MAX = 2.0, DRAG_THRESHOLD = 5;
+
+function loadHomeLayout() {
+  try {
+    return JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}') || {};
+  } catch (e) { return {}; }
+}
+function saveHomeLayout(layout) {
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (e) {}
+}
+function clampPos(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
 
 const PageHome = {
   data() {
     return {
       saves: [],
-      savesOpen: false,
-      savesLoading: false,
       currentVersionId: '',
-      pinsOpen: false,
-      pinnedActiveTab: 'save',
+      savesLoading: false,
       _saveIconCache: {},
       _saveIconLoading: {}
     };
   },
   template: `
-    <div class="home-page">
-      <!-- 标题：放在原本标题栏位置的中间（最顶部居中，不占内容空间） -->
-      <div class="home-page-title topbar-title" data-tauri-drag-region @click="goHome">
+    <div class="home-page" ref="homePage">
+      <!-- 软件名称（可移动，点击回主页） -->
+      <div class="home-page-title topbar-title" ref="titleEl" data-widget="title">
+        <span class="home-widget-grip" title="拖动移动" @click.stop>
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+        </span>
         Verse<span class="home-page-title-accent">PC2</span>
       </div>
 
-      <!-- 右上角便利贴入口 -->
-      <button class="home-stickynote-btn" :class="{ active: pinsOpen }" @click="togglePins" title="收藏置顶">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
-      </button>
-
-      <!-- 头像（居中放大，皮肤头部像素方块） -->
-      <div class="home-avatar-box" id="home-avatar-box" @click="goAccounts" title="账户管理">
-        <div class="home-avatar-img-wrap" id="home-avatar"><img src="img/icon.png" alt="" class="home-avatar-img"></div>
+      <!-- 头像控件（可移动 + 滚轮缩放；点击进入账户管理） -->
+      <div class="home-avatar-widget" ref="avatarEl" data-widget="avatar" title="拖动移动 · 滚轮缩放 · 点击进入账户">
+        <span class="home-widget-grip" title="拖动移动" @click.stop>
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+        </span>
+        <div class="home-avatar-scale" ref="avatarScale">
+          <div class="home-avatar-box" id="home-avatar-box">
+            <div class="home-avatar-img-wrap" id="home-avatar"><img src="img/icon.png" alt="" class="home-avatar-img"></div>
+          </div>
+          <div class="home-account-bar" id="home-account-bar">
+            <span class="account-name" id="home-player-name">未登录</span>
+            <span class="account-type" id="home-account-type">离线模式</span>
+          </div>
+        </div>
       </div>
 
-      <!-- 账户信息（头像下方） -->
-      <div class="home-account-bar" @click="goAccounts" style="cursor:pointer" title="账户管理">
-        <span class="account-name" id="home-player-name">未登录</span>
-        <span class="account-type" id="home-account-type">离线模式</span>
-      </div>
-
-      <!-- 版本列表卡片（头像下方） -->
-      <div class="home-version-card-wrap">
+      <!-- 版本列表卡片（可移动） -->
+      <div class="home-version-card-wrap" ref="versionEl" data-widget="version">
+        <span class="home-widget-grip" title="拖动移动" @click.stop>
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+        </span>
         <div class="home-current-version-card" id="home-current-version-card" title="点击切换版本">
           <!-- 由 JS 渲染：图标 + 版本名 + 加载器标签 + 右侧箭头 -->
         </div>
       </div>
 
-      <!-- 启动按钮（版本列表下方） -->
-      <button id="home-launch-btn" class="btn btn-primary btn-lg home-launch-btn">
+      <!-- 启动按钮（可移动） -->
+      <button id="home-launch-btn" ref="launchEl" class="btn btn-primary btn-lg home-launch-btn">
+        <span class="home-widget-grip" title="拖动移动" @click.stop>
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+        </span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         启动游戏
       </button>
 
-      <!-- 启动任务 / 运行中游戏卡片（Vue 响应式，有运行实例时显示） -->
-      <div class="home-running-card" v-if="gameInstances.length > 0">
+      <!-- 启动任务 / 运行中游戏卡片（可移动，有运行实例时显示） -->
+      <div class="home-running-card" ref="runningEl" v-if="gameInstances.length > 0">
+        <span class="home-widget-grip" title="拖动移动" @click.stop>
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+        </span>
         <div class="home-running-card-header">
           <span class="home-running-dot"></span>
           <span class="home-running-title">启动任务</span>
@@ -88,75 +106,26 @@ const PageHome = {
         </div>
       </div>
 
-      <!-- 底部中间小箭头：点击滑出当前版本存档快速启动 -->
-      <button class="home-saves-arrow" :class="{ open: savesOpen }" @click="toggleSaves" :title="savesOpen ? '收起存档' : '展开存档'">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
-      </button>
-
-      <!-- 存档容器（内嵌在首页，从底部展开） -->
-      <div class="home-saves-wrap" :class="{ open: savesOpen }">
-        <div class="home-saves-drawer">
-          <div class="home-saves-drawer-header">
-            <span>{{ currentVersionName }} · 存档快速启动</span>
-          </div>
-          <div class="home-saves-body">
-            <p v-if="!currentVersionId" class="home-saves-hint">尚未选择版本，请先在首页选择游戏版本</p>
-            <p v-else-if="savesLoading" class="home-saves-hint">加载中...</p>
-            <p v-else-if="saves.length === 0" class="home-saves-hint">当前版本暂无存档</p>
-            <div v-else class="home-saves-row">
-              <div class="home-save-card" v-for="s in saves" :key="s.folder" @click="launchSave(s)" :title="'启动并进入 ' + s.name">
-                <div class="home-save-card-bg">
-                  <img v-if="saveIconUrl(s)" :src="saveIconUrl(s)" alt="">
-                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                </div>
-                <div class="home-save-card-info">
-                  <div class="home-save-card-name" :title="s.name">{{ s.name }}</div>
-                  <div class="home-save-card-meta">{{ difficultyLabel(s.difficulty) }}</div>
-                </div>
-                <button class="pin-btn home-save-pin-btn" :class="{ active: isPinned('save', s.folder) }"
-                        :title="isPinned('save', s.folder) ? '取消置顶' : '置顶存档'" @click.stop="pinSave(s)">
-                  <span v-html="ic('pin')"></span>
-                </button>
-              </div>
-            </div>
-          </div>
+      <!-- 存档坞：常驻卡片（可移动），显示当前版本存档，点击直接启动 -->
+      <div class="home-save-dock" ref="dockEl" data-widget="saves">
+        <div class="home-save-dock-header" title="拖动移动">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:16px;height:16px;color:var(--accent)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span class="home-save-dock-title">{{ currentVersionName }} · 存档</span>
         </div>
-      </div>
-
-      <!-- 收藏置顶面板（右上角便利贴入口展开） -->
-      <div class="home-pins-wrap" :class="{ open: pinsOpen }">
-        <div class="home-pins-drawer">
-          <div class="home-pins-header">
-            <span v-html="ic('pin')" style="display:inline-flex;color:var(--accent)"></span>
-            <span>我的置顶</span>
-            <button class="home-pins-close" @click="closePins" title="收起">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="home-pins-tabs">
-            <button v-for="t in pinTabs" :key="t.key" class="home-pins-tab" :class="{ active: pinnedActiveTab === t.key }" @click="pinnedActiveTab = t.key">
-              {{ t.label }}<span class="home-pins-count">({{ pinsByType(t.key).length }})</span>
-            </button>
-          </div>
-          <div class="home-pins-body">
-            <p v-if="pinsByType(pinnedActiveTab).length === 0" class="home-pins-empty">
-              暂无置顶{{ currentTabLabel }}，在对应卡片上点击{{ currentTabIconLabel }}即可置顶
-            </p>
-            <div v-else class="home-pins-item" v-for="p in pinsByType(pinnedActiveTab)" :key="p.type + ':' + p.id" @click="activatePin(p)" :title="pinTip(p)">
-              <div class="home-pins-item-icon">
-                <img v-if="pinIconUrl(p)" :src="pinIconUrl(p)" alt="">
-                <img v-else-if="p.type === 'version'" class="version-icon-img" :data-vi-id="p.id" data-vi-type="release"
-                  :data-vi-forge="verFlag(p, 'isForge')" :data-vi-fabric="verFlag(p, 'isFabric')"
-                  :data-vi-neoforge="verFlag(p, 'isNeoForge')" :data-vi-modpack="verFlag(p, 'isModpack')" alt="">
-                <span v-else v-html="ic(pinIconName(p))"></span>
+        <div class="home-save-dock-body">
+          <p v-if="!currentVersionId" class="home-saves-hint">尚未选择版本，请先在首页选择游戏版本</p>
+          <p v-else-if="savesLoading" class="home-saves-hint">加载中...</p>
+          <p v-else-if="saves.length === 0" class="home-saves-hint">当前版本暂无存档</p>
+          <div v-else class="home-save-dock-list">
+            <div class="home-save-card" v-for="s in saves" :key="s.folder" @click="launchSave(s)" :title="'启动并进入 ' + s.name">
+              <div class="home-save-card-bg">
+                <img v-if="saveIconUrl(s)" :src="saveIconUrl(s)" alt="">
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
               </div>
-              <div class="home-pins-item-info">
-                <div class="home-pins-item-name">{{ p.name }}</div>
-                <div class="home-pins-item-sub">{{ pinSub(p) }}</div>
+              <div class="home-save-card-info">
+                <div class="home-save-card-name" :title="s.name">{{ s.name }}</div>
+                <div class="home-save-card-meta">{{ difficultyLabel(s.difficulty) }}</div>
               </div>
-              <button class="home-pins-item-del" title="取消置顶" @click.stop="removePinItem(p)">
-                <span v-html="ic('trash')"></span>
-              </button>
             </div>
           </div>
         </div>
@@ -164,7 +133,6 @@ const PageHome = {
     </div>
   `,
   computed: {
-    // 读取共享响应式 store，运行实例变化时主页卡片自动更新
     gameInstances() {
       return window.VersePCGameStore ? window.VersePCGameStore.instances : [];
     },
@@ -173,146 +141,164 @@ const PageHome = {
       if (!vid) return '未选择版本';
       const v = (typeof installedVersions !== 'undefined' && installedVersions || []).find(x => x.id === vid);
       return (v && v.customName) || vid;
-    },
-    pinTabs() {
-      return PIN_TABS;
-    },
-    currentTabLabel() {
-      return PIN_TAB_LABEL[this.pinnedActiveTab] || '存档';
-    },
-    currentTabIconLabel() {
-      return PIN_TAB_ICON_LABEL[this.pinnedActiveTab] || '钉子';
     }
   },
   methods: {
-    goAccounts() {
-      if (typeof navigateToPage === 'function') {
-        navigateToPage('accounts');
+    widgetByKey(key) {
+      return {
+        title: this.$refs.titleEl,
+        avatar: this.$refs.avatarEl,
+        version: this.$refs.versionEl,
+        launch: this.$refs.launchEl,
+        saves: this.$refs.dockEl,
+        running: this.$refs.runningEl
+      }[key];
+    },
+    // ── 可移动控件系统（参考 ZalithLauncher2 主页卡片：自由拖动 + 位置持久化） ──
+    applyLayout() {
+      const page = this.$refs.homePage;
+      if (!page) return;
+      const layout = loadHomeLayout();
+      const pw = page.clientWidth, ph = page.clientHeight;
+      const defaults = {
+        title:   function (w, h) { return { x: (pw - w) / 2, y: 14 }; },
+        avatar:  function (w, h) { return { x: (pw - w) / 2, y: Math.max(56, ph * 0.14) }; },
+        version: function (w, h) { return { x: (pw - w) / 2, y: ph * 0.52 }; },
+        launch:  function (w, h) {
+          const vEl = this.$refs.versionEl;
+          const vy = vEl ? (parseFloat(vEl.style.top) || ph * 0.52) : ph * 0.52;
+          const vh = vEl ? vEl.offsetHeight : 60;
+          return { x: (pw - w) / 2, y: vy + vh + 16 };
+        },
+        saves:   function (w, h) { return { x: Math.max(12, pw - w - 28), y: ph * 0.22 }; },
+        running: function (w, h) { return { x: 28, y: Math.max(70, ph - h - 24) }; }
+      };
+      for (const key in defaults) {
+        const el = this.widgetByKey(key);
+        if (!el) continue;
+        const w = el.offsetWidth || 10, h = el.offsetHeight || 10;
+        const pos = layout[key] || defaults[key].call(this, w, h);
+        el.style.left = clampPos(pos.x, 0, Math.max(0, pw - w)) + 'px';
+        el.style.top = clampPos(pos.y, 0, Math.max(0, ph - h)) + 'px';
+      }
+      // 头像缩放
+      const s = (layout.avatar && layout.avatar.s) || 1;
+      if (this.$refs.avatarScale) {
+        this.$refs.avatarScale.style.transform = 'scale(' + s + ')';
       }
     },
-    goHome() {
-      if (typeof navigateToPage === 'function') {
-        navigateToPage('home');
+    persistPos(key, el) {
+      const layout = loadHomeLayout();
+      layout[key] = layout[key] || {};
+      layout[key].x = parseInt(el.style.left, 10) || 0;
+      layout[key].y = parseInt(el.style.top, 10) || 0;
+      if (key === 'avatar') {
+        layout.avatar.s = this._avatarScale || 1;
       }
+      saveHomeLayout(layout);
     },
-    // ── 收藏置顶面板 ──
-    togglePins() {
-      if (this.pinsOpen) this.closePins();
-      else this.openPins();
+    /**
+     * 绑定拖动：grip 上 pointerdown → 移动超阈值 = 拖动控件并持久化；
+     * 未超阈值松手 = 视为点击，执行 onTap。
+     * @param el 被移动的控件元素
+     * @param grip 拖动柄元素（null = 控件自身作为拖动区）
+     * @param key 布局持久化键
+     * @param onTap 未发生拖动时的点击回调（可为 null）
+     */
+    bindDrag(el, grip, key, onTap) {
+      if (!el) return;
+      const handle = grip || el;
+      const self = this;
+      handle.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0) return;
+        // 不拦截控件内部交互元素（按钮/输入等）：仅把手与头像主体走拖动
+        if (grip === null && e.target.closest && e.target.closest('button, input, select, a')) return;
+        e.preventDefault();
+        const page = self.$refs.homePage;
+        const rect = el.getBoundingClientRect();
+        const pageRect = page.getBoundingClientRect();
+        const ox = rect.left - pageRect.left;
+        const oy = rect.top - pageRect.top;
+        const sx = e.clientX, sy = e.clientY;
+        let moved = false;
+        try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+        const onMove = function (ev) {
+          const dx = ev.clientX - sx, dy = ev.clientY - sy;
+          if (!moved && Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+          moved = true;
+          const w = el.offsetWidth || 10, h = el.offsetHeight || 10;
+          el.style.left = clampPos(ox + dx, 0, Math.max(0, pageRect.width - w)) + 'px';
+          el.style.top = clampPos(oy + dy, 0, Math.max(0, pageRect.height - h)) + 'px';
+        };
+        const onUp = function () {
+          handle.removeEventListener('pointermove', onMove);
+          handle.removeEventListener('pointerup', onUp);
+          handle.removeEventListener('pointercancel', onUp);
+          if (moved) {
+            self.persistPos(key, el);
+          } else if (onTap) {
+            onTap();
+          }
+        };
+        handle.addEventListener('pointermove', onMove);
+        handle.addEventListener('pointerup', onUp);
+        handle.addEventListener('pointercancel', onUp);
+      });
     },
-    openPins() {
-      this.pinsOpen = true;
-      if (this.savesOpen) this.closeSaves(); // 与存档抽屉互斥
-      // 打开时读取当前选中的版本
-      this.currentVersionId = (typeof currentLaunchVersionId !== 'undefined' && currentLaunchVersionId) || '';
-      // 面板里的版本项图标是异步加载的，展开后触发一次
-      setTimeout(() => {
-        const body = this.$el && this.$el.querySelector('.home-pins-body');
-        if (body && typeof _loadVersionIcons === 'function') _loadVersionIcons(body);
-      }, 80);
-    },
-    closePins() {
-      this.pinsOpen = false;
-    },
-    isPinned(type, id) {
-      return typeof window.isPinned === 'function' && window.isPinned(type, id);
-    },
-    ic(name) {
-      return (window.VersePC.PIN_ICONS && window.VersePC.PIN_ICONS[name]) || '';
-    },
-    pinSave(s) {
-      if (typeof window.togglePinSave === 'function') {
-        window.togglePinSave(s.folder, s.name, this.currentVersionId, s.icon || '', s.difficulty);
-      }
-    },
-    pinsByType(type) {
-      return (window.VersePC.pinnedStore ? window.VersePC.pinnedStore.items : []).filter(p => p.type === type);
-    },
-    pinIconName(p) {
-      return { save: 'folder', version: 'cube', shader: 'sun', mod: 'puzzle' }[p.type] || 'folder';
-    },
-    pinIconUrl(p) {
-      const e = p.extra || {};
-      if (p.type === 'save') {
-        if (!e.icon) return '';
-        return this.saveIconUrl({ folder: e.folder, icon: e.icon });
-      }
-      if ((p.type === 'shader' || p.type === 'mod') && e.icon) return e.icon;
-      return '';
-    },
-    pinSub(p) {
-      const e = p.extra || {};
-      if (p.type === 'save') {
-        const parts = [];
-        if (e.versionId) parts.push(e.versionId);
-        const d = this.difficultyLabel(e.difficulty);
-        if (d !== '未知') parts.push(d);
-        return parts.join(' · ');
-      }
-      if (p.type === 'version') return e.loaderText || '原版';
-      if (p.type === 'shader' || p.type === 'mod') return e.source === 'curseforge' ? 'CurseForge' : 'Modrinth';
-      return '';
-    },
-    pinTip(p) {
-      if (p.type === 'save') return '点击启动并进入该存档';
-      if (p.type === 'version') return '点击切换并启动该版本';
-      if (p.type === 'shader') return '点击打开光影管理';
-      if (p.type === 'mod') return '点击打开模组管理';
-      return '';
-    },
-    verFlag(p, key) {
-      const v = (typeof installedVersions !== 'undefined' && installedVersions || []).find(x => x.id === p.id);
-      return (v && v[key]) ? '1' : '0';
-    },
-    async activatePin(p) {
-      if (p.type === 'save') {
-        const versionId = (p.extra && p.extra.versionId) || this.currentVersionId;
-        if (!versionId) {
-          showToast('该存档缺少版本信息，请重新置顶', 'warning');
-          return;
-        }
-        this.closePins();
-        if (typeof selectLaunchVersion === 'function') selectLaunchVersion(versionId);
-        if (typeof quickPlayWorld === 'undefined') {
-          showToast('启动入口未就绪', 'error');
-          return;
-        }
-        quickPlayWorld = (p.extra && p.extra.folder) || p.id;
+    setupWidgets() {
+      const self = this;
+      // 软件名：把手拖动 + 点击回主页
+      this.bindDrag(this.$refs.titleEl, this.$refs.titleEl.querySelector('.home-widget-grip'), 'title', function () {
+        if (typeof navigateToPage === 'function') navigateToPage('home');
+      });
+      // 版本卡：把手拖动（内部点击留给版本选择）
+      this.bindDrag(this.$refs.versionEl, this.$refs.versionEl.querySelector('.home-widget-grip'), 'version', null);
+      // 启动按钮：把手拖动 + 按钮本体点击启动（拖把手不会误触启动）
+      this.bindDrag(this.$refs.launchEl, this.$refs.launchEl.querySelector('.home-widget-grip'), 'launch', function () {
         if (typeof handleLaunch === 'function') handleLaunch();
-      } else if (p.type === 'version') {
-        this.closePins();
-        const id = (p.extra && p.extra.versionId) || p.id;
-        if (typeof selectLaunchVersion === 'function') selectLaunchVersion(id);
-        if (typeof quickPlayWorld !== 'undefined') quickPlayWorld = '';
-        if (typeof handleLaunch === 'function') handleLaunch();
-      } else if (p.type === 'shader') {
-        this.closePins();
-        navigateToPage('shaders');
-      } else if (p.type === 'mod') {
-        this.closePins();
-        navigateToPage('mods');
+      });
+      // 运行卡片：把手拖动
+      this.bindDrag(this.$refs.runningEl, this.$refs.runningEl.querySelector('.home-widget-grip'), 'running', null);
+      // 存档坞：标题栏整条拖动（列表内交互不受影响）
+      this.bindDrag(this.$refs.dockEl, this.$refs.dockEl.querySelector('.home-save-dock-header'), 'saves', null);
+      // 头像：主体直接拖动 + 点击进账户 + 滚轮缩放
+      this.bindDrag(this.$refs.avatarEl, null, 'avatar', function () {
+        if (typeof navigateToPage === 'function') navigateToPage('accounts');
+      });
+      const avatarEl = this.$refs.avatarEl;
+      const scaleWrap = this.$refs.avatarScale;
+      if (avatarEl && scaleWrap) {
+        const layout = loadHomeLayout();
+        this._avatarScale = (layout.avatar && layout.avatar.s) || 1;
+        scaleWrap.style.transform = 'scale(' + this._avatarScale + ')';
+        avatarEl.addEventListener('wheel', function (e) {
+          e.preventDefault();
+          self._avatarScale = clampPos(self._avatarScale + (e.deltaY < 0 ? 0.1 : -0.1), AVATAR_MIN, AVATAR_MAX);
+          scaleWrap.style.transform = 'scale(' + self._avatarScale + ')';
+          self.persistPos('avatar', avatarEl);
+        }, { passive: false });
       }
+      // 窗口尺寸变化时把控件收回可视区域
+      window.addEventListener('resize', function () { self.applyLayout(); });
     },
-    async removePinItem(p) {
-      const ok = await showConfirmDialog('取消置顶', `确定取消置顶「${p.name}」吗？`, '取消置顶', '再想想');
-      if (!ok) return;
-      if (typeof window.removePinned === 'function') window.removePinned(p.type, p.id);
-      showToast('已取消置顶', 'success');
-    },
-    // ── 存档快速启动抽屉 ──
-    toggleSaves() {
-      if (this.savesOpen) this.closeSaves();
-      else this.openSaves();
-    },
-    openSaves() {
-      this.savesOpen = true;
-      if (this.pinsOpen) this.closePins(); // 与收藏置顶面板互斥
-      // 打开时读取当前选中的版本（全局变量非响应式，不能靠 computed 自动跟随）
-      this.currentVersionId = (typeof currentLaunchVersionId !== 'undefined' && currentLaunchVersionId) || '';
-      this.loadSaves();
-    },
-    closeSaves() {
-      this.savesOpen = false;
+    // ── 存档坞 ──
+    async pollVersionChange() {
+      const vid = (typeof currentLaunchVersionId !== 'undefined' && currentLaunchVersionId) || '';
+      if (vid !== this._lastVersionId) {
+        this._lastVersionId = vid;
+        this.currentVersionId = vid;
+        await this.loadSaves();
+      }
+      // 运行卡片是 v-if 挂载的：出现后补一次位置应用
+      const rEl = this.$refs.runningEl;
+      if (rEl && !rEl.style.left) {
+        const layout = loadHomeLayout();
+        const page = this.$refs.homePage;
+        const pos = layout.running || { x: 28, y: Math.max(70, page.clientHeight - rEl.offsetHeight - 24) };
+        rEl.style.left = clampPos(pos.x, 0, Math.max(0, page.clientWidth - rEl.offsetWidth)) + 'px';
+        rEl.style.top = clampPos(pos.y, 0, Math.max(0, page.clientHeight - rEl.offsetHeight)) + 'px';
+        this.bindDrag(rEl, rEl.querySelector('.home-widget-grip'), 'running', null);
+      }
     },
     async loadSaves() {
       const vid = this.currentVersionId;
@@ -355,8 +341,6 @@ const PageHome = {
         showToast('请先选择游戏版本', 'warning');
         return;
       }
-      // 收起抽屉，走与「启动游戏」一致的完整启动流程，并带上世界名直接进存档
-      this.closeSaves();
       if (typeof quickPlayWorld === 'undefined') {
         showToast('启动入口未就绪', 'error');
         return;
@@ -385,29 +369,27 @@ const PageHome = {
     }
   },
   mounted() {
-    // Vue 已将首页 DOM 挂载到文档，此时才存在 home-avatar 等元素
-    // 延迟一帧确保布局尺寸已计算完成，再补一次头像、版本卡片和启动按钮绑定
-    // （因为 init-setup.js 的 setupLaunchBar 执行时机早于 Vue 挂载，会绑定不到 home-launch-btn）
-    const init = () => {
+    const self = this;
+    const init = function () {
       if (typeof loadAccounts !== 'function' || typeof loadVersions !== 'function' || typeof handleLaunch !== 'function') {
         setTimeout(init, 80);
         return;
       }
-      // 补绑定主页启动按钮（setupLaunchBar 可能因 DOM 未挂载而绑定失败）
-      const homeLaunchBtn = document.getElementById('home-launch-btn');
-      if (homeLaunchBtn && !homeLaunchBtn._bound) {
-        homeLaunchBtn._bound = true;
-        homeLaunchBtn.addEventListener('click', handleLaunch);
-      }
       // 刷新账户显示（含头像加载）和版本列表（含主页版本卡片渲染）
-      loadAccounts().catch(e => console.error('[PageHome] loadAccounts error:', e));
-      loadVersions().catch(e => console.error('[PageHome] loadVersions error:', e));
+      loadAccounts().catch(function (e) { console.error('[PageHome] loadAccounts error:', e); });
+      loadVersions().catch(function (e) { console.error('[PageHome] loadVersions error:', e); });
       // 拉取一次运行中游戏状态，让主页启动任务卡片尽快显示
       if (typeof updateGameStatus === 'function') {
         updateGameStatus().catch(function (e) { console.error('[PageHome] updateGameStatus error:', e); });
       }
+      // 应用持久化布局 / 默认位置，并绑定拖动与缩放
+      self.applyLayout();
+      self.setupWidgets();
+      // 存档坞：初始加载 + 轮询检测版本切换（全局变量非响应式）
+      self.pollVersionChange();
+      setInterval(function () { self.pollVersionChange(); }, 1200);
     };
-    requestAnimationFrame(() => setTimeout(init, 50));
+    requestAnimationFrame(function () { setTimeout(init, 50); });
   }
 };
 

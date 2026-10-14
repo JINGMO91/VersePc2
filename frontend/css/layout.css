@@ -2135,3 +2135,172 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
   width: 15px;
   height: 15px;
 }
+
+
+/* ============================================================
+   主页可移动控件系统（参考 ZalithLauncher2 主页卡片模式）
+   - 控件绝对定位 + 拖动柄悬停显示，位置持久化 localStorage
+   - 存档坞：常驻卡片（替代原底部展开抽屉）
+   ============================================================ */
+.home-page > .home-page-title,
+.home-page > .home-avatar-widget,
+.home-page > .home-version-card-wrap,
+.home-page > .home-launch-btn,
+.home-page > .home-running-card,
+.home-page > .home-save-dock {
+    position: absolute;
+    margin: 0 !important;
+}
+
+/* 拖动柄：悬停控件时显示 */
+.home-widget-grip {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 6;
+    touch-action: none;
+}
+.home-widget-grip svg {
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
+}
+.home-widget-grip:active {
+    cursor: grabbing;
+}
+.home-page-title:hover > .home-widget-grip,
+.home-avatar-widget:hover > .home-widget-grip,
+.home-version-card-wrap:hover > .home-widget-grip,
+.home-launch-btn:hover > .home-widget-grip,
+.home-running-card:hover > .home-widget-grip {
+    opacity: 1;
+}
+
+/* 头像控件：主体拖动 + 滚轮缩放（含头像与账户信息条，整体缩放） */
+.home-avatar-widget {
+    cursor: grab;
+    touch-action: none;
+    z-index: 3;
+}
+.home-avatar-widget:active {
+    cursor: grabbing;
+}
+.home-avatar-widget .home-avatar-scale {
+    transform-origin: center center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+.home-avatar-widget .home-avatar-box {
+    margin: 0 auto;
+}
+.home-avatar-widget .home-account-bar {
+    margin-top: 0;
+}
+
+/* 启动按钮内的拖动柄悬浮于按钮上方 */
+.home-launch-btn .home-widget-grip {
+    top: -26px;
+}
+
+/* 存档坞：zL2 网格卡风格的常驻卡片 */
+.home-save-dock {
+    width: 320px;
+    max-width: 70%;
+    background: var(--bg-card-glass);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    z-index: 4;
+}
+.home-save-dock-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 2px 8px;
+    cursor: grab;
+    user-select: none;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+    touch-action: none;
+}
+.home-save-dock-header:active {
+    cursor: grabbing;
+}
+.home-save-dock-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.home-save-dock-body {
+    max-height: 46vh;
+    overflow-y: auto;
+}
+.home-save-dock-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.home-save-dock-list .home-save-card {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+}
+.home-save-dock-list .home-save-card-bg {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.home-save-dock-list .home-save-card-bg img,
+.home-save-dock-list .home-save-card-bg svg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.home-save-dock-list .home-save-card-info {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+.home-save-dock-list .home-save-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.home-save-dock-list .home-save-card-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.home-saves-hint {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 10px 0;
+}
