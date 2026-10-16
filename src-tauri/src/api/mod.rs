@@ -4,6 +4,7 @@
 
 pub mod accounts;
 pub mod authlib;
+pub mod cloud;
 pub mod crash;
 pub mod download;
 pub mod favorites;
@@ -114,6 +115,13 @@ pub async fn api_proxy(
     // authlib-injector 第三方登录路由（async，HTTP 拉取+下载校验）
     if path.starts_with("/api/authlib-injector") {
         if let Some(r) = authlib::handle(&app, &method, &path, &params, &body).await {
+            return r;
+        }
+    }
+
+    // Verse 云盘路由（async，登录中继 + cloudapi 中继 + 存档打包/上传/下载）
+    if path.starts_with("/api/cloud") {
+        if let Some(r) = cloud::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
     }

@@ -792,6 +792,10 @@ async function navigateToPage(pageName) {
     if (typeof initTerracottaPage === 'function') {
       setTimeout(() => initTerracottaPage(), 100);
     }
+  } else if (pageName === 'cloud') {
+    if (typeof onCloudPageShow === 'function') {
+      setTimeout(() => { try { onCloudPageShow(); } catch (e) { console.error('[cloud] show failed', e); } }, 100);
+    }
   }
 
   // 切到账户页：等页面可见、尺寸稳定后，把账号轮播轨道定位到中间，避免闪到最左边
