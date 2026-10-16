@@ -243,6 +243,7 @@ async fn cloud_upload(app: tauri::AppHandle, body: &Option<Value>) -> ApiResult 
         return ApiResult::err(400, "参数不完整");
     }
     let is_temp_zip = file_path.contains("verse-cloud-") && file_path.ends_with(".zip");
+    let cleanup_path = if is_temp_zip { Some(file_path.clone()) } else { None };
     let _ = app.emit("cloud:progress", json!({ "stage": "upload", "percent": 0, "message": "开始上传..." }));
 
     let result = tauri::async_runtime::spawn_blocking(move || {
@@ -276,8 +277,8 @@ async fn cloud_upload(app: tauri::AppHandle, body: &Option<Value>) -> ApiResult 
 
     let _ = app.emit("cloud:progress", json!({ "stage": "upload", "percent": 100, "message": "上传完成" }));
     // 清理打包产生的临时 zip（仅限本模块生成的命名）
-    if is_temp_zip {
-        let _ = std::fs::remove_file(&file_path);
+    if let Some(p) = cleanup_path {
+        let _ = std::fs::remove_file(&p);
     }
     result
 }
