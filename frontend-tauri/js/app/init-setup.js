@@ -626,27 +626,25 @@ function setupAccountButtons() {
   if (addCta) addCta.addEventListener('click', () => showModal('add-account-modal'));
   const closeAddModal = document.getElementById('close-add-account-modal');
   if (closeAddModal) closeAddModal.addEventListener('click', () => {
-    const m = document.getElementById('add-account-modal');
-    if (m) m.style.display = 'none';
+    // 必须走 hideModal 重置 data-state/.modal-visible；只设 display:none 会让
+    // body:has(.modal[data-state="open"]) 持续匹配，导致侧边栏胶囊被永久隐藏
+    hideModal('add-account-modal');
   });
 
   // 新版添加账号弹窗里的三卡片
   const addA = document.getElementById('add-acct-ms');
   if (addA) addA.addEventListener('click', () => {
-    const m = document.getElementById('add-account-modal');
-    if (m) m.style.display = 'none';
+    hideModal('add-account-modal');
     startMsAuth();
   });
   const addB = document.getElementById('add-acct-offline');
   if (addB) addB.addEventListener('click', () => {
-    const m = document.getElementById('add-account-modal');
-    if (m) m.style.display = 'none';
+    hideModal('add-account-modal');
     showModal('offline-account-modal');
   });
   const addC = document.getElementById('add-acct-thirdparty');
   if (addC) addC.addEventListener('click', () => {
-    const m = document.getElementById('add-account-modal');
-    if (m) m.style.display = 'none';
+    hideModal('add-account-modal');
     showModal('thirdparty-account-modal');
   });
   const createOfflineBtn = document.getElementById('create-offline-btn');

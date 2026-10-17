@@ -80,6 +80,12 @@
     box-sizing: border-box;
 }
 
+/* hidden 属性必须生效：作者样式里的 display（如 .btn 的 inline-flex）与 UA 的
+   [hidden]{display:none} 特异性相同但优先级更高，会让 hidden 完全失效 */
+[hidden] {
+    display: none !important;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
     background: var(--bg-primary, #0a0a0a);

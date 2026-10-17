@@ -506,6 +506,9 @@
 
   const PageSettingsPersonalize = {
     name: 'PageSettingsPersonalize',
+    data() {
+      return { resettingHome: false };
+    },
     components: {
       ThemeAppearanceCard: ThemeAppearanceCard,
       BackgroundCard: BackgroundCard,
@@ -519,6 +522,13 @@
             <theme-appearance-card></theme-appearance-card>
             <background-card></background-card>
             <visual-effects-card></visual-effects-card>
+            <div class="card">
+              <h3>主页布局</h3>
+              <p class="form-hint" style="color:#6b7280;font-size:13px;margin:0 0 12px;">恢复主页控件（软件名 / 头像 / 版本卡 / 启动按钮 / 存档坞）的默认位置与头像缩放</p>
+              <button class="btn btn-secondary" @click="resetHomeLayout" :disabled="resettingHome">
+                {{ resettingHome ? '已恢复' : '恢复主页默认布局' }}
+              </button>
+            </div>
             <div class="form-actions">
               <button class="btn btn-primary" @click="save">保存设置</button>
               <button class="btn btn-secondary" @click="reset">重置默认</button>
@@ -537,6 +547,16 @@
       },
       reset() {
         if (typeof resetPersonalizeSettings === 'function') resetPersonalizeSettings();
+      },
+      resetHomeLayout() {
+        if (this.resettingHome) return;
+        try { localStorage.removeItem('versepc_home_layout_v1'); } catch (e) {}
+        // 通知主页立即回到默认布局（主页为常驻挂载，不会自动重读存储）
+        window.dispatchEvent(new CustomEvent('versepc-home-layout-reset'));
+        this.resettingHome = true;
+        if (typeof showToast === 'function') showToast('主页布局已恢复默认', 'success');
+        const self = this;
+        setTimeout(function () { self.resettingHome = false; }, 1500);
       }
     }
   };

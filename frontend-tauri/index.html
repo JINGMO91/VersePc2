@@ -152,6 +152,13 @@
       <line x1="12.5" y1="7.5" x2="12.5" y2="12"/>
       <circle cx="12.5" cy="15" r="0.9" fill="currentColor" stroke="none"/>
     </symbol>
+
+    <!-- Verse云盘 - 云朵加箭头 -->
+    <symbol id="icon-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 16.6A4.5 4.5 0 0 0 17.5 8.5h-1.8A7 7 0 1 0 4 15.3"/>
+      <polyline points="8 17 12 21 16 17"/>
+      <line x1="12" y1="12" x2="12" y2="21"/>
+    </symbol>
   </svg>
 
   <!-- 启动画面 -->
@@ -360,6 +367,10 @@
             <span class="nav-btn-experimental-badge">实验</span>
             <svg class="nav-icon-svg"><use href="#icon-plugins"/></svg>
             <span>插件</span>
+          </button>
+          <button class="nav-btn" data-page="cloud" title="Verse云盘">
+            <svg class="nav-icon-svg"><use href="#icon-cloud"/></svg>
+            <span>云盘</span>
           </button>
         </div>
         <div class="sidebar-footer">
@@ -583,6 +594,10 @@
         <div id="page-feedback" class="page">
           <!-- Vue 渐进式改造：内容由 PageFeedback 组件渲染 -->
         </div>
+
+        <div id="page-cloud" class="page">
+          <!-- Vue 渐进式改造：内容由 PageCloud 组件渲染 -->
+        </div>
       </div>
     </div>
 
@@ -668,6 +683,7 @@
   <script src="js/app/java-mgr.js" defer></script>
   <script src="js/app/console-log.js" defer></script>
   <script src="js/app/feedback.js" defer></script>
+  <script src="js/app/cloud.js" defer></script>
   <script src="js/app/settings-load-save.js" defer></script>
   <script src="js/app/init-setup.js" defer></script>
   <script src="js/app.js" defer></script>
@@ -711,6 +727,7 @@
   <script src="js/vue/page-java.js" defer></script>
   <script src="js/vue/page-downloads.js" defer></script>
   <script src="js/vue/page-feedback.js" defer></script>
+  <script src="js/vue/page-cloud.js" defer></script>
   <script>
     // 挂载 Vue 到所有页面容器（分批挂载，避免阻塞主线程导致窗口卡顿）
     // 主页立即同步挂载（用户最先看到），其他页面用 requestIdleCallback 分批挂载
@@ -748,6 +765,7 @@
         ['PageSettingsLaunch', '#page-settings-launch'],
         ['PageSettingsPersonalize', '#page-settings-personalize'],
         ['PageSettingsOther', '#page-settings-other'],
+        ['PageCloud', '#page-cloud'],
         ['PageJava', '#page-java'],
         ['PageDownloads', '#page-downloads'],
         ['PageFeedback', '#page-feedback']
