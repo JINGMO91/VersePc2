@@ -1,28 +1,28 @@
 {
-    "version": "1.7.0",
-    "releaseName": "v1.7.0",
-    "releaseDate": "2026-10-17",
-    "releaseNotes": "VersePC2 v1.7.0\n\n新增:\n- 云盘页: 12位UID登录、存档上传/下载、兑换与购买跳转\n- 主页控件自由拖动: 软件名/头像/版本卡/启动按钮/运行卡片可拖动并记住位置, 头像支持滚轮缩放, 个性化设置支持一键恢复默认布局\n- 互传免费使用: 移除激活码要求\n\n修复:\n- 云盘页选择卡片偶发无法关闭、头部按钮显隐异常\n- 主页控件默认位置不居中的问题\n- 云盘上传后临时文件残留\n\n优化:\n- 便携版前端资源与主前端全量同步",
+    "version": "1.7.1",
+    "releaseName": "v1.7.1",
+    "releaseDate": "2026-10-22",
+    "releaseNotes": "VersePC2 v1.7.1\n\n修复:\n- 修复 NeoForge 及依赖官方 Maven 的安装器在国内网络下安装卡住/失败的问题：下载地址优先使用国内镜像，失败自动回退官方源\n- 修复整合包导入时 NeoForge 安装停滞导致整包导入无法完成的问题\n\n安全:\n- 修复插件与资源包解压时的路径穿越风险（Zip Slip）\n- 修复解压路径校验相关的若干编译问题\n\n优化:\n- 禁用启动器内 WebView2 默认右键菜单（刷新/另存为/检查等），输入框保留复制粘贴\n- 精简仓库中与源码无关的文件\n\n说明:\n- 版本下载与联机功能正常开放",
     "files": {
         "win-x64": {
-            "url": "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.7.0/VersePC2.exe",
-            "size": 74463744,
-            "sha256": "d03676f6037b877ac4c74d3dfed17fbc5a8eaa6dfe15f29c66bfd4051f9bd9fe"
+            "url": "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.7.1/VersePC2.exe",
+            "size": 74473984,
+            "sha256": "8267e0547e1b30bee2ea116f47d01601f444330bf50081d318e9030d4eeb1702"
         },
         "linux-x86_64": {
-            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.0/VersePC2-linux-x86_64",
-            "size": 70438176,
-            "sha256": "77fbbc74308cfd480294cd22e31c4897268e12c8ea9ca3ab9df5b5a236c485de"
+            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.1/VersePC2-linux-x86_64",
+            "size": 70443904,
+            "sha256": "a61b677c9d06df20e1a3493930519623dd5da1ef4c725cce62f121518dfd023f"
         },
         "macos-x86_64": {
-            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.0/VersePC2-macos-x86_64.zip",
-            "size": 62501613,
-            "sha256": "a019affc8470c34b27bb7bd04eec7fdc7c1ceb5bdb98e7d1183febf83de3fc70"
+            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.1/VersePC2-macos-x86_64.zip",
+            "size": 62505981,
+            "sha256": "bda56d6bf6131dec00939b1691ce790df9df2e99ccce53e6b1b3c45b1b8d9b7f"
         },
         "macos-aarch64": {
-            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.0/VersePC2-macos-aarch64.zip",
-            "size": 62582655,
-            "sha256": "3a918e94263959bad76ae36835097fcb52cb3eb8b3732baa290a2c87b41ef4ab"
+            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.1/VersePC2-macos-aarch64.zip",
+            "size": 62589375,
+            "sha256": "e6a7516bc8af7931f37af639c3fcf41ab6cb52a1476351b7286da48ffc2bfca0"
         }
     }
 }
