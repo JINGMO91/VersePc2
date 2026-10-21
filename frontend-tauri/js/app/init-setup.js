@@ -3,6 +3,17 @@
  * @description 应用初始化 - 页面加载完成后的启动流程
  */
 async function init() {
+  // 禁用 WebView2 浏览器默认右键菜单（刷新/另存为/检查等），输入区域保留复制粘贴
+  document.addEventListener('contextmenu', function (e) {
+    var t = e.target;
+    var editable = t && (
+      (t.tagName && /^(INPUT|TEXTAREA)$/i.test(t.tagName)) ||
+      t.isContentEditable ||
+      (t.closest && t.closest('input, textarea, [contenteditable="true"]'))
+    );
+    if (!editable) e.preventDefault();
+  });
+
   const splashProgress = document.getElementById('splash-progress');
   const splashOverlay = document.getElementById('splash-overlay');
   const startTime = Date.now();
@@ -463,12 +474,20 @@ function setupNavigation() {
     if (typeof window.closeSidebarPanel === 'function') window.closeSidebarPanel();
   };
 
+  // 版本下载功能开关：入口保留，进入后由 navigateToPage 跳转到合规提示页
+  const versionDownloadOn = !!(window.VERSE_FEATURES && window.VERSE_FEATURES.versionDownload);
+
   document.querySelectorAll('.nav-btn:not(.nav-submenu-toggle)').forEach(btn => {
     btn.addEventListener('click', () => {
       const page = btn.dataset.page;
       if (!page) return;
 
       if (page === 'versions') {
+        if (!versionDownloadOn) {
+          navigateToPage(page);
+          collapseSidebar();
+          return;
+        }
         loadVersions(false);
       }
 

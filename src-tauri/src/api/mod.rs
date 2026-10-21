@@ -23,6 +23,9 @@ pub mod skins;
 pub mod sponsor;
 pub mod system;
 
+/// 联机功能总开关（false=关闭；联机相关代码全部保留，置回 true 即恢复）
+pub(crate) const LAN_ENABLED: bool = true;
+
 use serde_json::Value;
 
 // Java、文件系统、版本管理模块在 lib.rs 直接引用（非 api 子模块）
@@ -163,6 +166,9 @@ pub async fn api_proxy(
 
     // LAN / EasyTier 路由（async，UPnP SSDP + EasyTier 子进程管理）
     if path.starts_with("/api/lan") || path.starts_with("/api/easytier") {
+        if !LAN_ENABLED {
+            return ApiResult::err(403, "联机功能暂不可用");
+        }
         if let Some(r) = lan::handle(&app, &method, &path, &params, &body).await {
             return r;
         }

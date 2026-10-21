@@ -243,6 +243,14 @@ const PageHome = {
     },
     setupWidgets() {
       const self = this;
+      // 主页控件内的 <img>（头像、版本图标、存档图标）默认是浏览器原生可拖拽元素：
+      // 按住拖动时浏览器接管拖拽，光标显示「禁止放置」并取消 pointermove/pointerup，
+      // 自定义拖动完全失效。头像图片由账户逻辑动态替换，故在页面根节点上统一拦截 dragstart。
+      if (this.$refs.homePage) {
+        this.$refs.homePage.addEventListener('dragstart', function (e) {
+          e.preventDefault();
+        });
+      }
       // 软件名：按住拖动 + 点击回主页
       this.bindDrag(this.$refs.titleEl, 'title', function () {
         if (typeof navigateToPage === 'function') navigateToPage('home');

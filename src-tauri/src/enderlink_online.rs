@@ -263,6 +263,9 @@ async fn create_public_room(app: &AppHandle, params: &Value, remote_port: u16, n
 
 #[tauri::command]
 pub async fn enderlink_rooms(_app: AppHandle) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用", "rooms": [] });
+    }
     let client = http_client(10);
     let resp = match client.get(HALL_URL).send().await {
         Ok(r) => r,
@@ -280,6 +283,9 @@ pub async fn enderlink_rooms(_app: AppHandle) -> Value {
 
 #[tauri::command]
 pub async fn enderlink_nodes(_app: AppHandle) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用", "nodes": [] });
+    }
     let client = http_client(15);
     let resp = match client.get(NODES_URL).send().await {
         Ok(r) => r,
@@ -300,6 +306,9 @@ pub async fn enderlink_nodes(_app: AppHandle) -> Value {
 
 #[tauri::command]
 pub async fn enderlink_download(_app: AppHandle) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用" });
+    }
     match download_client().await {
         Ok(()) => json!({ "ok": true }),
         Err(e) => json!({ "ok": false, "error": e }),
@@ -308,6 +317,9 @@ pub async fn enderlink_download(_app: AppHandle) -> Value {
 
 #[tauri::command]
 pub async fn enderlink_start(app: AppHandle, params: Value) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用" });
+    }
     let log = |msg: &str| emit_log(&app, msg);
     {
         let s = state().lock().await;
@@ -411,6 +423,9 @@ pub async fn enderlink_start(app: AppHandle, params: Value) -> Value {
 
 #[tauri::command]
 pub async fn enderlink_stop(app: AppHandle) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用" });
+    }
     let log = |msg: &str| emit_log(&app, msg);
     let (pid, heartbeat) = {
         let mut s = state().lock().await;
@@ -445,6 +460,9 @@ pub async fn enderlink_stop(app: AppHandle) -> Value {
 
 #[tauri::command]
 pub async fn enderlink_status(_app: AppHandle) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用", "running": false });
+    }
     let s = state().lock().await;
     json!({
         "ok": true,

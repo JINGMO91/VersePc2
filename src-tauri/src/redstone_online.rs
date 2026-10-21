@@ -597,6 +597,9 @@ fn kill_pid(pid: u32) -> std::io::Result<()> {
 /// 拉取服务器节点列表
 #[tauri::command]
 pub async fn redstone_servers(_app: AppHandle) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用", "servers": [] });
+    }
     let list = fetch_server_list().await;
     let mut s = state().lock().await;
     s.servers = list.clone();
@@ -606,6 +609,9 @@ pub async fn redstone_servers(_app: AppHandle) -> Value {
 /// 扫描本机 java 进程监听的端口
 #[tauri::command]
 pub async fn redstone_scan_port() -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用" });
+    }
     use tokio::process::Command;
 
     // 1. 获取 java.exe PID 列表
@@ -700,18 +706,27 @@ pub async fn redstone_scan_port() -> Value {
 /// 启动隧道（拉起 hongshi.exe 内核）
 #[tauri::command]
 pub async fn redstone_start(app: AppHandle, params: Value) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用" });
+    }
     start_tunnel_inner(&app, params).await
 }
 
 /// 关闭隧道
 #[tauri::command]
 pub async fn redstone_stop(app: AppHandle) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用" });
+    }
     stop_tunnel_inner(&app).await
 }
 
 /// 查询当前运行状态
 #[tauri::command]
 pub async fn redstone_status(_app: AppHandle) -> Value {
+    if !crate::api::LAN_ENABLED {
+        return json!({ "ok": false, "error": "联机功能暂不可用" });
+    }
     let s = state().lock().await;
     json!({
         "ok": true,

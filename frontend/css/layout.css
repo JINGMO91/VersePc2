@@ -429,6 +429,19 @@ body.show-nav-labels .nav-submenu-toggle .submenu-arrow {
     padding: 0;
 }
 
+/* 胶囊展开时内容区左侧让位：
+   胶囊占位 8~80px，而内容区左内边距只有 30px，窄窗口下标题与卡片左缘会被胶囊压住
+   （反馈：侧边栏与内容重叠）。仅窄窗口需要让位，宽窗口内容本身已在胶囊右侧，
+   不做无谓的布局跳动；过渡让让位过程不突兀。 */
+.content-area {
+    transition: padding-left 0.2s var(--ease-out-expo);
+}
+@media (max-width: 1400px) {
+    body.sidebar-open .content-area {
+        padding-left: 96px;
+    }
+}
+
 .page.active {
     flex: 1;
     min-height: 0;
@@ -601,6 +614,10 @@ body.show-nav-labels .nav-submenu-toggle .submenu-arrow {
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
     display: block;
+    /* 图片默认参与浏览器原生 HTML5 拖拽：按住头像拖动时会被浏览器接管，
+       光标变成「禁止放置」，同时 pointermove/pointerup 被取消，自定义拖动失效 */
+    -webkit-user-drag: none;
+    user-drag: none;
 }
 
 /* 无账户时：主页头像框显示"添加账号"虚线方框 + 十字 */
