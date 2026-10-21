@@ -24,3 +24,5 @@ scripts/_sshwork/
 
 .next/
 .trae/
+.trae-html-share-packages/
+scripts/_androidwork/
