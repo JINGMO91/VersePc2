@@ -54,7 +54,7 @@ const MODRINTH_API: &str = "https://api.modrinth.com/v2";
 const CURSEFORGE_API: &str = "https://api.curseforge.com/v1";
 /// CurseForge 默认 API Key
 const DEFAULT_CF_API_KEY: &str = "$2a$10$bL4bIL5pUWqfcO7KQtnMReakwtfHbNKh6v1uTpKlzhwoueEJQnPnm";
-/// 依赖递归解析的最大深度（与 PCL CE 的 ModDependencyResolver 保持一致）
+/// 依赖递归解析的最大深度
 const MAX_DEPENDENCY_DEPTH: usize = 32;
 /// Modrinth 上由加载器自动安装、不应当作前置重复下载的项目（Fabric API / Quilt API）
 const MODRINTH_BUNDLED_DEPS: [&str; 2] = ["P7dR8mSH", "qvIfYCYJ"];
@@ -319,7 +319,7 @@ async fn handle_featured() -> ApiResult {
 // ============== 搜索路由 ==============
 
 /// GET /api/mods/search — Modrinth + CurseForge 双源搜索
-/// 归一化模组搜索词（对应 PCL CE 的 `processKeywords`）：
+/// 归一化模组搜索词：
 /// 去掉 forge / fabric / for / mod / quilt 等加载器或类型词；
 /// 全部被去掉时保留原词，避免搜索框只输入 “Forge” 时变成空查询。
 fn normalize_mod_search_query(raw: &str) -> String {
@@ -417,8 +417,8 @@ async fn handle_search(params: &Option<Value>) -> ApiResult {
         .build()
         .unwrap_or_else(|_| reqwest::Client::new());
 
-    // 与 PCL CE 的 processKeywords 对齐：搜索词里的加载器/类型词不应参与检索。
-    // 例如输入 “JEI Forge” 时 PCL 实际搜的是 “jei”，否则 JEI 本体反而搜不到。
+    // 搜索词里的加载器/类型词不应参与检索。
+    // 例如输入 “JEI Forge” 时应搜 “jei”，否则 JEI 本体反而搜不到。
     let normalized_query = normalize_mod_search_query(&query);
     let mut cf_query = normalized_query.clone();
     let mut mr_query = normalized_query.clone();
@@ -442,7 +442,7 @@ async fn handle_search(params: &Option<Value>) -> ApiResult {
         Err(_) => {}
     }
 
-    // PCL CE 对 1.14 以下的 Forge 搜索会忽略加载器筛选：
+    // 1.14 以下的 Forge 搜索忽略加载器筛选：
     // 老模组经常没有写 Forge 标记，强制过滤会导致搜不到。
     let search_loader = if loader.eq_ignore_ascii_case("forge")
         && !mc_version.is_empty()
@@ -595,7 +595,7 @@ async fn search_curseforge_mods(
         "newest" => "11",
         "updated" => "3",
         // CurseForge 的 4 并不是真正相关度（实测会返回无关结果），保持 2=Popularity；
-        // PCL CE 在拉取结果后还会用本地相似度重新排序，这里先保证结果不丢失。
+        // 拉取结果后还会用本地相似度重新排序，这里先保证结果不丢失。
         _ => "2",
     };
 
@@ -1469,7 +1469,7 @@ async fn handle_get_dependencies(body: &Option<Value>) -> ApiResult {
 
 /// POST /api/mods/get-dependencies-recursive — 递归获取依赖
 ///
-/// 与 PCL CE 的 ModDependencyResolver 对齐：
+/// 递归解析规则：
 /// 1. 只解析 required 前置，忽略 optional / incompatible；
 /// 2. 每个前置选择“精确游戏版本 + 加载器匹配 + release 优先 + 最新”的文件；
 /// 3. 对选中前置文件继续解析其 required 前置，按 projectId 去重，最大深度 32；
@@ -1478,7 +1478,7 @@ async fn handle_get_dependencies_recursive(body: &Option<Value>) -> ApiResult {
     resolve_dependency_tree(body, true).await
 }
 
-/// 依赖引用（只保留 projectId，与 PCL CE 的 ModDependencyReference 一致）
+/// 依赖引用（只保留 projectId）
 #[derive(Clone)]
 struct DepRef {
     project_id: String,
@@ -1602,7 +1602,6 @@ fn release_rank(release_type: u8) -> u8 {
 }
 
 /// 选择兼容文件：精确游戏版本 > 加载器匹配 > release > 最新
-/// 该排序规则来自 PCL CE 的 ModDependencyResolver.SelectBestFile
 fn select_compatible_file<'a>(
     files: &'a [DepFile],
     game_version: &str,
@@ -1973,7 +1972,7 @@ async fn fetch_dep_project(
         let data = project.get("data").unwrap_or(&project);
 
         let mut files = files_result?;
-        // 带过滤条件的查询可能因为加载器映射差异返回空，退回全量列表后本地筛选（与 PCL CE 一致）
+        // 带过滤条件的查询可能因为加载器映射差异返回空，退回全量列表后本地筛选
         if files.is_empty() && (!game_version.is_empty() || !loaders.is_empty()) {
             files = fetch_cf_files(client, project_id, "", &[], cf_api_key).await?;
         }
