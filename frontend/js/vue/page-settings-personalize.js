@@ -226,7 +226,7 @@
         const st = this.state;
         if (st.weRendererDownloading) return;
         const confirmed = typeof showConfirmDialog === 'function'
-          ? await showConfirmDialog('下载场景渲染器', '场景壁纸需要额外的渲染组件（约 314MB）。是否现在下载并安装？', '下载', '取消')
+          ? await showConfirmDialog('下载场景渲染器', '场景壁纸需要额外的渲染组件（约 104MB）。是否现在下载并安装？', '下载', '取消')
           : true;
         if (!confirmed) return;
         st.weRendererDownloading = true;
@@ -359,7 +359,7 @@
                 <span>场景壁纸渲染组件：
                   <span v-if="state.weRendererInstalled === null">检测中...</span>
                   <span v-else-if="state.weRendererInstalled" style="color:var(--success,#3dd68c);">已安装</span>
-                  <span v-else>未安装（约 314MB）</span>
+                  <span v-else>未安装（约 104MB）</span>
                 </span>
                 <button v-if="!state.weRendererInstalled && state.weRendererInstalled !== null" class="btn btn-primary btn-sm" :disabled="state.weRendererDownloading" @click="downloadRenderer">
                   {{ state.weRendererDownloading ? '下载中...' : '下载组件' }}
