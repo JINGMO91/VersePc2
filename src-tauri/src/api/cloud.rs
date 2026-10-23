@@ -67,9 +67,10 @@ fn resolve_saves_dir(version_id: &str) -> std::path::PathBuf {
             .and_then(|v| v.as_str())
             .unwrap_or("");
         if game_dir.is_empty() {
-            dirs::home_dir()
-                .map(|h| h.join(".minecraft").join("saves"))
-                .unwrap_or_else(|| data_dir.join("versions").join(clean_id).join("saves"))
+            crate::storage::default_minecraft_dir(
+                data_dir.join("versions").join(clean_id),
+            )
+            .join("saves")
         } else {
             std::path::PathBuf::from(game_dir).join("saves")
         }
@@ -380,7 +381,8 @@ async fn cloud_download(app: tauri::AppHandle, body: &Option<Value>) -> ApiResul
                 Ok(e) => e,
                 Err(_) => continue,
             };
-            let raw_name = entry.name().to_string();
+            // 统一分隔符：Windows 打包的存档 zip 可能使用反斜杠
+            let raw_name = entry.name().replace('\\', "/");
             if raw_name.starts_with('/') || raw_name.contains("..") || raw_name.contains(':') {
                 continue; // 拒绝可疑路径
             }

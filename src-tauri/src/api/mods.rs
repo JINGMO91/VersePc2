@@ -2605,15 +2605,11 @@ fn handle_delete(body: &Option<Value>) -> ApiResult {
         if !search_dirs.contains(&shared_mods) {
             search_dirs.push(shared_mods);
         }
-        if let Some(home) = dirs::home_dir() {
-            let mc_mods = home
-                .join("AppData")
-                .join("Roaming")
-                .join(".minecraft")
+        let mc_mods =
+            crate::storage::default_minecraft_dir(crate::storage::resolve_data_dir())
                 .join("mods");
-            if !search_dirs.contains(&mc_mods) {
-                search_dirs.push(mc_mods);
-            }
+        if !search_dirs.contains(&mc_mods) {
+            search_dirs.push(mc_mods);
         }
     }
 

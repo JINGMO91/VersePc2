@@ -116,6 +116,8 @@ jobs:
               -c "Set :CFBundleVersion ${VERSION}" "${APP}/Contents/Info.plist"
             # 拷贝打包进编译产物的图标（若有）
             [ -f src-tauri/icons/icon.icns ] && cp src-tauri/icons/icon.icns "${APP}/Contents/Resources/icon.icns"
+            # 临时签名，保证 Apple Silicon 上可直接运行（无需开发者证书）
+            codesign --force --deep --sign - "${APP}"
             ARCH="aarch64"; [ -n "${{ matrix.target }}" ] && ARCH="x86_64"
             zip -r "-y" "VersePC2-macos-${ARCH}.zip" "${APP}"
             files+=( "VersePC2-macos-${ARCH}.zip" )

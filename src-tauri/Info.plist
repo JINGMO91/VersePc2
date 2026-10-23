@@ -23,7 +23,7 @@
   <key>CFBundleIconFile</key>
   <string>icon.icns</string>
   <key>LSMinimumSystemVersion</key>
-  <string>10.13</string>
+  <string>10.15</string>
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSPrincipalClass</key>

@@ -443,7 +443,11 @@ fn inject_we_shim(html: &[u8]) -> Vec<u8> {
 /// wewp 协议请求处理：wewp://localhost/{workshop_id}/{相对路径}
 pub fn handle_wewp_request(request: &tauri::http::Request<Vec<u8>>) -> tauri::http::Response<Vec<u8>> {
     let uri = request.uri().to_string();
-    let after_scheme = uri.strip_prefix("wewp://").unwrap_or(&uri);
+    // 非 Windows 使用 wewp://localhost，Windows 的自定义协议会以 http://wewp.localhost 形式到达
+    let after_scheme = uri
+        .strip_prefix("wewp://")
+        .or_else(|| uri.strip_prefix("http://wewp.localhost"))
+        .unwrap_or(&uri);
     // 去掉 host 段（localhost / 空）得到 /{id}/{path}
     let path_part = match after_scheme.find('/') {
         Some(idx) => &after_scheme[idx..],

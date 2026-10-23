@@ -436,9 +436,7 @@ fn get_default_mod_path(
     let data_dir = storage::resolve_data_dir();
     let versions_dir = data_dir.join("versions");
     let settings_file = data_dir.join("settings.json");
-    let minecraft_dir = dirs::home_dir()
-        .map(|h| h.join(".minecraft"))
-        .unwrap_or_else(|| data_dir.clone());
+    let minecraft_dir = storage::default_minecraft_dir(data_dir.clone());
 
     // 读取 settings.json
     let settings: Value = std::fs::read_to_string(&settings_file)

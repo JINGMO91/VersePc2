@@ -44,6 +44,15 @@ fn java_bin_name() -> &'static str {
     }
 }
 
+/// 当前平台的 javac 文件名（用于判断是否为 JDK）
+fn javac_bin_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "javac.exe"
+    } else {
+        "javac"
+    }
+}
+
 /// 扫描常见 Java 安装路径
 fn scan_common_java_paths() -> Vec<PathBuf> {
     let mut paths: Vec<PathBuf> = Vec::new();
@@ -776,6 +785,35 @@ fn candidate_folders() -> Vec<String> {
     push(pf.as_ref().map(|p| format!("{}\\Amazon Corretto\\", p)));
     push(pf.as_ref().map(|p| format!("{}\\Zulu\\", p)));
 
+    // macOS/Linux 常见 JDK 位置（用于排序优先级）
+    #[cfg(target_os = "macos")]
+    {
+        let home = dirs::home_dir();
+        push(Some("/Library/Java/JavaVirtualMachines/".to_string()));
+        push(Some("/opt/homebrew/opt/".to_string()));
+        push(Some("/usr/local/opt/".to_string()));
+        push(home.as_ref().map(|h| {
+            format!(
+                "{}/Library/Application Support/minecraft/runtime/",
+                h.to_string_lossy()
+            )
+        }));
+        push(home.as_ref().map(|h| format!("{}/Library/Java/JavaVirtualMachines/", h.to_string_lossy())));
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let home = dirs::home_dir();
+        push(Some("/usr/lib/jvm/".to_string()));
+        push(Some("/usr/java/".to_string()));
+        push(home.as_ref().map(|h| format!("{}/.sdkman/candidates/java/", h.to_string_lossy())));
+        push(home.as_ref().map(|h| {
+            format!(
+                "{}/.local/share/minecraft/runtime/",
+                h.to_string_lossy()
+            )
+        }));
+    }
+
     folders
 }
 
@@ -844,6 +882,11 @@ fn has_reparse_point(java_exe: &Path) -> bool {
 /// 检查路径是否为特殊路径（Java 8 自动更新链接 / system32 等）
 fn is_special_path(java_exe: &Path) -> bool {
     let lower = java_exe.to_string_lossy().to_lowercase();
+    // macOS 的 /usr/bin/java 只是系统占位程序，执行时会弹出安装提示，不能作为候选
+    #[cfg(target_os = "macos")]
+    if lower == "/usr/bin/java" {
+        return true;
+    }
     lower.contains("java8path_target_")
         || lower.contains("javapath_target_")
         || lower.contains("javatmp")
@@ -1378,7 +1421,7 @@ async fn import_java_async(session_id: &str, import_type: &str, source_path: &st
         "majorVersion": major,
         "minorVersion": 0,
         "version": version,
-        "isJdk": final_dir.join("bin").join("javac.exe").exists(),
+        "isJdk": final_dir.join("bin").join(javac_bin_name()).exists(),
         "is64Bit": is64
     });
 

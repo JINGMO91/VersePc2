@@ -42,6 +42,30 @@ fn user_fallback_data_dir() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from("VersePC").join("data"))
 }
 
+/// 平台默认的 Minecraft 游戏目录（未设置 gameDir 时使用）
+/// Windows 为 %APPDATA%/.minecraft，macOS 为 ~/Library/Application Support/minecraft，
+/// Linux 为 ~/.minecraft。
+pub fn default_minecraft_dir(fallback: std::path::PathBuf) -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        dirs::data_dir()
+            .map(|d| d.join(".minecraft"))
+            .unwrap_or(fallback)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        dirs::home_dir()
+            .map(|h| h.join("Library").join("Application Support").join("minecraft"))
+            .unwrap_or(fallback)
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        dirs::home_dir()
+            .map(|h| h.join(".minecraft"))
+            .unwrap_or(fallback)
+    }
+}
+
 /// 数据目录覆盖：由独立守护进程（verse-server-host）通过 --data-dir 注入，
 /// 使服务器能共享主程序同一份 versions/libraries/servers 数据。
 /// 主程序不调用 override，保持原解析逻辑不变。

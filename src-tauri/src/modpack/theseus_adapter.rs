@@ -114,7 +114,7 @@ async fn import_zip_generic(
     let total = archive.len();
     for i in 0..total {
         if let Ok(mut entry) = archive.by_index(i) {
-            let name = entry.name().to_string();
+            let name = entry.name().replace('\\', "/");
             if name.ends_with('/') {
                 continue;
             }

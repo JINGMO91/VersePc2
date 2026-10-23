@@ -49,7 +49,7 @@ fn is_path_allowed(path: &std::path::Path) -> bool {
         dirs::desktop_dir().unwrap_or_else(|| PathBuf::from(".")),
         dirs::document_dir().unwrap_or_else(|| PathBuf::from(".")),
         dirs::download_dir().unwrap_or_else(|| PathBuf::from(".")),
-        dirs::home_dir().map(|h| h.join(".minecraft")).unwrap_or_else(|| PathBuf::from(".")),
+        storage::default_minecraft_dir(PathBuf::from(".")),
     ]
     .into_iter()
     .map(|p| normalize_path_for_allowlist(&p))
@@ -127,7 +127,7 @@ fn resolve_folder_type(folder: &str, custom_path: &str) -> Option<PathBuf> {
     eprintln!("[open-folder] resolve_folder_type folder={:?} data_dir={}", folder, data_dir.display());
     let settings = storage::load_settings();
     let minecraft_dir = if utils::get_str(&settings, "gameDir").is_empty() {
-        dirs::home_dir().map(|h| h.join(".minecraft")).unwrap_or_else(|| data_dir.clone())
+        storage::default_minecraft_dir(data_dir.clone())
     } else {
         PathBuf::from(utils::get_str(&settings, "gameDir"))
     };
@@ -202,15 +202,21 @@ fn open_in_explorer(path: &std::path::Path) -> bool {
     }
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("open")
-            .arg(path)
-            .spawn()
-            .is_ok()
+        // 文件使用 -R 在 Finder 中定位选中，目录直接打开
+        let mut cmd = std::process::Command::new("open");
+        if !path.is_dir() {
+            cmd.arg("-R");
+        }
+        cmd.arg(path).spawn().is_ok()
     }
     #[cfg(target_os = "linux")]
     {
         std::process::Command::new("xdg-open")
-            .arg(path)
+            .arg(if path.is_dir() {
+                path.to_path_buf()
+            } else {
+                path.parent().unwrap_or(path).to_path_buf()
+            })
             .spawn()
             .is_ok()
     }
@@ -279,7 +285,7 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                 let settings = storage::load_settings();
                 let version_id = utils::get_str(&settings, "selectedVersion");
                 let minecraft_dir = if utils::get_str(&settings, "gameDir").is_empty() {
-                    dirs::home_dir().map(|h| h.join(".minecraft")).unwrap_or_else(|| data_dir.clone())
+                    storage::default_minecraft_dir(data_dir.clone())
                 } else {
                     PathBuf::from(utils::get_str(&settings, "gameDir"))
                 };
@@ -362,9 +368,9 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
         // ===== 快速访问路径 =====
         "GET /api/filesystem/quick-access" => {
             let data_dir = storage::resolve_data_dir();
-            let home_dir_str = dirs::home_dir()
-                .map(|h| h.join(".minecraft").to_string_lossy().to_string())
-                .unwrap_or_default();
+            let home_dir_str = storage::default_minecraft_dir(data_dir.clone())
+                .to_string_lossy()
+                .to_string();
             let desktop_str = dirs::desktop_dir()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default();
@@ -427,10 +433,7 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                 .to_string();
             let resolved = crate::api::mods::resolve_mods_dir(&settings, &version_id, "");
             let mods_dir = resolved.unwrap_or_else(|| {
-                let minecraft_dir = dirs::home_dir()
-                    .map(|h| h.join(".minecraft"))
-                    .unwrap_or_else(|| storage::resolve_data_dir());
-                minecraft_dir.join("mods")
+                storage::default_minecraft_dir(storage::resolve_data_dir()).join("mods")
             });
             let _ = std::fs::create_dir_all(&mods_dir);
             Some(ApiResult::ok(json!({
@@ -455,9 +458,7 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                 _ => "",
             };
             let data_dir = storage::resolve_data_dir();
-            let minecraft_dir = dirs::home_dir()
-                .map(|h| h.join(".minecraft"))
-                .unwrap_or_else(|| data_dir.clone());
+            let minecraft_dir = storage::default_minecraft_dir(data_dir.clone());
             let rp = minecraft_dir.join("resourcepacks");
             let sp = minecraft_dir.join("shaderpacks");
             let dp = data_dir.join("datapacks");

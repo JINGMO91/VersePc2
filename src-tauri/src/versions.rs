@@ -224,7 +224,9 @@ pub async fn get_version_icon(
     // 优先级 3：.minecraft/versions/<id>
     if custom_icon.is_none() {
         if let Some(home) = dirs::home_dir() {
-            let mc_versions_dir = home.join(".minecraft").join("versions").join(&clean_id);
+            let mc_versions_dir = storage::default_minecraft_dir(home.join(".minecraft"))
+                .join("versions")
+                .join(&clean_id);
             let pcl_path = mc_versions_dir.join(&pcl_logo);
             if pcl_path.exists() {
                 if let Ok(data) = std::fs::read(&pcl_path) {
@@ -953,17 +955,7 @@ fn get_version_game_dir(version_id: &str, is_external: bool) -> PathBuf {
 
 /// 平台默认的 .minecraft 目录（macOS 使用 Application Support）
 fn default_minecraft_dir(fallback: PathBuf) -> PathBuf {
-    let Some(home) = dirs::home_dir() else {
-        return fallback;
-    };
-    #[cfg(target_os = "macos")]
-    {
-        home.join("Library").join("Application Support").join("minecraft")
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        home.join(".minecraft")
-    }
+    storage::default_minecraft_dir(fallback)
 }
 
 /// 跨驱动器深度扫描，找出包含 versions 子目录的 Minecraft 版本文件夹
@@ -1982,11 +1974,23 @@ fn open_in_explorer(path: &Path) -> bool {
     }
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("open").arg(path).spawn().is_ok()
+        // 文件使用 -R 在 Finder 中定位选中，目录直接打开
+        let mut cmd = std::process::Command::new("open");
+        if !path.is_dir() {
+            cmd.arg("-R");
+        }
+        cmd.arg(path).spawn().is_ok()
     }
     #[cfg(target_os = "linux")]
     {
-        std::process::Command::new("xdg-open").arg(path).spawn().is_ok()
+        std::process::Command::new("xdg-open")
+            .arg(if path.is_dir() {
+                path.to_path_buf()
+            } else {
+                path.parent().unwrap_or(path).to_path_buf()
+            })
+            .spawn()
+            .is_ok()
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     {

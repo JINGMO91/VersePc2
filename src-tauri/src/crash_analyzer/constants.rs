@@ -3,11 +3,9 @@
 
 use std::path::PathBuf;
 
-/// 默认 .minecraft 目录：用户主目录下 .minecraft
+/// 默认 .minecraft 目录：按平台返回（Windows %APPDATA%、macOS Application Support、Linux ~）
 pub fn default_minecraft_dir() -> PathBuf {
-    dirs::home_dir()
-        .map(|h| h.join(".minecraft"))
-        .unwrap_or_else(|| PathBuf::from(".minecraft"))
+    crate::storage::default_minecraft_dir(PathBuf::from(".minecraft"))
 }
 
 /// 崩溃原因枚举

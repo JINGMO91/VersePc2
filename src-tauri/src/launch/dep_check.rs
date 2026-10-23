@@ -651,6 +651,17 @@ pub(crate) fn current_platform_name() -> String {
     }
 }
 
+/// 获取当前架构名（与版本 JSON rules 中的 os.arch 取值一致）
+pub(crate) fn current_arch_name() -> &'static str {
+    if cfg!(target_arch = "aarch64") {
+        "arm64"
+    } else if cfg!(target_arch = "x86") {
+        "x86"
+    } else {
+        "x64"
+    }
+}
+
 /// 沿目录树向上查找外部根（同时有 versions/ 和 libraries/ 或 assets/ 的目录）
 pub(crate) fn find_external_root(version_dir: &Path) -> Option<PathBuf> {
     let mut dir = version_dir.to_path_buf();
@@ -965,7 +976,7 @@ pub(crate) fn evaluate_rules(
     let mut allowed: Option<bool> = None;
     let mut has_allow_rule = false;
     let current_os = current_platform_name();
-    let current_arch = if cfg!(target_pointer_width = "64") { "x64" } else { "x86" };
+    let current_arch = current_arch_name();
 
     for rule in rules {
         let action = utils::get_str(rule, "action");
@@ -1292,15 +1303,22 @@ fn check_native_lib(
     }
     let native_suffix = parts[3];
     let platform_native = native_suffix.strip_prefix("natives-").unwrap_or("");
-    // 架构匹配
-    let is_valid_platform = if cfg!(target_pointer_width = "64") {
-        platform_native == current_platform || platform_native == format!("{}-x64", current_platform)
-    } else if cfg!(target_arch = "x86") {
-        platform_native == format!("{}-x86", current_platform) || platform_native == current_platform
-    } else if cfg!(target_arch = "aarch64") {
-        platform_native == format!("{}-arm64", current_platform) || platform_native == current_platform
+    // 规则中的平台名是 osx，但原生产物后缀使用 macos，需要转换后再比较
+    let native_os = if current_platform == "osx" {
+        "macos"
     } else {
-        false
+        current_platform
+    };
+    // 架构匹配：arm64 优先专用包，x86_64 不接受 arm 变体
+    let is_valid_platform = if cfg!(target_arch = "aarch64") {
+        platform_native == native_os
+            || platform_native == format!("{}-arm64", native_os)
+            || platform_native == format!("{}-aarch64", native_os)
+    } else if cfg!(target_arch = "x86") {
+        platform_native == native_os || platform_native == format!("{}-x86", native_os)
+    } else {
+        platform_native == native_os
+            || (platform_native == format!("{}-x64", native_os))
     };
     if !is_valid_platform {
         return None;

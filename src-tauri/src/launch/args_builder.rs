@@ -653,7 +653,7 @@ pub fn build_classpath(
     search_bases.push(libraries_dir.to_path_buf());
 
     let current_os = dep_check::current_platform_name();
-    let current_arch = if cfg!(target_pointer_width = "64") { "x64" } else { "x86" };
+    let current_arch = dep_check::current_arch_name();
 
     for lib in &libraries {
         // rules 过滤
@@ -929,11 +929,9 @@ fn extract_natives_dir(
     }
     let libraries_dir = data_dir.join("libraries");
     search_bases.push(libraries_dir.clone());
-    if let Some(home) = dirs::home_dir() {
-        let mc_lib = home.join(".minecraft").join("libraries");
-        if mc_lib != libraries_dir && mc_lib.exists() {
-            search_bases.push(mc_lib);
-        }
+    let mc_lib = storage::default_minecraft_dir(data_dir.to_path_buf()).join("libraries");
+    if mc_lib != libraries_dir && mc_lib.exists() {
+        search_bases.push(mc_lib);
     }
 
     // 收集所有 native jar 路径
@@ -1178,7 +1176,8 @@ fn extract_native_jar(jar_path: &Path, natives_dir: &Path) {
             Ok(e) => e,
             Err(_) => continue,
         };
-        let name = entry.name().to_string();
+        // 统一分隔符，避免以反斜杠命名的原生产物在 macOS/Linux 上落成带 \ 的文件
+        let name = entry.name().replace('\\', "/");
         if name.starts_with("META-INF")
             || name.starts_with('.')
             || name.contains("/.git")

@@ -1265,7 +1265,7 @@ fn extract_overrides_with_progress(
             if entry.is_dir() {
                 continue;
             }
-            let name = entry.name();
+            let name = entry.name().replace('\\', "/");
             if name.starts_with(prefix) {
                 override_total += 1;
             }
@@ -1284,7 +1284,8 @@ fn extract_overrides_with_progress(
         if entry.is_dir() {
             continue;
         }
-        let name = entry.name().to_string();
+        // 统一分隔符：Windows 打包的 zip 可能使用反斜杠
+        let name = entry.name().replace('\\', "/");
         if !cf_shared::is_modpack_path_safe(&name) {
             continue;
         }

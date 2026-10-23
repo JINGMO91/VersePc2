@@ -117,16 +117,11 @@ fn build_installed_mods(settings: &Value, version_id: &str) -> Value {
             scan_dir(&shared_mods, "共享", &mut mods, &mut seen_files);
         }
 
-        // 3. .minecraft/mods
-        if let Some(home) = dirs::home_dir() {
-            let mc_mods = home
-                .join("AppData")
-                .join("Roaming")
-                .join(".minecraft")
-                .join("mods");
-            if Some(&mc_mods) != mods_path.as_ref() && mc_mods != shared_mods {
-                scan_dir(&mc_mods, ".minecraft", &mut mods, &mut seen_files);
-            }
+        // 3. 平台默认 .minecraft/mods
+        let mc_mods = crate::storage::default_minecraft_dir(crate::storage::resolve_data_dir())
+            .join("mods");
+        if Some(&mc_mods) != mods_path.as_ref() && mc_mods != shared_mods {
+            scan_dir(&mc_mods, ".minecraft", &mut mods, &mut seen_files);
         }
     }
 
