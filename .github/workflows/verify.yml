@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          find frontend/public/js frontend/src scripts -type f -name '*.js' \
+          { find frontend/public/js frontend/src scripts -type f -name '*.js' || true; } \
             | grep -v -E 'three.*\.bundle\.js|skinview3d.*\.bundle\.js|vue\.global\.prod\.js|marked\.min\.js' \
             | while IFS= read -r f; do node --check "$f"; done
           echo "frontend syntax OK"
@@ -41,7 +41,7 @@ jobs:
       - name: Checkout
         shell: pwsh
         run: |
-          git clone --depth 1 --branch "$GITHUB_REF_NAME" https://github.com/doujie081231/VersePc2.git .
+          git clone --depth 1 --branch "$env:GITHUB_REF_NAME" https://github.com/doujie081231/VersePc2.git .
           git rev-parse --short HEAD
 
       - name: Setup Rust (stable)
