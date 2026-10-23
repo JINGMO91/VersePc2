@@ -90,4 +90,5 @@ const PageCloud = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageCloud = PageCloud;
+
+export default PageCloud;

@@ -77,4 +77,5 @@ const PageJava = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageJava = PageJava;
+
+export default PageJava;

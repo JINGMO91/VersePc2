@@ -4,5 +4,6 @@
 // 3. 尚未迁移的 app.js / Vue 页面仍由 index.html 以 classic script 加载。
 import './legacy/globals.js';
 import './features/registry.js';
+import './vue/mount.js';
 
 export const buildMode = 'vite';

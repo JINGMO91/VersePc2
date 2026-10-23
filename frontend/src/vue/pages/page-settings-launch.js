@@ -249,4 +249,5 @@ const PageSettingsLaunch = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageSettingsLaunch = PageSettingsLaunch;
+
+export default PageSettingsLaunch;

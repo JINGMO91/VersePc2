@@ -129,4 +129,5 @@ const PageFeedback = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageFeedback = PageFeedback;
+
+export default PageFeedback;

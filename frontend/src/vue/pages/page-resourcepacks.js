@@ -54,4 +54,5 @@ const PageResourcepacks = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageResourcepacks = PageResourcepacks;
+
+export default PageResourcepacks;

@@ -156,4 +156,5 @@ const PageLanTerracotta = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageLanTerracotta = PageLanTerracotta;
+
+export default PageLanTerracotta;

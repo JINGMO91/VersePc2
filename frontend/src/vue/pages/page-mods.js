@@ -163,4 +163,5 @@ const PageMods = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageMods = PageMods;
+
+export default PageMods;

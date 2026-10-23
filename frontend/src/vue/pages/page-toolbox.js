@@ -375,8 +375,6 @@ const PageToolbox = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageToolbox = PageToolbox;
-
 // 工具箱图标加载函数（兼容 Tauri v1/v2 invoke 和旧 HTTP）
 function _loadToolboxFavicons() {
   // 统一获取 Tauri invoke 函数（兼容 v1 __TAURI__ 和 v2 __TAURI_INTERNALS__）
@@ -416,3 +414,5 @@ if (PageToolbox.mounted) {
     setTimeout(_loadToolboxFavicons, 100);
   };
 }
+
+export default PageToolbox;

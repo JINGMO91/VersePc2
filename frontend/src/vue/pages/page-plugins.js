@@ -231,4 +231,5 @@ const PagePlugins = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PagePlugins = PagePlugins;
+
+export default PagePlugins;

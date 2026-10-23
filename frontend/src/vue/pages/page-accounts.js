@@ -269,4 +269,5 @@ const PageAccounts = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageAccounts = PageAccounts;
+
+export default PageAccounts;

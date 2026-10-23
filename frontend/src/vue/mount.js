@@ -1,0 +1,78 @@
+// vue/mount.js — Vue 页面挂载入口
+// 主页立即挂载；其余页面按每批 4 个动态加载，保留原有的分批挂载节奏。
+import { createApp } from 'vue';
+import PageHome from './pages/page-home.js';
+
+// PageSettingsPersonalize 暂未模块化，仍由 public/js/vue 下的 classic 脚本注册到 window.VersePC
+const OTHER_PAGES = [
+  ['PageVersions', '#page-versions', () => import('./pages/page-versions.js')],
+  ['PageInstalledVersions', '#page-installed-versions', () => import('./pages/page-installed-versions.js')],
+  ['PageVersionDetail', '#page-version-detail', () => import('./pages/page-version-detail.js')],
+  ['PageVersionSettings', '#page-version-settings', () => import('./pages/page-version-settings.js')],
+  ['PageMods', '#page-mods', () => import('./pages/page-mods.js')],
+  ['PageModDetail', '#page-mod-detail', () => import('./pages/page-mod-detail.js')],
+  ['PageModFavorites', '#page-mod-favorites', () => import('./pages/page-mod-favorites.js')],
+  ['PageModpacks', '#page-modpacks', () => import('./pages/page-modpacks.js')],
+  ['PageDatapacks', '#page-datapacks', () => import('./pages/page-datapacks.js')],
+  ['PageResourcepacks', '#page-resourcepacks', () => import('./pages/page-resourcepacks.js')],
+  ['PageShaders', '#page-shaders', () => import('./pages/page-shaders.js')],
+  ['PageLanTerracotta', '#page-lan-terracotta', () => import('./pages/page-lan-terracotta.js')],
+  ['PageLanPortmap', '#page-lan-portmap', () => import('./pages/page-lan-portmap.js')],
+  ['PageLanEnderlink', '#page-lan-enderlink', () => import('./pages/page-lan-enderlink.js')],
+  ['PagePlugins', '#page-plugins', () => import('./pages/page-plugins.js')],
+  ['PagePrivateServer', '#page-private-server', () => import('./pages/page-private-server.js')],
+  ['PageServerHost', '#page-server-host', () => import('./pages/page-server-host.js')],
+  ['PageToolbox', '#page-toolbox', () => import('./pages/page-toolbox.js')],
+  ['PageAccounts', '#page-accounts', () => import('./pages/page-accounts.js')],
+  ['PageSettingsLaunch', '#page-settings-launch', () => import('./pages/page-settings-launch.js')],
+  ['PageSettingsPersonalize', '#page-settings-personalize', null],
+  ['PageSettingsOther', '#page-settings-other', () => import('./pages/page-settings-other.js')],
+  ['PageJava', '#page-java', () => import('./pages/page-java.js')],
+  ['PageDownloads', '#page-downloads', () => import('./pages/page-downloads.js')],
+  ['PageFeedback', '#page-feedback', () => import('./pages/page-feedback.js')],
+  ['PageCloud', '#page-cloud', () => import('./pages/page-cloud.js')],
+];
+
+function mountBatch(state) {
+  const { list, indexRef } = state;
+  const batch = list.slice(indexRef.value, indexRef.value + 4);
+  indexRef.value += batch.length;
+
+  Promise.all(
+    batch.map(async ([name, selector, loader]) => {
+      try {
+        let component = null;
+        if (loader) {
+          const mod = await loader();
+          component = mod && (mod.default || mod);
+        } else {
+          component = window.VersePC && window.VersePC[name];
+        }
+        if (component) createApp(component).mount(selector);
+      } catch (e) {
+        console.error('Vue mount failed:', name, e);
+      }
+    })
+  ).then(() => {
+    if (indexRef.value >= list.length) {
+      window._vueMountDone = true;
+      if (window._vueMountResolve) window._vueMountResolve();
+      return;
+    }
+    const schedule = window.requestIdleCallback || ((cb) => setTimeout(cb, 16));
+    schedule(() => mountBatch(state), { timeout: 100 });
+  });
+}
+
+window.addEventListener('DOMContentLoaded', function () {
+  window._vueMountDone = false;
+
+  // 主页优先同步挂载，保证首屏最快可见
+  createApp(PageHome).mount('#page-home');
+
+  const state = { list: OTHER_PAGES, indexRef: { value: 0 } };
+  setTimeout(() => {
+    const schedule = window.requestIdleCallback || ((cb) => setTimeout(cb, 16));
+    schedule(() => mountBatch(state), { timeout: 100 });
+  }, 0);
+});

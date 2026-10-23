@@ -15,6 +15,12 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
   },
+  resolve: {
+    alias: {
+      // 现有页面全部使用 template 字符串，需要带编译器的完整 Vue 构建
+      vue: 'vue/dist/vue.esm-bundler.js',
+    },
+  },
   build: {
     outDir: resolve(rootDir, 'frontend-dist'),
     emptyOutDir: true,

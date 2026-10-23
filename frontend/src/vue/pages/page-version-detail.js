@@ -121,4 +121,5 @@ const PageVersionDetail = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageVersionDetail = PageVersionDetail;
+
+export default PageVersionDetail;

@@ -18,4 +18,5 @@ const PageDownloads = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageDownloads = PageDownloads;
+
+export default PageDownloads;

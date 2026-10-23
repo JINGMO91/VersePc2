@@ -28,4 +28,5 @@ const PageShaders = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageShaders = PageShaders;
+
+export default PageShaders;

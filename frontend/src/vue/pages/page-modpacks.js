@@ -59,4 +59,5 @@ const PageModpacks = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageModpacks = PageModpacks;
+
+export default PageModpacks;

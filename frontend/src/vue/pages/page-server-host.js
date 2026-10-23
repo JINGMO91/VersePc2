@@ -140,4 +140,5 @@ const PageServerHost = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageServerHost = PageServerHost;
+
+export default PageServerHost;

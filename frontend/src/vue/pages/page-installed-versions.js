@@ -194,4 +194,5 @@ const PageInstalledVersions = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageInstalledVersions = PageInstalledVersions;
+
+export default PageInstalledVersions;

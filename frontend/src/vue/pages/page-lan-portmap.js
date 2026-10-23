@@ -160,4 +160,5 @@ const PageLanPortmap = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageLanPortmap = PageLanPortmap;
+
+export default PageLanPortmap;

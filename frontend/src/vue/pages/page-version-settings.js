@@ -1115,8 +1115,6 @@ const PageVersionSettings = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageVersionSettings = PageVersionSettings;
-
 // 外部入口桥接：版本列表等仍通过 openVersionSettings / closeVersionSettings 触发
 async function openVersionSettings(versionId, versionName) {
   if (window.VersepcSettingsVM) {
@@ -1138,3 +1136,5 @@ function closeVersionSettings() {
     window.VersepcSettingsVM.close();
   }
 }
+
+export default PageVersionSettings;

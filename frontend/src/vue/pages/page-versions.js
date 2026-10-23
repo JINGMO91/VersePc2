@@ -10,4 +10,5 @@ const PageVersions = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageVersions = PageVersions;
+
+export default PageVersions;

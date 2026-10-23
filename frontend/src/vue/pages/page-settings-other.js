@@ -362,8 +362,6 @@ const PageSettingsOther = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageSettingsOther = PageSettingsOther;
-
 /* 打开外部链接：Tauri 用 electronAPI.openExternal，非 Tauri 用 window.open */
 window.openExternalUrl = function (url) {
   if (window.electronAPI && window.electronAPI.openExternal) {
@@ -372,3 +370,5 @@ window.openExternalUrl = function (url) {
     window.open(url, '_blank');
   }
 };
+
+export default PageSettingsOther;

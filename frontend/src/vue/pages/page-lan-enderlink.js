@@ -160,4 +160,5 @@ const PageLanEnderlink = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageLanEnderlink = PageLanEnderlink;
+
+export default PageLanEnderlink;

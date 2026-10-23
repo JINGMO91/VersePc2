@@ -127,4 +127,5 @@ const PageModDetail = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageModDetail = PageModDetail;
+
+export default PageModDetail;

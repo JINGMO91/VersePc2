@@ -39,7 +39,7 @@ export default [
   {
     // 过渡期：功能模块仍会读取 app.js 中的全局状态（如 allVersions），
     // 且迁移自旧脚本的代码保留原有写法，先关闭结构性规则，Phase 7 再逐步收紧。
-    files: ['frontend/src/features/**/*.js'],
+    files: ['frontend/src/features/**/*.js', 'frontend/src/vue/**/*.js'],
     rules: {
       'no-undef': 'off',
       'no-redeclare': 'off',

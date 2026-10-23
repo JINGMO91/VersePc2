@@ -17,4 +17,5 @@ const PagePrivateServer = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PagePrivateServer = PagePrivateServer;
+
+export default PagePrivateServer;

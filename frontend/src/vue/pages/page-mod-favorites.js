@@ -52,4 +52,5 @@ const PageModFavorites = {
 };
 
 window.VersePC = window.VersePC || {};
-window.VersePC.PageModFavorites = PageModFavorites;
+
+export default PageModFavorites;

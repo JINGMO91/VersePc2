@@ -405,4 +405,5 @@ const PageHome = {
 
 // 导出供主入口使用
 window.VersePC = window.VersePC || {};
-window.VersePC.PageHome = PageHome;
+
+export default PageHome;
