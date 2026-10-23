@@ -804,13 +804,7 @@ fn is_native_library(lib: &Value, _current_os: &str) -> bool {
 
 /// 原生库包使用的平台后缀（Windows/macOS/Linux）
 fn native_os_name() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "windows"
-    } else if cfg!(target_os = "macos") {
-        "macos"
-    } else {
-        "linux"
-    }
+    crate::platform::native_suffix()
 }
 
 /// Maven 名称转相对路径

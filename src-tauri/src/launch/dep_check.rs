@@ -642,24 +642,12 @@ pub fn check_dependencies(version_id: &str, settings: &Value, external_version_d
 
 /// 获取当前平台名（windows/osx/linux）
 pub(crate) fn current_platform_name() -> String {
-    if cfg!(target_os = "windows") {
-        "windows".to_string()
-    } else if cfg!(target_os = "macos") {
-        "osx".to_string()
-    } else {
-        "linux".to_string()
-    }
+    crate::platform::rules_os_name().to_string()
 }
 
 /// 获取当前架构名（与版本 JSON rules 中的 os.arch 取值一致）
 pub(crate) fn current_arch_name() -> &'static str {
-    if cfg!(target_arch = "aarch64") {
-        "arm64"
-    } else if cfg!(target_arch = "x86") {
-        "x86"
-    } else {
-        "x64"
-    }
+    crate::platform::rules_arch_name()
 }
 
 /// 沿目录树向上查找外部根（同时有 versions/ 和 libraries/ 或 assets/ 的目录）
@@ -1294,7 +1282,7 @@ fn check_native_lib(
     lib: &Value,
     libraries_dir: &Path,
     external_version_dir: Option<&Path>,
-    current_platform: &str,
+    _current_platform: &str,
 ) -> Option<MissingFile> {
     let name = utils::get_str(lib, "name");
     let parts: Vec<&str> = name.split(':').collect();
@@ -1303,12 +1291,8 @@ fn check_native_lib(
     }
     let native_suffix = parts[3];
     let platform_native = native_suffix.strip_prefix("natives-").unwrap_or("");
-    // 规则中的平台名是 osx，但原生产物后缀使用 macos，需要转换后再比较
-    let native_os = if current_platform == "osx" {
-        "macos"
-    } else {
-        current_platform
-    };
+    // 规则中的平台名是 osx，但原生产物后缀使用 macos，统一由 platform 模块转换
+    let native_os = crate::platform::native_suffix();
     // 架构匹配：arm64 优先专用包，x86_64 不接受 arm 变体
     let is_valid_platform = if cfg!(target_arch = "aarch64") {
         platform_native == native_os

@@ -20,6 +20,7 @@ mod modpack;
 mod mods;
 mod nbt;
 mod network;
+pub(crate) mod platform;
 mod plugin_exec;
 mod plugins;
 mod private_server;
@@ -97,6 +98,7 @@ fn trim_working_set_tree() {
     use std::mem;
 
     #[repr(C)]
+    #[allow(non_snake_case)]
     struct PROCESSENTRY32W {
         dwSize: u32,
         cntUsage: u32,

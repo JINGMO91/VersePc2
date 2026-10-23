@@ -1308,7 +1308,7 @@ async fn handle_download(body: &Option<Value>) -> ApiResult {
         } else {
             // 未指定 file id 时，查最新文件
             let files_url = format!("{}/mods/{}/files?pageSize=1", CURSEFORGE_API, project_id);
-            let list_resp = client.get(&files_url).header("x-api-key", cf_api_key.clone()).send().await;
+            let list_resp = client.get(&files_url).header("x-api-key", cf_api_key).send().await;
             match list_resp {
                 Ok(r) if r.status().is_success() => {
                     let v: Value = r.json().await.unwrap_or_default();

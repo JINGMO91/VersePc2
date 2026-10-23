@@ -37,20 +37,12 @@ struct JavaCache {
 
 /// 当前平台的 Java 可执行文件名（macOS/Linux 为 java）
 fn java_bin_name() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "java.exe"
-    } else {
-        "java"
-    }
+    crate::platform::java_bin_name()
 }
 
 /// 当前平台的 javac 文件名（用于判断是否为 JDK）
 fn javac_bin_name() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "javac.exe"
-    } else {
-        "javac"
-    }
+    crate::platform::javac_bin_name()
 }
 
 /// 扫描常见 Java 安装路径

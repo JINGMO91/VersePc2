@@ -651,13 +651,7 @@ fn evaluate_rules(lib: &Value) -> bool {
 
 /// 当前平台 OS 名（与版本 JSON natives 规则中的键一致）
 fn current_os_name() -> &'static str {
-    if cfg!(target_os = "windows") {
-        "windows"
-    } else if cfg!(target_os = "macos") {
-        "osx"
-    } else {
-        "linux"
-    }
+    crate::platform::rules_os_name()
 }
 
 /// 解析库的当前平台 native classifier 条目：
@@ -712,7 +706,7 @@ async fn download_library(
     _session_id: &str,
 ) -> Result<(), String> {
     let os_name = current_os_name();
-    let arch = if cfg!(target_pointer_width = "64") { "64" } else { "32" };
+    let arch = crate::platform::pointer_width_suffix();
 
     // 优先用 downloads.artifact
     if let Some(artifact) = lib.pointer("/downloads/artifact") {
