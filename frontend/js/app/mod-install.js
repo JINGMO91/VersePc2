@@ -969,6 +969,9 @@ async function proceedModInstall(projectId, source, versionId, fileId, savePath,
       mdDepsCache.clear();
       dlManager.remove(pendingTaskId);
       showModDownloadModal(result.fileName, result.sessionId, savePath, iconUrl);
+      if (includeDeps) {
+        maybeShowPostInstallDeps(projectId, source, versionId, savePath, currentGameVersion, currentLoader, iconUrl);
+      }
     } else {
       dlManager.update(pendingTaskId, { status: 'failed', message: result.error || '下载失败' });
       showToast(result.error || '下载失败', 'error');
@@ -1015,7 +1018,8 @@ async function quickInstallMod(projectId, source, versionId, fileId) {
     if (result.success) {
       mdDepsCache.clear();
       dlManager.remove(pendingTaskId);
-      showModDownloadModal(result.fileName, result.sessionId);
+      showModDownloadModal(result.fileName, result.sessionId, savePath, iconUrl);
+      maybeShowPostInstallDeps(projectId, source, versionId, savePath, currentGameVersion, currentLoader, iconUrl);
     } else {
       dlManager.update(pendingTaskId, { status: 'failed', message: result.error || '下载失败' });
       showToast(result.error || '下载失败', 'error');
@@ -1024,6 +1028,216 @@ async function quickInstallMod(projectId, source, versionId, fileId) {
     console.error('quickInstallMod error:', e);
     dlManager.update(pendingTaskId, { status: 'failed', message: e.message || '请求失败' });
     showToast('下载请求失败: ' + (e.message || '未知错误'), 'error');
+  }
+}
+
+/// 安装模组后弹出前置下载弹窗：
+/// 必选前置默认全部下载，可选前置提供勾选框，可一键下载选中项。
+async function maybeShowPostInstallDeps(projectId, source, versionId, savePath, gameVersion, loader, iconUrl) {
+  try {
+    if (!versionId && typeof pickDependencyRootVersion === 'function') {
+      versionId = pickDependencyRootVersion(gameVersion || '', loader || '');
+    }
+    if (!versionId) return;
+
+    const targetGame = gameVersion || getCustomSelectValue('mod-filter-version') || _mdSaveGame || '';
+    const targetLoader = loader || getCustomSelectValue('mod-filter-loader') || _mdSaveLoader || '';
+    const versions = (typeof mdAllVersions !== 'undefined' && Array.isArray(mdAllVersions)) ? mdAllVersions : [];
+    const versionData = versions.find(v => v && v.id === versionId);
+    const optionalRefs = ((versionData && versionData.dependencies) || [])
+      .filter(d => d && d.projectId && (d.dependencyType === 'optional' || d.dependencyType === '2'));
+
+    const targetVid = matchInstalledVersion(targetGame, targetLoader);
+    const installedPromise = targetVid
+      ? API.getVersionMods(targetVid).catch(() => [])
+      : API.getInstalledMods().catch(() => []);
+    const optionalPromise = optionalRefs.length
+      ? API.resolveDepVersions(optionalRefs.map(d => d.projectId), targetGame, targetLoader, source).catch(() => ({}))
+      : Promise.resolve({});
+
+    const [requiredRes, optionalRes, installedRaw] = await Promise.all([
+      API.getDependenciesRecursive(versionId, source, targetGame, targetLoader, projectId)
+        .catch(e => { console.warn('[PostInstallDeps] 获取必选前置失败:', e.message); return { dependencies: [] }; }),
+      optionalPromise,
+      installedPromise
+    ]);
+
+    const installedMods = Array.isArray(installedRaw)
+      ? installedRaw
+      : ((installedRaw && installedRaw.mods) || []);
+    const installedFiles = new Set(
+      installedMods.map(m => (m.fileName || m.filename || '').toLowerCase()).filter(Boolean)
+    );
+    const installedIds = new Set(installedMods.map(m => m.id).filter(Boolean));
+    const isInstalled = dep => {
+      if (installedIds.has(dep.projectId)) return true;
+      const fn = (dep.compatibleVersion && dep.compatibleVersion.fileName || '').toLowerCase();
+      return !!fn && installedFiles.has(fn);
+    };
+
+    const required = (requiredRes.dependencies || [])
+      .filter(d => d && d.compatibleVersion && !isInstalled(d));
+    const requiredIds = new Set(required.map(d => d.projectId));
+
+    const optionalMap = new Map();
+    optionalRefs.forEach(ref => {
+      if (requiredIds.has(ref.projectId) || optionalMap.has(ref.projectId)) return;
+      const info = optionalRes[ref.projectId] || {};
+      const hasVersion = !!(info.hasCompatibleVersion && info.versionId);
+      optionalMap.set(ref.projectId, {
+        projectId: ref.projectId,
+        title: info.title || ref.projectId,
+        icon: info.icon || '',
+        dependencyType: 'optional',
+        depth: 1,
+        compatibleVersion: hasVersion ? {
+          versionId: info.versionId,
+          versionNumber: info.versionNumber || '',
+          fileName: info.fileName || '',
+          gameVersions: info.gameVersions || [],
+          loaders: info.loaders || []
+        } : null
+      });
+    });
+    const optional = [...optionalMap.values()].filter(d => !isInstalled(d));
+
+    if (required.length === 0 && optional.length === 0) return;
+
+    const existing = document.getElementById('post-install-deps-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'post-install-deps-modal';
+    modal.className = 'modal-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:10005;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+
+    const rowHtml = (dep, index) => {
+      const ver = dep.compatibleVersion;
+      const verText = ver
+        ? (ver.versionNumber || ver.fileName || '')
+        : '无兼容版本';
+      const iconHtml = dep.icon
+        ? `<img src="${escapeHtml(dep.icon)}" alt="" style="width:32px;height:32px;border-radius:7px;object-fit:cover;" onerror="this.style.display='none'" loading="lazy">`
+        : `<div style="width:32px;height:32px;border-radius:7px;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;font-size:14px;">📦</div>`;
+      const indent = Math.min(Math.max((dep.depth || 1) - 1, 0), 3) * 14;
+      const title = typeof formatModNameWithChinese === 'function'
+        ? formatModNameWithChinese(dep.slug || dep.projectId, dep.title || dep.projectId)
+        : (dep.title || dep.projectId);
+      const checkHtml = index === -1
+        ? `<span style="font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(34,197,94,.12);color:#22c55e;white-space:nowrap;">必选</span>`
+        : `<input type="checkbox" class="pi-optional" data-index="${index}" ${ver ? '' : 'disabled'} style="width:15px;height:15px;accent-color:var(--primary);cursor:${ver ? 'pointer' : 'not-allowed'};">`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);margin-left:${indent}px;">
+        ${iconHtml}
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(title)}</div>
+          <div style="font-size:11px;color:${ver ? 'var(--text-secondary)' : 'var(--warning,orange)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(verText)}</div>
+        </div>
+        ${checkHtml}
+      </div>`;
+    };
+
+    const rows = [
+      ...required.map(d => rowHtml(d, -1)),
+      ...optional.map((d, i) => rowHtml(d, i))
+    ].join('');
+
+    modal.innerHTML = `<div style="background:var(--bg-primary);border-radius:14px;padding:22px;width:92%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
+      <h3 style="margin:0 0 6px;font-size:16px;font-weight:700;">前置模组</h3>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--text-secondary);">模组安装已完成。检测到以下前置，可一键下载；可选前置按需勾选。</p>
+      <div id="pi-dep-list" style="max-height:320px;overflow-y:auto;margin-bottom:12px;">${rows}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
+          <input type="checkbox" id="pi-select-all" style="width:14px;height:14px;accent-color:var(--primary);"> 全选可选前置
+        </label>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button id="pi-skip" style="padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-primary);cursor:pointer;font-size:13px;">跳过</button>
+          <button id="pi-download" style="padding:8px 18px;border-radius:8px;border:none;background:var(--primary);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">一键下载</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+
+    const downloadBtn = modal.querySelector('#pi-download');
+    const selectAll = modal.querySelector('#pi-select-all');
+    const optionalBoxes = () => [...modal.querySelectorAll('.pi-optional:not(:disabled)')];
+    const updateCount = () => {
+      const checked = [...modal.querySelectorAll('.pi-optional:checked')].length;
+      const total = required.length + checked;
+      downloadBtn.textContent = total > 0 ? `一键下载（${total}）` : '一键下载';
+      downloadBtn.disabled = total === 0;
+      downloadBtn.style.opacity = total === 0 ? '0.5' : '1';
+      if (selectAll) {
+        const boxes = optionalBoxes();
+        selectAll.checked = boxes.length > 0 && boxes.every(b => b.checked);
+      }
+    };
+    optionalBoxes().forEach(b => b.addEventListener('change', updateCount));
+    if (selectAll) {
+      selectAll.addEventListener('change', () => {
+        optionalBoxes().forEach(b => { b.checked = selectAll.checked; });
+        updateCount();
+      });
+    }
+    updateCount();
+
+    modal.querySelector('#pi-skip').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+    downloadBtn.onclick = async () => {
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = '准备下载...';
+      const checkedIdx = [...modal.querySelectorAll('.pi-optional:checked')]
+        .map(b => parseInt(b.dataset.index, 10))
+        .filter(i => Number.isInteger(i));
+      const selectedOptional = checkedIdx.map(i => optional[i]).filter(d => d && d.compatibleVersion);
+      const list = [...required, ...selectedOptional];
+      const seen = new Set(list.map(d => d.projectId));
+
+      // 可选前置自身也可能有必选前置，一并补进下载列表
+      for (const opt of selectedOptional) {
+        try {
+          const nested = await API.getDependenciesRecursive(
+            opt.compatibleVersion.versionId, source, targetGame, targetLoader, opt.projectId
+          );
+          for (const dep of nested.dependencies || []) {
+            if (dep.compatibleVersion && !seen.has(dep.projectId)) {
+              seen.add(dep.projectId);
+              list.push(dep);
+            }
+          }
+        } catch (e) { console.warn('[PostInstallDeps] 解析可选前置的嵌套依赖失败:', e.message); }
+      }
+
+      modal.remove();
+      let submitted = 0;
+      let failed = 0;
+      const targetSavePath = savePath || await resolveModSavePath();
+      for (const dep of list) {
+        try {
+          const r = await API.downloadModVersion(
+            dep.compatibleVersion.versionId, dep.projectId, source, '',
+            targetGame, targetLoader, targetSavePath, false
+          );
+          if (r.success && r.sessionId) {
+            submitted++;
+            showModDownloadModal(r.fileName, r.sessionId, targetSavePath, dep.icon || iconUrl);
+          } else {
+            failed++;
+            showToast(`${dep.title || dep.projectId}: ${r.error || '下载失败'}`, 'error');
+          }
+        } catch (e) {
+          failed++;
+          showToast(`${dep.title || dep.projectId}: ${e.message || '下载失败'}`, 'error');
+        }
+      }
+      if (failed > 0) {
+        showToast(`已提交 ${submitted}/${list.length} 个前置下载，${failed} 个失败`, 'error');
+      } else {
+        showToast(`已提交 ${submitted} 个前置下载`, 'success');
+      }
+    };
+  } catch (e) {
+    console.warn('[PostInstallDeps] 前置弹窗失败:', e);
   }
 }
 

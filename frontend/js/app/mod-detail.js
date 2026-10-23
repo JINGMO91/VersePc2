@@ -579,18 +579,45 @@ async function loadModDependencies() {
 
   if (!depsSection || !depsList) return;
 
+  // 依赖兼容性优先跟随下载页当前筛选（版本/加载器），
+  // 未筛选时才回退到已选中的游戏实例，避免“筛选了 1.21.11 Fabric 却按 Forge 实例检查”
+  const verInfo = await getInstalledVersionInfo();
+  const filterGameVersion = getCustomSelectValue('mod-filter-version') || '';
+  const filterLoader = getCustomSelectValue('mod-filter-loader') || '';
+  const currentGameVersion = filterGameVersion || verInfo.gameVersion;
+  const currentLoader = filterLoader || verInfo.loaderType;
+  const hasVersionFilter = !!(currentGameVersion || currentLoader);
+
+  // 只汇总当前目标游戏版本/加载器下的依赖。
+  // 不能把 mdAllVersions 里所有历史版本的依赖取并集，否则旧版本的前置会污染当前版本，
+  // 出现“26.3 明明有对应版本，却显示某个旧前置无对应版本”的误报。
+  const targetVersions = hasVersionFilter
+    ? mdAllVersions.filter(v => {
+        const gvOk = !currentGameVersion || (v.gameVersions || []).includes(currentGameVersion);
+        const lOk = !currentLoader || (v.loaders || []).some(l => l.toLowerCase() === currentLoader.toLowerCase());
+        return gvOk && lOk;
+      })
+    : mdAllVersions;
+
   const allDeps = new Map();
   const mdSource = currentModDetailSource || 'modrinth';
-  mdAllVersions.forEach(v => {
+  targetVersions.forEach(v => {
     (v.dependencies || []).forEach(d => {
-      if (d.projectId && !allDeps.has(d.projectId)) {
-        let type = d.dependencyType || '';
-        if (mdSource === 'curseforge') {
-          // 后端已将 CurseForge relationType 统一为 required/optional/incompatible
-          type = type === 'required' ? 'required' : (type === 'incompatible' ? 'incompatible' : 'optional');
-        }
-        allDeps.set(d.projectId, Object.assign({}, d, { dependencyType: type }));
+      if (!d.projectId) return;
+      let type = d.dependencyType || '';
+      if (mdSource === 'curseforge') {
+        // 后端已将 CurseForge relationType 统一为 required/optional/incompatible
+        type = type === 'required' ? 'required' : (type === 'incompatible' ? 'incompatible' : 'optional');
       }
+      const existing = allDeps.get(d.projectId);
+      if (existing) {
+        // 同一目标下多个文件对同一前置的要求不一致时，required 优先
+        if (type === 'required' && existing.dependencyType !== 'required') {
+          existing.dependencyType = 'required';
+        }
+        return;
+      }
+      allDeps.set(d.projectId, Object.assign({}, d, { dependencyType: type }));
     });
   });
 
@@ -604,15 +631,6 @@ async function loadModDependencies() {
 
   const requiredDeps = depArray.filter(d => d.dependencyType === 'required');
   depsSection.style.display = 'block';
-
-  // 依赖兼容性优先跟随下载页当前筛选（版本/加载器），
-  // 未筛选时才回退到已选中的游戏实例，避免“筛选了 1.21.11 Fabric 却按 Forge 实例检查”
-  const verInfo = await getInstalledVersionInfo();
-  const filterGameVersion = getCustomSelectValue('mod-filter-version') || '';
-  const filterLoader = getCustomSelectValue('mod-filter-loader') || '';
-  const currentGameVersion = filterGameVersion || verInfo.gameVersion;
-  const currentLoader = filterLoader || verInfo.loaderType;
-  const hasVersionFilter = !!(currentGameVersion || currentLoader);
 
   if (!hasVersionFilter) {
     if (depsCount) depsCount.textContent = `(${requiredDeps.length} 必选, ${depArray.length - requiredDeps.length} 可选) — 请先选择游戏版本`;
@@ -701,8 +719,8 @@ async function loadModDependencies() {
         } catch (e) { console.warn('[ModInstall] 依赖检查失败:', e.message); }
       }
 
-      const compatibleCount = requiredDeps.filter(d => versionInfo[d.projectId]?.hasCompatibleVersion).length;
-      const incompatibleCount = requiredDeps.filter(d => !versionInfo[d.projectId]?.hasCompatibleVersion).length;
+      const compatibleCount = depArray.filter(d => versionInfo[d.projectId]?.hasCompatibleVersion).length;
+      const incompatibleCount = depArray.filter(d => !versionInfo[d.projectId]?.hasCompatibleVersion).length;
       if (depsCount) {
         let countText = `(${requiredDeps.length} 必选, ${depArray.length - requiredDeps.length} 可选)`;
         countText += ` — ${compatibleCount} 个有对应版本`;

@@ -456,30 +456,63 @@ async fn handle_search(params: &Option<Value>) -> ApiResult {
     let mut all_hits: Vec<Value> = Vec::new();
     let mut total_hits: u64 = 0;
 
+    // 双源混合时不能各自只取 limit 条再合并，否则第二页会缺结果、顺序也会漂移。
+    // 与 PCL CE 一致：固定取回一批候选（CurseForge pageSize 上限 50），合并排序后再切片分页。
+    let fetch_limit = if source == "any" { 50 } else { limit };
+    let fetch_offset = if source == "any" { 0 } else { offset };
+    let mut mr_total: u64 = 0;
+    let mut cf_total: u64 = 0;
+
     // Modrinth 源
     if source == "any" || source == "modrinth" {
-        if let Ok((hits, total)) = search_modrinth_mods(&client, &mr_query, &search_loader, &mc_version, &category, &sort, limit, offset).await {
+        if let Ok((hits, total)) = search_modrinth_mods(&client, &mr_query, &search_loader, &mc_version, &category, &sort, fetch_limit, fetch_offset).await {
             all_hits.extend(hits);
-            total_hits = total_hits.max(total);
+            mr_total = total;
         }
     }
 
     // CurseForge 源
     if source == "any" || source == "curseforge" {
-        if let Ok((hits, total)) = search_curseforge_mods(&client, &cf_query, &search_loader, &mc_version, &sort, limit, offset).await {
+        if let Ok((hits, total)) = search_curseforge_mods(&client, &cf_query, &search_loader, &mc_version, &sort, fetch_limit, fetch_offset).await {
             all_hits.extend(hits);
-            total_hits = total_hits.max(total);
+            cf_total = total;
         }
     }
 
-    // 双源混合时按下载量排序
-    if source == "any" && all_hits.len() > 1 {
+    if source == "any" {
+        // 双源混合时按下载量排序，再按当前页切片。
+        // 加 source/id 作为稳定排序键，避免下载量相同时翻页顺序漂移、出现重复项。
         all_hits.sort_by(|a, b| {
             let da = a.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0);
             let db = b.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0);
             db.cmp(&da)
+                .then_with(|| {
+                    let sa = a.get("source").and_then(|v| v.as_str()).unwrap_or("");
+                    let sb = b.get("source").and_then(|v| v.as_str()).unwrap_or("");
+                    sa.cmp(sb)
+                })
+                .then_with(|| {
+                    let ia = a.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                    let ib = b.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                    ia.cmp(ib)
+                })
         });
-        all_hits.truncate(limit);
+        // 同一来源同一条目去重（翻页时 API 可能返回重复项）
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+        all_hits.retain(|h| {
+            let key = format!(
+                "{}:{}",
+                h.get("source").and_then(|v| v.as_str()).unwrap_or(""),
+                h.get("id").and_then(|v| v.as_str()).unwrap_or("")
+            );
+            seen.insert(key)
+        });
+        // 只对已取回并去重的候选集负责，避免 total 虚高导致空白页
+        total_hits = all_hits.len() as u64;
+        let start = offset.min(all_hits.len());
+        all_hits = all_hits.into_iter().skip(start).take(limit).collect();
+    } else {
+        total_hits = mr_total.max(cf_total);
     }
 
     ApiResult::ok(json!({
