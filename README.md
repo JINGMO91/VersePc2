@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/img/icon.png" alt="VersePC2 Logo" width="120">
+  <img src="frontend/public/img/icon.png" alt="VersePC2 Logo" width="120">
   <h1>VersePC2</h1>
   <p><b>基于 Tauri 的 Minecraft 启动器</b></p>
 </div>
@@ -67,14 +67,17 @@
 
 ```
 verse
-├── frontend/            # 前端源码（HTML / CSS / JS）
-│   ├── index.html       # 主页面
-│   ├── css/             # 样式（按功能拆分）
-│   └── js/
-│       ├── app/         # 页面逻辑（启动、版本、模组、账号等）
-│       └── vue/         # Vue 页面组件
-├── frontend-tauri/      # 构建时由脚本生成的前端产物（勿手动修改）
-├── src-tauri/           # Rust 后端
+├── frontend/                # Vite 前端工程
+│   ├── index.html           # 主页面（唯一 HTML 入口）
+│   ├── public/              # 原样复制的静态资源（css/js/vendor/img 等）
+│   └── src/
+│       ├── main.js          # 模块入口
+│       ├── core/            # tauri-bridge / api / utils / store
+│       ├── features/        # 按领域拆分的业务模块（launch/versions/mods/...）
+│       ├── legacy/          # 迁移过渡层（全局别名，最终删除）
+│       └── vue/             # Vue 页面组件与统一挂载
+├── frontend-dist/           # Vite 构建产物（gitignore，勿手动修改）
+├── src-tauri/               # Rust 后端
 │   ├── src/
 │   │   ├── lib.rs       # Tauri 入口与命令注册
 │   │   ├── main.rs
@@ -121,19 +124,25 @@ verse
 ### 环境要求
 - Windows 10/11（64 位）
 - [Rust](https://www.rust-lang.org/)（新版稳定版）
-- [Node.js](https://nodejs.org/)（≥ 18）
+- [Node.js](https://nodejs.org/)（≥ 20.19）
 - WebView2 Runtime（软件会自动检测）
 
 ### 开发运行
 ```bash
-npm install
-npm run dev        # 以开发模式运行（tauri dev）
+npm ci
+npm run dev        # tauri dev，自动启动 Vite 开发服务器
 ```
 
 ### 打包
 ```bash
+npm run build:web      # 只构建前端到 frontend-dist
 npm run build          # 便携版（生成 dist/VersePC2.exe）
 npm run build:setup    # NSIS 安装包
+```
+
+### 校验
+```bash
+npm run verify         # ESLint + Vitest + Vite 构建 + 架构护栏
 ```
 
 ## 自动更新机制
