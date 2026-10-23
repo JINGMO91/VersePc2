@@ -289,6 +289,24 @@ function applySidebarLabelsValue(enabled) {
   if (st) st.sidebarLabels = !!enabled;
 }
 
+/** 应用“记住启动器窗口大小”（仅持久化，下次关闭/启动时生效） */
+function applyRememberWindowSizeValue(enabled) {
+  window.electronAPI.store.set('versepc_window_remember_size', enabled ? '1' : '0').catch(() => {});
+  // 关闭记忆时清掉旧尺寸，避免以后重新开启时恢复更早之前的窗口大小
+  if (!enabled) {
+    window.electronAPI.store.delete('versepc_window_state').catch(() => {});
+  }
+  const st = getPersonalizeState();
+  if (st) st.rememberWindowSize = !!enabled;
+}
+
+/** 应用“启动时全屏”（仅持久化，下次启动时生效） */
+function applyStartFullscreenValue(enabled) {
+  window.electronAPI.store.set('versepc_window_start_fullscreen', enabled ? '1' : '0').catch(() => {});
+  const st = getPersonalizeState();
+  if (st) st.startFullscreen = !!enabled;
+}
+
 /** 侧边栏胶囊与左上角圆形开关按钮：开启时挂上 SDF 折射，关闭时摘除 */
 function syncLiquidGlassSurfaces(enabled) {
   const engine = window.LiquidGlass;
@@ -571,7 +589,7 @@ async function loadPersonalizeStateIntoStore() {
     if (saved) legacy = JSON.parse(saved);
   } catch (e) { /* 忽略旧数据解析错误 */ }
 
-  const [savedTheme, savedWallpaper, glassSaved, liquidGlassSaved, customColor, customLight, weWallpaperSaved, sidebarLabelsSaved, sidebarPinSaved] = await Promise.all([
+  const [savedTheme, savedWallpaper, glassSaved, liquidGlassSaved, customColor, customLight, weWallpaperSaved, sidebarLabelsSaved, sidebarPinSaved, rememberWindowSizeSaved, startFullscreenSaved] = await Promise.all([
     window.electronAPI?.store?.get('versepc_theme'),
     window.electronAPI?.store?.get('versepc_wallpaper'),
     window.electronAPI?.store?.get('versepc_glass_effect'),
@@ -581,6 +599,8 @@ async function loadPersonalizeStateIntoStore() {
     window.electronAPI?.store?.get('versepc_we_wallpaper'),
     window.electronAPI?.store?.get('versepc_sidebar_labels'),
     window.electronAPI?.store?.get('versepc_sidebar_pin'),
+    window.electronAPI?.store?.get('versepc_window_remember_size'),
+    window.electronAPI?.store?.get('versepc_window_start_fullscreen'),
   ]);
 
   // ── 主题：单项键优先，其次旧复合键，最后默认浅色 ──
@@ -616,6 +636,16 @@ async function loadPersonalizeStateIntoStore() {
     ? (sidebarPinSaved === '1' || sidebarPinSaved === true)
     : false;
 
+  // ── 窗口大小记忆：单项键优先，默认开启（保留 1.7.2 已有的自动记忆行为） ──
+  st.rememberWindowSize = rememberWindowSizeSaved !== null && rememberWindowSizeSaved !== undefined
+    ? (rememberWindowSizeSaved === '1' || rememberWindowSizeSaved === true)
+    : true;
+
+  // ── 启动时全屏：单项键优先，默认关闭 ──
+  st.startFullscreen = startFullscreenSaved !== null && startFullscreenSaved !== undefined
+    ? (startFullscreenSaved === '1' || startFullscreenSaved === true)
+    : false;
+
   if (customColor) st.customColor = customColor;
   if (customLight !== null && customLight !== undefined) {
     st.customLight = customLight === true || customLight === 'true' || customLight === '1';
@@ -641,7 +671,9 @@ async function savePersonalizeSettings() {
         glassEffect: st.glassEffect,
         liquidGlass: st.liquidGlass,
         sidebarLabels: st.sidebarLabels,
-        sidebarPin: st.sidebarPin
+        sidebarPin: st.sidebarPin,
+        rememberWindowSize: st.rememberWindowSize,
+        startFullscreen: st.startFullscreen
       }
     : {
         theme: document.querySelector('.theme-option.active')?.dataset.theme || 'light',
@@ -649,7 +681,9 @@ async function savePersonalizeSettings() {
         glassEffect: document.getElementById('setting-glass-effect')?.checked ?? false,
         liquidGlass: document.getElementById('setting-liquid-glass')?.checked ?? false,
         sidebarLabels: document.body.classList.contains('show-nav-labels'),
-        sidebarPin: document.body.classList.contains('sidebar-keep-open')
+        sidebarPin: document.body.classList.contains('sidebar-keep-open'),
+        rememberWindowSize: document.getElementById('setting-window-remember-size')?.checked ?? true,
+        startFullscreen: document.getElementById('setting-window-start-fullscreen')?.checked ?? false
       };
 
   try {
@@ -661,6 +695,8 @@ async function savePersonalizeSettings() {
     await window.electronAPI.store.set('versepc_liquid_glass', settings.liquidGlass ? '1' : '0');
     await window.electronAPI.store.set('versepc_sidebar_labels', settings.sidebarLabels ? '1' : '0');
     await window.electronAPI.store.set('versepc_sidebar_pin', settings.sidebarPin ? '1' : '0');
+    await window.electronAPI.store.set('versepc_window_remember_size', settings.rememberWindowSize ? '1' : '0');
+    await window.electronAPI.store.set('versepc_window_start_fullscreen', settings.startFullscreen ? '1' : '0');
     showToast('个性化设置已保存', 'success');
   } catch (e) {
     showToast('保存失败: ' + e.message, 'error');
@@ -679,6 +715,8 @@ async function resetPersonalizeSettings() {
     st.liquidGlass = false;
     st.sidebarLabels = false;
     st.sidebarPin = false;
+    st.rememberWindowSize = true;
+    st.startFullscreen = false;
     st.customColor = '#4c8dff';
     st.customLight = false;
     st.customColorGroupVisible = false;
@@ -697,6 +735,8 @@ async function resetPersonalizeSettings() {
   applyLiquidGlassEffectValue(false);
   applySidebarLabelsValue(false);
   applySidebarPinValue(false);
+  applyRememberWindowSizeValue(true);
+  applyStartFullscreenValue(false);
 
   if (typeof clearCustomThemeVars === 'function') clearCustomThemeVars();
   if (typeof syncCustomThemeColorUI === 'function') syncCustomThemeColorUI('#4c8dff');
@@ -706,7 +746,11 @@ async function resetPersonalizeSettings() {
       theme: 'light',
       wallpaper: 'none',
       glassEffect: false,
-      liquidGlass: false
+      liquidGlass: false,
+      sidebarLabels: false,
+      sidebarPin: false,
+      rememberWindowSize: true,
+      startFullscreen: false
     }));
     await window.electronAPI.store.set('versepc_theme', 'light');
     await window.electronAPI.store.set('versepc_wallpaper', 'none');
@@ -723,6 +767,9 @@ async function resetPersonalizeSettings() {
     await window.electronAPI.store.set('versepc_liquid_glass', '0');
     await window.electronAPI.store.set('versepc_sidebar_labels', '0');
     await window.electronAPI.store.set('versepc_sidebar_pin', '0');
+    await window.electronAPI.store.set('versepc_window_remember_size', '1');
+    await window.electronAPI.store.set('versepc_window_start_fullscreen', '0');
+    await window.electronAPI.store.delete('versepc_window_state');
     _updateCustomImagePreview(null);
     const nameEl = document.getElementById('custom-wallpaper-file-name');
     if (nameEl) nameEl.textContent = '未选择';

@@ -20,6 +20,9 @@
       liquidGlass: false,
       sidebarLabels: false,
       sidebarPin: false,
+      // 窗口大小记忆默认开启，保持 1.7.2 起已有的自动记忆行为
+      rememberWindowSize: true,
+      startFullscreen: false,
       panoramaTheme: 'overworld',
       panoramaSpeed: 5,
       panoramaFollow: false,
@@ -465,6 +468,12 @@
       },
       onSidebarPinChange(enabled) {
         if (typeof applySidebarPinValue === 'function') applySidebarPinValue(enabled);
+      },
+      onRememberWindowSizeChange(enabled) {
+        if (typeof applyRememberWindowSizeValue === 'function') applyRememberWindowSizeValue(enabled);
+      },
+      onStartFullscreenChange(enabled) {
+        if (typeof applyStartFullscreenValue === 'function') applyStartFullscreenValue(enabled);
       }
     },
     template: `
@@ -497,6 +506,20 @@
                 <span>侧边栏单点不自动回收</span>
               </label>
               <span class="form-hint">开启后点击侧边栏导航不会自动收起，可手动点关闭按钮或遮罩收起，默认关闭</span>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-window-remember-size" :checked="state.rememberWindowSize" @change="onRememberWindowSizeChange($event.target.checked)">
+                <span>记住启动器窗口大小</span>
+              </label>
+              <span class="form-hint">开启后，每次打开启动器都会恢复上次关闭时的窗口大小与最大化状态（关闭时处于全屏则恢复之前的常规大小），默认开启</span>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-window-start-fullscreen" :checked="state.startFullscreen" @change="onStartFullscreenChange($event.target.checked)">
+                <span>启动时全屏</span>
+              </label>
+              <span class="form-hint">开启后，每次打开启动器都以全屏显示（优先于窗口大小记忆）；可按右上角最大化按钮退出全屏，默认关闭</span>
             </div>
           </div>
   `

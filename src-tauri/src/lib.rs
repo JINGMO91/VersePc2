@@ -40,11 +40,13 @@ mod wallpaper_engine;
 mod scene_renderer;
 
 use serde_json::{json, Value};
-use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering as AtomicOrdering};
 use tauri::{Emitter, Manager, PhysicalPosition, Position};
 
 /// 窗口缩放防抖计数：每次 Resized 递增，只有延迟结束时仍是最后一次才写盘
 static WINDOW_RESIZE_GEN: AtomicU64 = AtomicU64::new(0);
+/// 关闭流程已开始：关闭动画会移动窗口并使其退出最大化，此时不能再覆盖已保存的最终状态
+static WINDOW_CLOSING: AtomicBool = AtomicBool::new(false);
 
 // ============== Windows 内存压缩：EmptyWorkingSet ==============
 // 调用 Windows psapi.dll 的 EmptyWorkingSet，将进程不活跃的内存页交换出物理内存
@@ -231,6 +233,10 @@ async fn window_close(window: tauri::WebviewWindow) {
         return;
     }
 
+    // 关闭动画会让最大化窗口退出最大化并移动位置，此后的 Resized / CloseRequested
+    // 不能再写盘，否则会把“最大化”状态覆盖成普通窗口
+    WINDOW_CLOSING.store(true, AtomicOrdering::SeqCst);
+
     // 关闭前触发前端 CSS 关闭动画
     let _ = window.emit("request-close-animate", ());
 
@@ -275,6 +281,7 @@ async fn window_close(window: tauri::WebviewWindow) {
 fn window_destroy(window: tauri::WebviewWindow) {
     WINDOW_RESIZE_GEN.fetch_add(1, AtomicOrdering::SeqCst);
     save_window_state(&window);
+    WINDOW_CLOSING.store(true, AtomicOrdering::SeqCst);
     let _ = window.close();
 }
 
@@ -329,41 +336,77 @@ fn window_set_size(window: tauri::WebviewWindow, width: f64, height: f64) -> boo
     window.set_size(LogicalSize { width, height }).is_ok()
 }
 
-// ============== 主窗口尺寸记忆 ==============
+// ============== 主窗口尺寸记忆 / 启动全屏 ==============
 /// store.json 中的键名
 const WINDOW_STATE_KEY: &str = "versepc_window_state";
-/// 与 tauri.conf.json 的 minWidth/minHeight 保持一致
-const MIN_WINDOW_WIDTH: f64 = 800.0;
-const MIN_WINDOW_HEIGHT: f64 = 450.0;
+const WINDOW_REMEMBER_SIZE_KEY: &str = "versepc_window_remember_size";
+const WINDOW_START_FULLSCREEN_KEY: &str = "versepc_window_start_fullscreen";
+/// 与 tauri.conf.json 的 minWidth/minHeight 不同：这里只是过滤异常值的下限，
+/// 不限制用户把窗口缩到多小；否则 800×450 附近或更小的窗口会因 DPI 取整而无法记忆。
+const MIN_SAVED_WINDOW_WIDTH: f64 = 320.0;
+const MIN_SAVED_WINDOW_HEIGHT: f64 = 200.0;
 
-/// 启动时恢复上次关闭前的窗口尺寸与最大化状态
+/// 读取布尔型窗口设置：兼容 "1"/"0" 字符串、true/false 与数字；缺失时使用 default
+fn window_flag_enabled(store: &storage::Store, key: &str, default: bool) -> bool {
+    match store.get(key) {
+        Some(Value::Bool(v)) => v,
+        Some(Value::String(v)) => v == "1" || v.eq_ignore_ascii_case("true"),
+        Some(Value::Number(v)) => v.as_i64().unwrap_or(0) != 0,
+        Some(Value::Null) | None => default,
+        _ => default,
+    }
+}
+
+/// 启动时按设置恢复上次关闭前的窗口尺寸/最大化状态，并处理启动全屏
 fn apply_saved_window_state(window: &tauri::WebviewWindow) {
     let store = window.app_handle().state::<storage::Store>();
-    let Some(state) = store.get(WINDOW_STATE_KEY) else { return };
-    let width = state.get("width").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    let height = state.get("height").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    if width >= MIN_WINDOW_WIDTH && height >= MIN_WINDOW_HEIGHT {
-        let _ = window.set_size(tauri::LogicalSize::new(width, height));
-        // 只记忆尺寸，不记忆位置：还原后重新居中，避免窗口落在已拔掉的显示器上
-        let _ = window.center();
+    // 窗口大小记忆默认开启：保留 1.7.2 已有的自动记忆行为，用户可在个性化设置中关闭
+    let remember_size = window_flag_enabled(&store, WINDOW_REMEMBER_SIZE_KEY, true);
+    let start_fullscreen = window_flag_enabled(&store, WINDOW_START_FULLSCREEN_KEY, false);
+
+    if remember_size {
+        if let Some(state) = store.get(WINDOW_STATE_KEY) {
+            let width = state.get("width").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let height = state.get("height").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            if width >= MIN_SAVED_WINDOW_WIDTH && height >= MIN_SAVED_WINDOW_HEIGHT {
+                let _ = window.set_size(tauri::LogicalSize::new(width, height));
+                // 只记忆尺寸，不记忆位置：还原后重新居中，避免窗口落在已拔掉的显示器上
+                let _ = window.center();
+            }
+            if !start_fullscreen
+                && state.get("maximized").and_then(|v| v.as_bool()).unwrap_or(false)
+            {
+                let _ = window.maximize();
+            }
+        }
     }
-    if state.get("maximized").and_then(|v| v.as_bool()).unwrap_or(false) {
-        let _ = window.maximize();
+
+    // 启动全屏优先于尺寸记忆：窗口仍隐藏时设置，避免显示后再切换造成闪烁
+    if start_fullscreen {
+        let _ = window.set_fullscreen(true);
     }
 }
 
 /// 保存当前窗口尺寸；最大化/全屏时保留上次的常规尺寸，仅更新状态标记
 fn save_window_state(window: &tauri::WebviewWindow) {
+    if WINDOW_CLOSING.load(AtomicOrdering::SeqCst) {
+        return;
+    }
+    let store = window.app_handle().state::<storage::Store>();
+    // 用户关闭“记住启动器窗口大小”后不再写入，避免关闭该选项仍产生尺寸记录
+    if !window_flag_enabled(&store, WINDOW_REMEMBER_SIZE_KEY, true) {
+        return;
+    }
     let maximized = window.is_maximized().unwrap_or(false);
     let fullscreen = window.is_fullscreen().unwrap_or(false);
-    let store = window.app_handle().state::<storage::Store>();
+    let minimized = window.is_minimized().unwrap_or(false);
     let prev = store.get(WINDOW_STATE_KEY).unwrap_or_else(|| json!({}));
     let mut width = prev.get("width").and_then(|v| v.as_f64()).unwrap_or(0.0);
     let mut height = prev.get("height").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    if !maximized && !fullscreen {
+    if !maximized && !fullscreen && !minimized {
         if let (Ok(size), Ok(scale)) = (window.inner_size(), window.scale_factor()) {
             let logical = size.to_logical::<f64>(scale);
-            if logical.width >= MIN_WINDOW_WIDTH && logical.height >= MIN_WINDOW_HEIGHT {
+            if logical.width >= MIN_SAVED_WINDOW_WIDTH && logical.height >= MIN_SAVED_WINDOW_HEIGHT {
                 width = logical.width;
                 height = logical.height;
             }
@@ -797,7 +840,7 @@ pub fn run() {
             app.manage(store);
             println!("[boot] after manage {}\n", chrono::Local::now().format("%H:%M:%S%.3f"));
 
-            // 恢复上次关闭前的窗口尺寸（此时窗口仍隐藏，不会出现尺寸跳变）
+            // 按设置恢复窗口尺寸/最大化状态，或直接进入全屏（此时窗口仍隐藏，不会出现尺寸跳变）
             if let Some(main_win) = app.get_webview_window("main") {
                 apply_saved_window_state(&main_win);
             }
