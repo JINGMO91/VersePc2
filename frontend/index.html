@@ -673,6 +673,8 @@
   <!--    - 只放 HTML 模板，逻辑全部调用 js/app/*.js 里的函数                 -->
   <!--    - 新增页面一律走 vue/，不再在 app/ 里堆 HTML 字符串                  -->
   <!-- ====================================================================== -->
+  <!-- Vite 模块入口：阶段 1 仅验证构建管线，后续在此显式 import core 与 feature 模块 -->
+  <script type="module" src="/src/main.js"></script>
   <!-- Tauri 桥接层：在 Tauri 环境下创建 window.electronAPI，必须在所有业务 js 之前加载 -->
   <script src="js/tauri-bridge.js" defer></script>
   <script src="js/utils.js" defer></script>

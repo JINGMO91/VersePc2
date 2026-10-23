@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          find frontend/js frontend/src scripts -type f -name '*.js' \
+          find frontend/public/js frontend/src scripts -type f -name '*.js' \
             | grep -v -E 'three.*\.bundle\.js|skinview3d.*\.bundle\.js|vue\.global\.prod\.js|marked\.min\.js' \
             | while IFS= read -r f; do node --check "$f"; done
           echo "frontend syntax OK"

@@ -57,7 +57,7 @@ mkdirSync(frontendDir, { recursive: true });
 // 需要复制的前端资源（文件和目录）
 const resources = [
   'index.html',
-  'editor.html',
+  'src',
   'file-browser.html',
   'forge-installer.js',
   'integrity.json',
@@ -79,7 +79,10 @@ let copied = 0;
 let skipped = 0;
 
 for (const res of resources) {
-  const src = join(frontendSrcDir, res);
+  // index.html 与 src 模块入口位于 frontend 根目录，其余静态资源已迁入 frontend/public
+  const src = (res === 'index.html' || res === 'src')
+    ? join(frontendSrcDir, res)
+    : join(frontendSrcDir, 'public', res);
   const dst = join(frontendDir, res);
   if (!existsSync(src)) {
     skipped++;

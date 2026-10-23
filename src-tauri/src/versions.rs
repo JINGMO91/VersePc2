@@ -65,13 +65,13 @@ const BMCLAPI_MANIFEST_URL: &str = "https://bmclapi2.bangbang93.com/mc/game/vers
 
 // ============== 内置方块图标（编译时嵌入二进制） ==============
 // 这里用 include_bytes! 嵌入，运行时永远可用
-const ICON_GRASS: &[u8] = include_bytes!("../../frontend/img/Grass.png");
-const ICON_COMMAND_BLOCK: &[u8] = include_bytes!("../../frontend/img/CommandBlock.png");
-const ICON_GOLD_BLOCK: &[u8] = include_bytes!("../../frontend/img/GoldBlock.png");
-const ICON_COBBLESTONE: &[u8] = include_bytes!("../../frontend/img/CobbleStone.png");
-const ICON_ANVIL: &[u8] = include_bytes!("../../frontend/img/Anvil.png");
-const ICON_FABRIC: &[u8] = include_bytes!("../../frontend/img/Fabric.png");
-const ICON_NEOFORGE: &[u8] = include_bytes!("../../frontend/img/NeoForge.png");
+const ICON_GRASS: &[u8] = include_bytes!("../../frontend/public/img/Grass.png");
+const ICON_COMMAND_BLOCK: &[u8] = include_bytes!("../../frontend/public/img/CommandBlock.png");
+const ICON_GOLD_BLOCK: &[u8] = include_bytes!("../../frontend/public/img/GoldBlock.png");
+const ICON_COBBLESTONE: &[u8] = include_bytes!("../../frontend/public/img/CobbleStone.png");
+const ICON_ANVIL: &[u8] = include_bytes!("../../frontend/public/img/Anvil.png");
+const ICON_FABRIC: &[u8] = include_bytes!("../../frontend/public/img/Fabric.png");
+const ICON_NEOFORGE: &[u8] = include_bytes!("../../frontend/public/img/NeoForge.png");
 
 /// 根据查询参数选择内置方块图标
 fn get_builtin_icon(version_type: &str, is_forge: bool, is_fabric: bool, is_neoforge: bool, is_modpack: bool) -> &'static [u8] {

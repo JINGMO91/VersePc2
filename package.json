@@ -6,13 +6,24 @@
   "private": true,
   "scripts": {
     "dev": "tauri dev",
+    "dev:web": "vite",
     "build": "node scripts/build-portable.mjs",
+    "build:web": "vite build",
     "build:setup": "tauri build --bundles nsis",
     "build:portable": "node scripts/build-portable.mjs",
+    "test": "vitest run",
+    "lint": "eslint frontend/src scripts/*.mjs vite.config.mjs",
+    "verify": "npm run lint && npm run test && npm run build:web && node scripts/check-architecture.mjs",
     "tauri": "tauri"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0"
+    "@eslint/js": "^10.0.1",
+    "@tauri-apps/cli": "^2.0.0",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
+    "jsdom": "^30.1.3",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "vue": "^3.5.40"

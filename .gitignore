@@ -26,3 +26,5 @@ scripts/_sshwork/
 .trae/
 .trae-html-share-packages/
 scripts/_androidwork/
+
+frontend-dist/
