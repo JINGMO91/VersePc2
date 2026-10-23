@@ -246,11 +246,11 @@ body.classic-nav .nav-submenu-group.open .nav-submenu {
 
 body.classic-nav .nav-sub-btn {
     flex-direction: row;
-    justify-content: flex-start;
+    justify-content: center;
     gap: 3px;
     width: 100%;
     height: 28px;
-    padding: 0 4px 0 8px;
+    padding: 0 4px;
     border-radius: 8px;
     background: transparent;
     color: var(--text-muted);
@@ -268,6 +268,7 @@ body.classic-nav .nav-sub-btn > span {
     text-overflow: ellipsis;
     white-space: nowrap;
     line-height: 1;
+    text-align: center;
 }
 
 /* 简约模式子菜单只显示图标，不需要标签占位 */
@@ -329,7 +330,7 @@ body.classic-nav:has(.modal[data-state="open"]) .sidebar {
 /* 窄窗口下经典侧栏仍保持固定宽度；内容区由 main-container 的 padding 让位 */
 @media (max-width: 900px) {
     body.classic-nav .nav-sub-btn {
-        padding-left: 7px;
+        padding: 0 3px;
         font-size: 9px;
     }
 }
