@@ -32,7 +32,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['frontend/src/**/*.test.js', 'tests/**/*.test.js'],
+    include: ['src/**/*.test.js'],
     passWithNoTests: true,
   },
 });
