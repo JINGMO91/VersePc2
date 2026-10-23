@@ -23,7 +23,19 @@ mod network;
 mod plugin_exec;
 mod plugins;
 mod private_server;
+#[cfg(target_os = "windows")]
 mod promote;
+#[cfg(not(target_os = "windows"))]
+mod promote {
+    /// 非 Windows 平台没有 UAC 提权流程
+    pub fn try_run_promote_process() -> bool {
+        false
+    }
+    /// 非 Windows 平台不支持系统级内存优化
+    pub fn run_memory_optimize() -> Result<(), String> {
+        Err("内存优化仅支持 Windows".to_string())
+    }
+}
 mod redstone_online;
 mod resource;
 mod saves;

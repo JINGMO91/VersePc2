@@ -101,6 +101,9 @@ pub fn scene_renderer_start(
     width: Option<u32>,
     height: Option<u32>,
 ) -> Value {
+    if !cfg!(target_os = "windows") {
+        return json!({ "ok": false, "error": "场景壁纸渲染组件仅提供 Windows 版" });
+    }
     // 已有渲染进程则先停掉
     scene_renderer_stop();
 
@@ -290,6 +293,9 @@ pub fn scene_renderer_installed() -> Value {
 /// 下载源：Gitee → GitHub → ghfast 镜像（与更新器一致）；进度通过 scene-renderer:progress 事件推送。
 #[tauri::command]
 pub async fn scene_renderer_download(app: tauri::AppHandle) -> Value {
+    if !cfg!(target_os = "windows") {
+        return json!({ "ok": false, "error": "场景壁纸渲染组件仅提供 Windows 版" });
+    }
     // 已安装则直接返回
     if let Some(p) = renderer_exe_path() {
         return json!({ "ok": true, "already": true, "path": p.to_string_lossy().to_string() });

@@ -1047,11 +1047,21 @@ fn extract_natives_dir(
         "so"
     };
     let is_win = cfg!(target_os = "windows");
-    let critical_missing: Vec<&str> = critical_list
-        .iter()
-        .filter(|n| !native_critical_exists(&natives_dir, n, is_win, native_ext))
-        .copied()
-        .collect();
+    // macOS/Linux 的原生库名带 lib 前缀（liblwjgl.dylib / liblwjgl.so），
+    // 不能沿用 Windows 的精确 DLL 名，否则每次启动都会误判缺失并重复解压。
+    let critical_missing: Vec<&str> = if is_win {
+        critical_list
+            .iter()
+            .filter(|n| !native_critical_exists(&natives_dir, n, true, native_ext))
+            .copied()
+            .collect()
+    } else {
+        ["lwjgl", "glfw", "openal"]
+            .iter()
+            .filter(|key| !native_lib_exists(&natives_dir, key, native_ext))
+            .copied()
+            .collect()
+    };
 
     // 判断是否需要重新解压：目录缺失 / 关键库缺失 / jar 已更新
     let needs_extract = if natives_dir.exists() && critical_missing.is_empty() {
@@ -1086,7 +1096,7 @@ fn find_native_jar(bases: &[PathBuf], href: &str) -> Option<PathBuf> {
     None
 }
 
-/// 判断关键原生库文件是否存在（Windows 下直接匹配 .dll，其他平台按扩展名）
+/// 判断关键原生库文件是否存在（Windows 下直接匹配 .dll）
 fn native_critical_exists(natives_dir: &Path, dll_name: &str, is_win: bool, ext: &str) -> bool {
     let target = if is_win {
         natives_dir.join(dll_name)
@@ -1095,6 +1105,17 @@ fn native_critical_exists(natives_dir: &Path, dll_name: &str, is_win: bool, ext:
         natives_dir.join(format!("{}.{}", base, ext))
     };
     target.exists()
+}
+
+/// 非 Windows：原生库通常带 lib 前缀，按"文件名包含关键字且扩展名匹配"判断
+fn native_lib_exists(natives_dir: &Path, key: &str, ext: &str) -> bool {
+    let Ok(entries) = std::fs::read_dir(natives_dir) else {
+        return false;
+    };
+    entries.flatten().any(|entry| {
+        let name = entry.file_name().to_string_lossy().to_lowercase();
+        name.contains(key) && name.ends_with(&format!(".{}", ext))
+    })
 }
 
 /// 计算一组路径中的最大修改时间（毫秒）
@@ -1917,6 +1938,10 @@ fn collect_game_args_from_json(
 /// 游戏窗口分辨率修正：减去标题栏+边框，避免窗口铺满屏幕时标题栏被顶出屏幕外。
 /// 对所有版本（原版 / Forge / NeoForge / Fabric）统一生效。
 fn adjust_window_resolution(res_w: u32, res_h: u32, _game_args: &[String]) -> (u32, u32) {
+    // 标题栏/边框修正仅适用于 Windows 窗口
+    if !cfg!(target_os = "windows") {
+        return (res_w, res_h);
+    }
     let (screen_w, screen_h, work_h) = get_screen_size();
     if screen_w == 0 || screen_h == 0 {
         return (res_w, res_h);
@@ -1953,6 +1978,51 @@ fn get_screen_size() -> (u32, u32, u32) {
             let wh = GetSystemMetrics(SM_CYWORKAREA);
             if w > 0 && h > 0 {
                 return (w as u32, h as u32, wh.max(0) as u32);
+            }
+        }
+    }
+    // Linux：xrandr 当前分辨率
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(out) = std::process::Command::new("xrandr").arg("--current").output() {
+            let text = String::from_utf8_lossy(&out.stdout);
+            for line in text.lines() {
+                if let Some(pos) = line.find("current ") {
+                    let rest = &line[pos + 8..];
+                    let mut parts = rest.split(|c: char| c == ' ' || c == 'x' || c == ',');
+                    if let (Some(w), Some(h)) = (parts.next(), parts.next()) {
+                        if let (Ok(w), Ok(h)) = (w.parse::<u32>(), h.parse::<u32>()) {
+                            return (w, h, h);
+                        }
+                    }
+                }
+                if line.contains(" connected") {
+                    for token in line.split_whitespace() {
+                        if let Some(x) = token.find('x') {
+                            let (w, rest) = token.split_at(x);
+                            let h = rest[1..].split('+').next().unwrap_or("");
+                            if let (Ok(w), Ok(h)) = (w.parse::<u32>(), h.parse::<u32>()) {
+                                return (w, h, h);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // macOS：Finder 桌面 bounds（逻辑像素）
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(out) = std::process::Command::new("osascript")
+            .args(["-e", "tell application \"Finder\" to get bounds of window of desktop"])
+            .output()
+        {
+            let text = String::from_utf8_lossy(&out.stdout);
+            let nums: Vec<u32> = text.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+            if nums.len() == 4 && nums[2] > nums[0] && nums[3] > nums[1] {
+                let w = nums[2] - nums[0];
+                let h = nums[3] - nums[1];
+                return (w, h, h);
             }
         }
     }

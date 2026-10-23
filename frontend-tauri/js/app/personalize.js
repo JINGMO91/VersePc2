@@ -151,7 +151,8 @@ async function _applyWeDispatch(sel) {
 
     let preview = sel.previewPath;
     if (!preview && sel.preview && sel.dir) {
-      preview = String(sel.dir).replace(/[\\/][^\\/]+$/, '') + '\\' + sel.preview;
+      const sep = (window.bridge && window.bridge.isWindows === false) ? '/' : '\\';
+      preview = String(sel.dir).replace(/[\\/][^\\/]+$/, '') + sep + sel.preview;
     }
 
     if (preview) {

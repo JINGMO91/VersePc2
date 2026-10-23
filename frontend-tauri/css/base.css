@@ -216,13 +216,9 @@ body {
     transform: scale(0.9);
 }
 
-/* macOS：为红绿灯按钮留出空间 */
+/* macOS 使用无边框窗口（decorations:false），同样显示自绘窗口按钮 */
 body.is-mac .title-bar {
-    padding-left: 80px;
-}
-
-body.is-mac .window-controls {
-    display: none !important;
+    padding-left: 16px;
 }
 
 .title-bar-icon {
