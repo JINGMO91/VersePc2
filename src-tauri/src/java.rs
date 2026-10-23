@@ -1629,6 +1629,25 @@ async fn install_mojang_runtime(
 
     for (file_path, info) in files {
         let dest = target_dir.join(file_path);
+        // 清单中的 link 项：macOS/Linux 创建符号链接（如 legal 目录），不是空文件
+        if info.get("type").and_then(|v| v.as_str()) == Some("link") {
+            if let Some(target) = info.get("target").and_then(|v| v.as_str()) {
+                if let Some(parent) = dest.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                #[cfg(unix)]
+                {
+                    let _ = std::fs::remove_file(&dest);
+                    let _ = std::os::unix::fs::symlink(target, &dest);
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = std::fs::write(&dest, "");
+                }
+            }
+            done_files += 1;
+            continue;
+        }
         let raw = match info.pointer("/downloads/raw") {
             Some(r) => r,
             None => {
@@ -1764,8 +1783,17 @@ async fn install_java_async(session_id: String, major_version: u64) {
 
         match install_mojang_runtime(&session_id, major_version, component).await {
             Ok(()) => {
-                let java_home = storage::resolve_data_dir().join("java").join(component);
-                let java_path = java_home.join("bin").join(java_bin_name());
+                let install_dir = storage::resolve_data_dir().join("java").join(component);
+                // macOS 的 Mojang 运行时位于 jre.bundle/Contents/Home/bin/java，
+                // 不能假设安装目录本身就是 javaHome。
+                let java_path = find_java_exe_recursive(&install_dir, 6)
+                    .unwrap_or_else(|| install_dir.join("bin").join(java_bin_name()));
+                ensure_executable(&java_path);
+                let java_home = java_path
+                    .parent()
+                    .and_then(|p| p.parent())
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| install_dir.clone());
                 let completed = json!({
                     "sessionId": session_id,
                     "status": "completed",

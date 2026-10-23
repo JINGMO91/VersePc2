@@ -2001,11 +2001,12 @@ fn get_screen_size() -> (u32, u32, u32) {
             for line in text.lines() {
                 if let Some(pos) = line.find("current ") {
                     let rest = &line[pos + 8..];
-                    let mut parts = rest.split(|c: char| c == ' ' || c == 'x' || c == ',');
-                    if let (Some(w), Some(h)) = (parts.next(), parts.next()) {
-                        if let (Ok(w), Ok(h)) = (w.parse::<u32>(), h.parse::<u32>()) {
-                            return (w, h, h);
-                        }
+                    let nums: Vec<u32> = rest
+                        .split(|c: char| c == ' ' || c == 'x' || c == ',')
+                        .filter_map(|s| s.trim().parse::<u32>().ok())
+                        .collect();
+                    if nums.len() >= 2 && nums[0] > 0 && nums[1] > 0 {
+                        return (nums[0], nums[1], nums[1]);
                     }
                 }
                 if line.contains(" connected") {
@@ -2035,14 +2036,14 @@ fn get_screen_size() -> (u32, u32, u32) {
                 for line in text.lines() {
                     let line = line.trim();
                     if let Some(pos) = line.find("Resolution:") {
+                        // 形如 "Resolution: 2560 x 1600 Retina"
                         let rest = &line[pos + 11..];
-                        let mut parts = rest.split_whitespace();
-                        if let Some(size) = parts.next() {
-                            let nums: Vec<u32> =
-                                size.split('x').filter_map(|s| s.parse().ok()).collect();
-                            if nums.len() == 2 && nums[0] > 0 && nums[1] > 0 {
-                                return (nums[0], nums[1], nums[1]);
-                            }
+                        let nums: Vec<u32> = rest
+                            .split(|c: char| c == ' ' || c == 'x' || c == ',')
+                            .filter_map(|s| s.trim().parse::<u32>().ok())
+                            .collect();
+                        if nums.len() >= 2 && nums[0] > 0 && nums[1] > 0 {
+                            return (nums[0], nums[1], nums[1]);
                         }
                     }
                 }

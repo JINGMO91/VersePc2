@@ -727,7 +727,7 @@ pub async fn redstone_scan_port() -> Value {
 async fn scan_java_port_unix() -> Value {
     use tokio::process::Command;
 
-    let ps_out = Command::new("ps").args(["-Ao", "pid=,comm="]).output().await;
+    let ps_out = Command::new("ps").args(["-A", "-o", "pid=,comm="]).output().await;
     let mut pids: Vec<String> = Vec::new();
     if let Ok(out) = ps_out {
         for line in String::from_utf8_lossy(&out.stdout).lines() {
