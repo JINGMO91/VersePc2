@@ -3,13 +3,14 @@
  *   1. 值参数核心函数（applyXxxValue/applyXxxByName）：副作用 + 持久化，供 Vue 卡片组件直接调用
  *   2. DOM 兼容层（selectXxx/onXxxChange）：保留 class/label 等 DOM 操作后委托核心，
  *      供启动恢复（init-setup.js）与旧调用方使用
- *   3. 共享响应式状态读写辅助：window.VersePC.personalizeState 由 Vue 页面组件创建
+ *   3. 共享响应式状态读写辅助：由 personalize-state.js 提供
  */
+import { personalizeState } from './personalize-state.js';
 
 // ============== 共享状态辅助 ==============
 
 function getPersonalizeState() {
-  return (window.VersePC && window.VersePC.personalizeState) || null;
+  return personalizeState;
 }
 
 /** 兼容 Tauri readFileBuffer 三种返回格式（Base64 字符串 / number[] / Uint8Array）→ Uint8Array */

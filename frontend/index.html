@@ -689,9 +689,8 @@
   <!-- updater-ui.js 延迟加载 -->
 
   <!-- Vue 页面组件已迁入 src/vue/pages，由 src/main.js 的 mount.js 挂载 -->
-  <!-- 以下两个仍是 classic 脚本：置顶面板共享 store、个性化设置页（后续单独迁移） -->
+  <!-- 置顶面板共享 store 仍是 classic 脚本（后续迁移） -->
   <script src="js/vue/pinned-store.js" defer></script>
-  <script src="js/vue/page-settings-personalize.js" defer></script>
 
   <!-- 非关键脚本懒加载：首屏渲染后再加载，避免阻塞启动 -->
   <script>

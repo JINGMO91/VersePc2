@@ -1,53 +1,19 @@
 /* page-settings-personalize.js - 个性化设置页 Vue 组件（卡片组件化 + 数据驱动）
- * 结构：共享响应式状态 window.VersePC.personalizeState（Vue.reactive），
+ * 结构：共享响应式状态 personalizeState（Vue.reactive），
  * 供 ThemeAppearanceCard / BackgroundCard / VisualEffectsCard 三个卡片子组件
  * 与壳组件 PageSettingsPersonalize 使用。
  */
-(function () {
+import { personalizeState } from '../../features/settings/personalize-state.js';
+
+const PageSettingsPersonalize = (function () {
   'use strict';
-
-  window.VersePC = window.VersePC || {};
-
-  // 共享响应式状态（Vue 已加载；字段默认值与后端 store 默认一致）
-  if (!window.VersePC.personalizeState && window.Vue) {
-    window.VersePC.personalizeState = window.Vue.reactive({
-      theme: 'light',
-      wallpaper: 'none',
-      customColor: '#4c8dff',
-      customLight: false,
-      customColorGroupVisible: false,
-      glassEffect: false,
-      liquidGlass: false,
-      minimalNav: false,
-      hideNavLabels: false,
-      autoCollapseNav: false,
-      navWidth: 80,
-      // 窗口大小记忆默认开启，保持 1.7.2 起已有的自动记忆行为
-      rememberWindowSize: true,
-      startFullscreen: false,
-      panoramaTheme: 'overworld',
-      panoramaSpeed: 5,
-      panoramaFollow: false,
-      opacity: 100,
-      blur: 0,
-      fit: 'cover',
-      customFileName: '未选择',
-      weWallpapers: [],
-      weWallpaper: null,
-      wePickerOpen: false,
-      weLoading: false,
-      // 场景渲染器组件（可选下载）：null=未知, true=已安装, false=未安装
-      weRendererInstalled: null,
-      weRendererDownloading: false
-    });
-  }
 
   // ============== 主题外观卡片 ==============
 
   const ThemeAppearanceCard = {
     name: 'ThemeAppearanceCard',
     computed: {
-      state() { return window.VersePC.personalizeState; }
+      state() { return personalizeState; }
     },
     methods: {
       pickTheme(theme) {
@@ -132,7 +98,7 @@
       };
     },
     computed: {
-      state() { return window.VersePC.personalizeState; },
+      state() { return personalizeState; },
       isCustomMode() {
         return this.state.wallpaper === 'customImage' || this.state.wallpaper === 'customVideo';
       },
@@ -456,7 +422,7 @@
   const VisualEffectsCard = {
     name: 'VisualEffectsCard',
     computed: {
-      state() { return window.VersePC.personalizeState; }
+      state() { return personalizeState; }
     },
     methods: {
       onGlassChange(enabled) {
@@ -545,7 +511,7 @@
       return { resettingHome: false };
     },
     computed: {
-      state() { return window.VersePC.personalizeState; }
+      state() { return personalizeState; }
     },
     methods: {
       onNavWidthInput(value) {
@@ -630,5 +596,7 @@
     }
   };
 
-  window.VersePC.PageSettingsPersonalize = PageSettingsPersonalize;
+  return PageSettingsPersonalize;
 })();
+
+export default PageSettingsPersonalize;

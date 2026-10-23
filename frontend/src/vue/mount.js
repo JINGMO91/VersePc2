@@ -3,7 +3,6 @@
 import { createApp } from 'vue';
 import PageHome from './pages/page-home.js';
 
-// PageSettingsPersonalize 暂未模块化，仍由 public/js/vue 下的 classic 脚本注册到 window.VersePC
 const OTHER_PAGES = [
   ['PageVersions', '#page-versions', () => import('./pages/page-versions.js')],
   ['PageInstalledVersions', '#page-installed-versions', () => import('./pages/page-installed-versions.js')],
@@ -25,7 +24,7 @@ const OTHER_PAGES = [
   ['PageToolbox', '#page-toolbox', () => import('./pages/page-toolbox.js')],
   ['PageAccounts', '#page-accounts', () => import('./pages/page-accounts.js')],
   ['PageSettingsLaunch', '#page-settings-launch', () => import('./pages/page-settings-launch.js')],
-  ['PageSettingsPersonalize', '#page-settings-personalize', null],
+  ['PageSettingsPersonalize', '#page-settings-personalize', () => import('./pages/page-settings-personalize.js')],
   ['PageSettingsOther', '#page-settings-other', () => import('./pages/page-settings-other.js')],
   ['PageJava', '#page-java', () => import('./pages/page-java.js')],
   ['PageDownloads', '#page-downloads', () => import('./pages/page-downloads.js')],
