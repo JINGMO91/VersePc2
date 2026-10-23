@@ -61,6 +61,14 @@ jobs:
             Write-Host "placeholder-written"
           }
 
+      - name: Install frontend deps
+        shell: pwsh
+        run: npm ci
+
+      - name: Build frontend
+        shell: pwsh
+        run: npm run build:web
+
       - name: Cargo test
         shell: pwsh
         run: cargo test --manifest-path src-tauri/Cargo.toml

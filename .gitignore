@@ -28,3 +28,4 @@ scripts/_sshwork/
 scripts/_androidwork/
 
 frontend-dist/
+frontend-tauri/

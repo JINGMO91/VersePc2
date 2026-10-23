@@ -56,9 +56,12 @@ jobs:
       # 关键：直接用 cargo 构建 bin（不等价于 cargo tauri build）。
       # `cargo tauri build` 会构建 cdylib/staticlib crate-type，Linux/mac 上会强制链接所有
       # 依赖里的 #[link]（含 Windows 库），出现 "unable to find library -lkernel32"。
-      # 普通 bin 链接只含实际生效的库，可正常通过。前端资源需先 prepare（generate_context! 编译期读取）。
-      - name: Prepare frontend assets
-        run: node scripts/prepare-frontend.mjs
+      # 普通 bin 链接只含实际生效的库，可正常通过。前端需先经 Vite 构建（generate_context! 编译期读取）。
+      - name: Install frontend deps
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build:web
 
       # 某些依赖在非 Windows 编译时仍引用少量 Win32 API，但运行时从不真正调用（cfg!(windows) 短路）。
       # 编译仓库内 scripts/winstubs.c 提供 no-op 实现，使这些"死引用"在链接期得到解析。

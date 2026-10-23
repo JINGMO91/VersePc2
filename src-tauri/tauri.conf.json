@@ -4,9 +4,10 @@
   "version": "1.7.2",
   "identifier": "com.versepc.launcher",
   "build": {
-    "frontendDist": "../frontend-tauri",
-    "beforeDevCommand": "node scripts/prepare-frontend.mjs",
-    "beforeBuildCommand": "node scripts/prepare-frontend.mjs"
+    "frontendDist": "../frontend-dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev:web",
+    "beforeBuildCommand": "npm run build:web"
   },
   "app": {
     "withGlobalTauri": true,

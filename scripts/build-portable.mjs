@@ -42,7 +42,7 @@ console.log(`[build-portable] 构建目录: ${buildRoot}`);
 process.env.CARGO_TARGET_DIR = cargoTargetDir;
 
 // 3. 编译 Tauri（只生成 exe，不打包安装包）
-//    tauri.conf.json 的 beforeBuildCommand 会自动执行 prepare-frontend.mjs
+//    tauri.conf.json 的 beforeBuildCommand 会自动执行 vite build
 run('npx tauri build');
 
 // 4. 定位编译产物 exe（CARGO_TARGET_DIR 生效时在 E 盘，否则回退到项目 target）

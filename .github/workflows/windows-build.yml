@@ -27,11 +27,14 @@ jobs:
           rustc --version
           cargo --version
 
-      # 前端资源复制到 frontend-tauri（tauri.conf 的 frontendDist，generate_context! 编译期读取）。
-      # vue.global.prod.js 已随 frontend/js 入库，无需 npm install。
-      - name: Prepare frontend assets
+      # Vite 构建前端到 frontend-dist（tauri.conf 的 frontendDist，generate_context! 编译期读取）。
+      - name: Install frontend deps
         shell: pwsh
-        run: node scripts/prepare-frontend.mjs
+        run: npm ci
+
+      - name: Build frontend
+        shell: pwsh
+        run: npm run build:web
 
       # sponsor-orders.json 未入库（避免泄露赞助者信息），但 sponsor.rs 通过 include_str! 编译期嵌入；
       # CI 中写入空白名单占位让构建通过（与 release-build.yml 的 macOS/Linux 流程一致）。
