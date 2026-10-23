@@ -19,13 +19,13 @@
  *       且在 index.html 中以第一顺位加载（早于所有业务 JS）。
  */
 
-(function () {
+export const bridge = (function () {
   'use strict';
 
   // ============== 环境检测 ==============
 
   var isTauri = !!(window.__TAURI__ || window.__TAURI_INTERNALS__);
-  if (!isTauri) return;
+  if (!isTauri) return {};
 
   function _core() {
     if (window.__TAURI__ && window.__TAURI__.core) return window.__TAURI__.core;
@@ -619,42 +619,35 @@
     enderlinkOnline: enderlinkOnline
   };
 
-  // ============== 统一 IPC 面 window.bridge ==============
+  // ============== 统一 IPC 面 ==============
   // 单一通信面：底层 invoke、业务传输(apiProxy)、能力方法与业务 API 全部收敛在一个对象上。
   // 能力方法（窗口/系统/对话框/剪贴板/存储/事件/更新器/AI/联机模块）先平铺进来，
   // 业务大对象由 api.js 在加载后挂到 bridge.api 上。
-  window.bridge = {};
-  window.bridge.invoke = invoke;
-  window.bridge.api = null;
+  const bridgeObj = {};
+  bridgeObj.invoke = invoke;
+  bridgeObj.api = null;
   Object.keys(electronAPI).forEach(function (k) {
-    window.bridge[k] = electronAPI[k];
+    bridgeObj[k] = electronAPI[k];
   });
 
   // ============== 额外：暴露 api_proxy 让 api.js 使用 ==============
-  // 在 window.__TAURI_PROXY__ 上暴露一个统一调用函数
-  if (!window.__TAURI_PROXY__) {
-    window.__TAURI_PROXY__ = {
-      apiProxy: function (method, path, params, body) {
-        return invoke('api_proxy', {
-          method: method,
-          path: path,
-          params: params || {},
-          body: body || null
-        }).then(function (result) {
-          // 兼容 api.js 对 fetch Response 的模拟：
-          // 返回 { ok, status, json() }
-          return {
-            ok: result.status < 400,
-            status: result.status,
-            json: function () { return Promise.resolve(result.body); },
-            // 如果 API 返回错误，让上层也能拿到完整响应信息
-            _raw: result
-          };
-        });
-      }
-    };
-  }
-  window.bridge.apiProxy = window.__TAURI_PROXY__.apiProxy;
+  bridgeObj.apiProxy = function (method, path, params, body) {
+    return invoke('api_proxy', {
+      method: method,
+      path: path,
+      params: params || {},
+      body: body || null
+    }).then(function (result) {
+      // 兼容 api.js 对 fetch Response 的模拟：返回 { ok, status, json() }
+      return {
+        ok: result.status < 400,
+        status: result.status,
+        json: function () { return Promise.resolve(result.body); },
+        // 如果 API 返回错误，让上层也能拿到完整响应信息
+        _raw: result
+      };
+    });
+  };
 
   // ============== 兜底存根（避免未知方法崩溃） ==============
   function _withFallback(target) {
@@ -671,9 +664,8 @@
     });
   }
 
-  // 统一通信面以 window.bridge 为准；window.electronAPI 保留为兼容别名（同一对象）。
-  window.bridge = _withFallback(window.bridge);
-  window.electronAPI = window.bridge;
-
-  console.log('[tauri-bridge] Tauri 环境已检测到，统一桥接层 window.bridge 已加载');
+  // 统一通信面以 bridge 为准；window.bridge / window.electronAPI 兼容别名
+  // 由 legacy/globals.js 在入口统一挂载。
+  console.log('[tauri-bridge] Tauri 环境已检测到，统一桥接层已加载');
+  return _withFallback(bridgeObj);
 })();

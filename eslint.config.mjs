@@ -22,11 +22,18 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.node,
+        // 迁移过渡：ui-components.js 尚未模块化，仍以全局函数提供
+        showToast: 'readonly',
       },
     },
     rules: {
       eqeqeq: ['warn', 'smart'],
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-unused-vars': ['warn', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrors: 'none',
+      }],
     },
   },
 ];

@@ -1,5 +1,5 @@
 // main.js — 前端模块入口
-// 阶段 1 仅用于验证 Vite 构建管线；现有脚本仍按 index.html 中的顺序加载。
-// 后续阶段会把 core 与 feature 模块逐个迁移到 src/，并在此显式 import。
+// 迁移期间：core 模块在此加载，并由 legacy/globals.js 暴露为旧脚本依赖的全局名。
+import './legacy/globals.js';
 
 export const buildMode = 'vite';

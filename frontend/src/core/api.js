@@ -597,14 +597,21 @@ const API = {
     },
 };
 
-// ============== 统一 IPC 面：把业务 API 挂到 window.bridge.api ==============
-// 整个前端只有一个通信入口 window.bridge：
-//   window.bridge.api.*           REST 业务方法（本文件 API 大对象）
-//   window.bridge.apiProxy/invoke 底层传输
-//   其余能力方法（窗口/系统/对话框/联机模块等）平铺在同层
-window.API = API;
-if (window.bridge) {
-  window.bridge.api = API;
-}
+// 对外导出：迁移期间由 legacy/globals.js 统一挂到 window.API 与 window.bridge.api，
+// 供尚未模块化的脚本继续使用。
+export {
+  ERROR_MESSAGES,
+  getUserFriendlyMessage,
+  ErrorHandler,
+  API_BASE,
+  _isTauri,
+  _tauriApiProxy,
+  _isApiPath,
+  fetchWithTimeout,
+  apiGet,
+  apiPost,
+  apiDelete,
+  API,
+};
 
 /* @versepc-protected: anti-ai-plagiarism-v1.0 */
