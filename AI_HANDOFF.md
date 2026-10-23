@@ -191,8 +191,8 @@ Gitee 附件总配额约 1GB，曾因超限删除 v1.1.x～v1.6.0 共 12 个旧 
 - 业务模块在 `frontend/src/features/`，Vue 页面在 `frontend/src/vue/pages/`，由 `src/vue/mount.js` 分批挂载。
 - `frontend/src/legacy/globals.js` 是过渡层：集中把 core 与 feature 导出暴露为全局名，供旧脚本和模板 `onclick` 使用；最终目标是删除。
 - `frontend/style` 仍以 `<link>` 方式引用 `public/css`，尚未按页面拆分。
-- 个性化设置页 `page-settings-personalize.js` 仍是 classic IIFE（global 版），尚未迁入 ESM。
-- 遗留待办：清空 `onclick` 模板属性、删除 legacy 层与 `app.js` 全局状态、CSS 按域拆分。
+- 共享个性化状态在 `src/features/settings/personalize-state.js`，页面与业务模块共同 import。
+- 遗留待办：清空模板 `onclick` 属性、删除 legacy 层与 `app.js` 全局状态、CSS 按域拆分。
 
 ### 6.4 已知小问题（未修，优先级低）
 
@@ -274,7 +274,7 @@ Gitee 附件总配额约 1GB，曾因超限删除 v1.1.x～v1.6.0 共 12 个旧 
 
 ## 10. 建议的下一步
 
-1. 继续前端收尾：迁移 `page-settings-personalize.js`、清理模板 `onclick`、删除 `legacy/globals.js`
+1. 继续前端收尾：清理模板 `onclick`、删除 `legacy/globals.js` 与 `app.js` 全局状态、CSS 按域拆分
 2. 拆分 Rust 大文件：`versions.rs`、`api/mods.rs`、`api/resources.rs`、`modpack/mrpack_native.rs`
 3. 清理剩余编译警告（当前仍有大量 dead_code / unused 项），再启用 `clippy -D warnings`
 4. 若要发版：版本升到 `1.8.0`，重新构建 Windows 包，按第 4 节流程发布
