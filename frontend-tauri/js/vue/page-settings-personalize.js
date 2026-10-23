@@ -19,8 +19,8 @@
       glassEffect: false,
       liquidGlass: false,
       minimalNav: false,
-      hideNavLabels: true,
-      autoCollapseNav: true,
+      hideNavLabels: false,
+      autoCollapseNav: false,
       navWidth: 80,
       // 窗口大小记忆默认开启，保持 1.7.2 起已有的自动记忆行为
       rememberWindowSize: true,
@@ -510,14 +510,14 @@
                 <input type="checkbox" id="setting-nav-hide-labels" :checked="state.hideNavLabels" @change="onHideNavLabelsChange($event.target.checked)">
                 <span>导航栏钮名称隐藏</span>
               </label>
-              <span class="form-hint">开启后简约导航栏只显示图标，不显示按钮名称，默认开启</span>
+              <span class="form-hint">开启后简约导航栏只显示图标，不显示按钮名称，默认关闭</span>
             </div>
             <div class="form-group nav-sub-options" v-show="state.minimalNav">
               <label class="checkbox-label">
                 <input type="checkbox" id="setting-nav-auto-collapse" :checked="state.autoCollapseNav" @change="onAutoCollapseNavChange($event.target.checked)">
                 <span>导航栏单点自动收回</span>
               </label>
-              <span class="form-hint">开启后点击简约导航栏的导航项会自动收起，默认开启</span>
+              <span class="form-hint">开启后点击简约导航栏的导航项会自动收起，默认关闭</span>
             </div>
             <div class="form-group">
               <label class="checkbox-label">

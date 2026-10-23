@@ -282,8 +282,8 @@ function applyMinimalNavValue(enabled) {
   // 经典侧栏不挂胶囊折射；切回简约时按当前液态玻璃状态重新同步
   if (st) syncLiquidGlassSurfaces(st.liquidGlass);
   // 切换模式后同步两个子选项的状态类（经典侧栏会忽略这两个类）
-  applyHideNavLabelsValue(st ? st.hideNavLabels : true);
-  applyAutoCollapseNavValue(st ? st.autoCollapseNav : true);
+  applyHideNavLabelsValue(st ? st.hideNavLabels : false);
+  applyAutoCollapseNavValue(st ? st.autoCollapseNav : false);
 }
 
 /** 应用「导航栏钮名称隐藏」：开启时隐藏简约胶囊的文字标签 */
@@ -678,15 +678,15 @@ async function loadPersonalizeStateIntoStore() {
     ? (navMinimalSaved === '1' || navMinimalSaved === true)
     : false;
 
-  // ── 导航栏钮名称隐藏：默认开启（简约模式下只显示图标） ──
+  // ── 导航栏钮名称隐藏：默认关闭（简约模式下显示按钮名称） ──
   st.hideNavLabels = navHideLabelsSaved !== null && navHideLabelsSaved !== undefined
     ? (navHideLabelsSaved === '1' || navHideLabelsSaved === true)
-    : true;
+    : false;
 
-  // ── 导航栏单点自动收回：默认开启 ──
+  // ── 导航栏单点自动收回：默认关闭（点击后保持展开） ──
   st.autoCollapseNav = navAutoCollapseSaved !== null && navAutoCollapseSaved !== undefined
     ? (navAutoCollapseSaved === '1' || navAutoCollapseSaved === true)
-    : true;
+    : false;
 
   // ── 默认导航栏宽度：默认 80px ──
   const savedNavWidth = parseInt(navWidthSaved, 10);
@@ -744,11 +744,11 @@ async function savePersonalizeSettings() {
         glassEffect: document.getElementById('setting-glass-effect')?.checked ?? false,
         liquidGlass: document.getElementById('setting-liquid-glass')?.checked ?? false,
         minimalNav: document.getElementById('setting-minimal-nav')?.checked ?? false,
-        hideNavLabels: document.getElementById('setting-nav-hide-labels')?.checked ?? true,
-        autoCollapseNav: document.getElementById('setting-nav-auto-collapse')?.checked ?? true,
+        hideNavLabels: document.getElementById('setting-nav-hide-labels')?.checked ?? false,
+        autoCollapseNav: document.getElementById('setting-nav-auto-collapse')?.checked ?? false,
         navWidth: document.getElementById('setting-nav-width')?.value ?? 80,
-        sidebarLabels: !(document.getElementById('setting-nav-hide-labels')?.checked ?? true),
-        sidebarPin: !(document.getElementById('setting-nav-auto-collapse')?.checked ?? true),
+        sidebarLabels: !(document.getElementById('setting-nav-hide-labels')?.checked ?? false),
+        sidebarPin: !(document.getElementById('setting-nav-auto-collapse')?.checked ?? false),
         rememberWindowSize: document.getElementById('setting-window-remember-size')?.checked ?? true,
         startFullscreen: document.getElementById('setting-window-start-fullscreen')?.checked ?? false
       };
@@ -783,8 +783,8 @@ async function resetPersonalizeSettings() {
     st.glassEffect = false;
     st.liquidGlass = false;
     st.minimalNav = false;
-    st.hideNavLabels = true;
-    st.autoCollapseNav = true;
+    st.hideNavLabels = false;
+    st.autoCollapseNav = false;
     st.navWidth = 80;
     st.rememberWindowSize = true;
     st.startFullscreen = false;
@@ -805,8 +805,8 @@ async function resetPersonalizeSettings() {
   applyGlassEffectValue(false);
   applyLiquidGlassEffectValue(false);
   applyMinimalNavValue(false);
-  applyHideNavLabelsValue(true);
-  applyAutoCollapseNavValue(true);
+  applyHideNavLabelsValue(false);
+  applyAutoCollapseNavValue(false);
   applyNavWidthValue(80);
   applyRememberWindowSizeValue(true);
   applyStartFullscreenValue(false);
@@ -821,8 +821,8 @@ async function resetPersonalizeSettings() {
       glassEffect: false,
       liquidGlass: false,
       minimalNav: false,
-      hideNavLabels: true,
-      autoCollapseNav: true,
+      hideNavLabels: false,
+      autoCollapseNav: false,
       navWidth: 80,
       sidebarLabels: false,
       sidebarPin: false,
@@ -843,8 +843,8 @@ async function resetPersonalizeSettings() {
     await window.electronAPI.store.set('versepc_glass_effect', '0');
     await window.electronAPI.store.set('versepc_liquid_glass', '0');
     await window.electronAPI.store.set('versepc_nav_minimal', '0');
-    await window.electronAPI.store.set('versepc_nav_hide_labels', '1');
-    await window.electronAPI.store.set('versepc_nav_auto_collapse', '1');
+    await window.electronAPI.store.set('versepc_nav_hide_labels', '0');
+    await window.electronAPI.store.set('versepc_nav_auto_collapse', '0');
     await window.electronAPI.store.set('versepc_nav_width', 80);
     await window.electronAPI.store.set('versepc_window_remember_size', '1');
     await window.electronAPI.store.set('versepc_window_start_fullscreen', '0');
