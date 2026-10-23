@@ -1140,10 +1140,10 @@ fn managed_java_root() -> PathBuf {
     storage::resolve_data_dir().join("java")
 }
 
-/// 判断 javaHome 是否位于启动器托管目录内。
+/// 判断 javaHome 是否位于指定托管根目录内（便于单元测试）。
 /// canonicalize 后比较，防止通过 `..` 或符号链接绕过；目录不存在时返回 false。
-fn is_managed_java_home(java_home: &Path) -> bool {
-    let root = match managed_java_root().canonicalize() {
+fn is_managed_java_home_under(root: &Path, java_home: &Path) -> bool {
+    let root = match root.canonicalize() {
         Ok(p) => p,
         Err(_) => return false,
     };
@@ -1152,6 +1152,11 @@ fn is_managed_java_home(java_home: &Path) -> bool {
         Err(_) => return false,
     };
     home != root && home.starts_with(&root)
+}
+
+/// 判断 javaHome 是否位于启动器托管目录内。
+fn is_managed_java_home(java_home: &Path) -> bool {
+    is_managed_java_home_under(&managed_java_root(), java_home)
 }
 
 /// 强制刷新缓存（手动添加 / 设置当前 Java 后调用）
@@ -2556,20 +2561,38 @@ mod tests {
         }
     }
 
-    /// 验证注册表扫描能发现系统安装的 Java（用户环境检测不到 Java 的关键补充）
+    /// 验证注册表扫描返回的路径都真实存在。
+    /// 不依赖本机是否安装 Java，避免不同 CI / 开发机环境导致测试失败。
     #[cfg(target_os = "windows")]
     #[test]
-    fn registry_scan_finds_installed_java() {
+    fn registry_scan_returns_existing_java_paths() {
         let found = scan_registry_java_paths();
-        // 本机注册表 HKLM\SOFTWARE\JavaSoft\JDK 指向 jdk-17，应能扫到
-        assert!(
-            !found.is_empty(),
-            "注册表扫描应至少找到一个 Java，实际: {:?}",
-            found
-        );
-        eprintln!("[test] 注册表扫描到 {} 个 Java:", found.len());
         for p in &found {
-            eprintln!("[test]   {}", p.display());
+            assert!(p.exists(), "注册表扫描返回了不存在的路径: {}", p.display());
         }
+        eprintln!("[test] 注册表扫描到 {} 个 Java", found.len());
+    }
+
+    /// 删除 Java 的护栏：只允许托管目录内的子目录，系统目录与 `..` 绕行必须拒绝
+    #[test]
+    fn managed_java_home_detection() {
+        let base = std::env::temp_dir().join(format!("verse-java-guard-{}", std::process::id()));
+        let root = base.join("data").join("java");
+        let inside = root.join("imported-jdk-17");
+        let outside = base.join("system-jdk");
+        std::fs::create_dir_all(&inside).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+
+        assert!(is_managed_java_home_under(&root, &inside), "托管目录内的 JDK 应允许删除");
+        assert!(!is_managed_java_home_under(&root, &outside), "系统 JDK 不应被判定为托管目录");
+        assert!(!is_managed_java_home_under(&root, &root), "托管根目录本身不可删除");
+
+        let traversal = root.join("..").join("system-jdk");
+        assert!(
+            !is_managed_java_home_under(&root, &traversal),
+            "通过 .. 绕出托管目录必须被拒绝"
+        );
+
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

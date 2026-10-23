@@ -1,0 +1,66 @@
+# verify.yml — 架构与测试检查
+# 触发：手动 workflow_dispatch、推送 main
+# 目标：架构护栏、前端语法、Rust 单元测试
+name: Verify
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  architecture:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        shell: bash
+        run: |
+          git clone --depth 1 --branch "$GITHUB_REF_NAME" https://github.com/doujie081231/VersePc2.git .
+          git rev-parse --short HEAD
+
+      - name: Architecture report
+        shell: bash
+        run: node scripts/check-architecture.mjs
+
+      - name: Frontend syntax check
+        shell: bash
+        run: |
+          set -e
+          find frontend/js frontend/src scripts -type f -name '*.js' \
+            | grep -v -E 'three.*\.bundle\.js|skinview3d.*\.bundle\.js|vue\.global\.prod\.js|marked\.min\.js' \
+            | while IFS= read -r f; do node --check "$f"; done
+          echo "frontend syntax OK"
+
+  rust-test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch "$GITHUB_REF_NAME" https://github.com/doujie081231/VersePc2.git .
+          git rev-parse --short HEAD
+
+      - name: Setup Rust (stable)
+        shell: pwsh
+        run: |
+          rustup update stable
+          rustup default stable
+          rustc --version
+
+      # sponsor-orders.json 未入库，但 sponsor.rs 通过 include_str! 编译期嵌入
+      - name: Ensure sponsor-orders.json exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "src-tauri/data/sponsor-orders.json")) {
+            New-Item -ItemType Directory -Force -Path "src-tauri/data" | Out-Null
+            [IO.File]::WriteAllBytes("src-tauri/data/sponsor-orders.json", [Convert]::FromBase64String("eyJvcmRlcnMiOltdfQ=="))
+            Write-Host "placeholder-written"
+          }
+
+      - name: Cargo test
+        shell: pwsh
+        run: cargo test --manifest-path src-tauri/Cargo.toml

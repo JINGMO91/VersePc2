@@ -2250,3 +2250,72 @@ fn resolve_memory_settings(
     let mode = resolve_memory_mode(settings_max, false, None, None);
     (mode, None)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    /// 同一个库的不同版本必须归并到 group:artifact 键
+    #[test]
+    fn lib_artifact_key_groups_versions_and_classifiers() {
+        assert_eq!(
+            lib_artifact_key("org.ow2.asm:asm:9.6"),
+            Some("org.ow2.asm:asm".to_string())
+        );
+        assert_eq!(
+            lib_artifact_key("org.ow2.asm:asm:9.10.1"),
+            Some("org.ow2.asm:asm".to_string())
+        );
+        assert_eq!(
+            lib_artifact_key("org.lwjgl:lwjgl:3.3.1:natives-windows"),
+            Some("org.lwjgl:lwjgl".to_string())
+        );
+        assert_eq!(lib_artifact_key("broken"), None);
+    }
+
+    /// 版本比较按数字段比较，避免 9.10 被误判小于 9.6
+    #[test]
+    fn library_version_compare_handles_multi_digit_segments() {
+        use std::cmp::Ordering;
+        assert_eq!(compare_lib_version("9.10.1", "9.6"), Ordering::Greater);
+        assert_eq!(compare_lib_version("1.21.10", "1.21.4"), Ordering::Greater);
+        assert_eq!(compare_lib_version("3.3.1", "3.3.1"), Ordering::Equal);
+    }
+
+    /// Maven 坐标转仓库相对路径
+    #[test]
+    fn maven_name_to_path_builds_expected_jar_path() {
+        assert_eq!(
+            maven_name_to_path("com.google.code.gson:gson:2.10"),
+            Some("com/google/code/gson/gson/2.10/gson-2.10.jar".to_string())
+        );
+        assert_eq!(
+            maven_name_to_path("org.lwjgl:lwjgl:3.3.1:natives-windows"),
+            Some("org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1-natives-windows.jar".to_string())
+        );
+        assert_eq!(maven_name_to_path("too:short"), None);
+    }
+
+    /// $var 替换必须遵守边界，不能把 $versionX 误替换成 $version
+    #[test]
+    fn replace_variables_respects_token_boundary() {
+        let mut vars = HashMap::new();
+        vars.insert("version".to_string(), "1.2.3".to_string());
+        let out = replace_variables("${version} $versionX $version", &vars);
+        assert_eq!(out, "1.2.3 $versionX 1.2.3");
+    }
+
+    /// 原生包后缀必须与当前平台一致
+    #[test]
+    fn native_os_name_matches_target_platform() {
+        let expected = if cfg!(target_os = "windows") {
+            "windows"
+        } else if cfg!(target_os = "macos") {
+            "macos"
+        } else {
+            "linux"
+        };
+        assert_eq!(native_os_name(), expected);
+    }
+}

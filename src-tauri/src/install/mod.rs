@@ -58,6 +58,14 @@ fn log_now() -> String {
     chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
+/// 安装失败/取消时清理版本目录：
+/// 只有本次新建的目录才允许删除，已有版本目录一律保留（含 mods/、saves/、options.txt）。
+fn cleanup_failed_version_dir(version_dir: &std::path::Path, version_dir_was_new: bool) {
+    if version_dir_was_new {
+        let _ = std::fs::remove_dir_all(version_dir);
+    }
+}
+
 /// 安装入口
 pub async fn perform_installation(
     app: AppHandle,
@@ -151,9 +159,7 @@ pub async fn perform_installation(
     }
     let json_str = serde_json::to_string_pretty(&version_details).unwrap_or_default();
     if let Err(e) = tokio::fs::write(&version_json_path, &json_str).await {
-        if version_dir_was_new {
-            let _ = tokio::fs::remove_dir_all(&version_dir).await;
-        }
+        cleanup_failed_version_dir(&version_dir, version_dir_was_new);
         append_install_log(&data_dir, &format!("[{}] 写入版本 JSON 失败: {} — {}", log_now(), version_json_path.display(), e));
         session::update_session(&app, &session_id, |s| {
             s.stage = session::InstallStage::Failed;
@@ -283,9 +289,7 @@ pub async fn perform_installation(
     drop(lib_results);
     // 取消同样清理未完成的版本目录（仅限本次新建的目录）
     if session::is_cancelled(&cancel_flag) {
-        if version_dir_was_new {
-            let _ = tokio::fs::remove_dir_all(&version_dir).await;
-        }
+        cleanup_failed_version_dir(&version_dir, version_dir_was_new);
         append_install_log(&data_dir, &format!("[{}] 安装取消: {}", log_now(), actual_version_id));
         session::update_session(&app, &session_id, |s| {
             s.stage = session::InstallStage::Cancelled;
@@ -297,9 +301,7 @@ pub async fn perform_installation(
     let failed_total = failed_libs.load(AtomicOrdering::SeqCst);
     if failed_total > 0 {
         let fail_msg = format!("依赖库下载失败 {} 个，请检查网络或稍后重试", failed_total);
-        if version_dir_was_new {
-            let _ = tokio::fs::remove_dir_all(&version_dir).await;
-        }
+        cleanup_failed_version_dir(&version_dir, version_dir_was_new);
         append_install_log(&data_dir, &format!("[{}] 安装失败: {} — {}", log_now(), actual_version_id, fail_msg));
         session::update_session(&app, &session_id, |s| {
             s.stage = session::InstallStage::Failed;
@@ -783,4 +785,48 @@ async fn download_library(
         120,
         None,
     ).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static TEST_ID: AtomicU32 = AtomicU32::new(0);
+
+    fn temp_case_dir(name: &str) -> std::path::PathBuf {
+        let id = TEST_ID.fetch_add(1, Ordering::SeqCst);
+        std::env::temp_dir().join(format!(
+            "verse-install-test-{}-{}-{}",
+            std::process::id(),
+            id,
+            name
+        ))
+    }
+
+    /// 已有版本目录在安装失败时必须保留用户数据
+    #[test]
+    fn existing_version_dir_is_preserved_after_failed_install() {
+        let dir = temp_case_dir("existing");
+        std::fs::create_dir_all(dir.join("mods")).unwrap();
+        std::fs::write(dir.join("options.txt"), "keep").unwrap();
+
+        cleanup_failed_version_dir(&dir, false);
+
+        assert!(dir.join("options.txt").exists(), "已有 options.txt 不应被删除");
+        assert!(dir.join("mods").is_dir(), "已有 mods 目录不应被删除");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 本次新建的版本目录在安装失败时应被清理
+    #[test]
+    fn newly_created_version_dir_is_removed_after_failed_install() {
+        let dir = temp_case_dir("new");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("client.jar"), "partial").unwrap();
+
+        cleanup_failed_version_dir(&dir, true);
+
+        assert!(!dir.exists(), "本次新建的版本目录应被清理");
+    }
 }
