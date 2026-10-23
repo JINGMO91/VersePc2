@@ -1065,7 +1065,13 @@ fn extract_natives_dir(
             .copied()
             .collect()
     } else {
-        ["lwjgl", "glfw", "openal"]
+        // LWJGL2 没有 glfw，不能把 glfw 当作必需库，否则每次启动都会误判缺失并重复解压
+        let required: &[&str] = if is_lwjgl2 {
+            &["lwjgl", "openal"]
+        } else {
+            &["lwjgl", "glfw", "openal"]
+        };
+        required
             .iter()
             .filter(|key| !native_lib_exists(&natives_dir, key, native_ext))
             .copied()

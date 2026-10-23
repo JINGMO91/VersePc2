@@ -1308,6 +1308,14 @@ async fn import_java_async(session_id: &str, import_type: &str, source_path: &st
         // 文件夹导入：源目录应是 javaHome（含 bin/java），若用户选了 bin 目录则上移一级
         let java_exe_name = java_bin_name();
         let mut src_dir = source.clone();
+        // macOS 用户通常选择 .jdk / .app 包目录，真正的 javaHome 在 Contents/Home
+        #[cfg(target_os = "macos")]
+        {
+            let bundle_home = src_dir.join("Contents").join("Home");
+            if bundle_home.join("bin").join(java_exe_name).exists() {
+                src_dir = bundle_home;
+            }
+        }
         if !src_dir.join("bin").join(java_exe_name).exists() {
             let parent_exe = src_dir
                 .parent()
