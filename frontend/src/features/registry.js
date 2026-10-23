@@ -1,0 +1,41 @@
+// features/registry.js — 按原 index.html 的加载顺序静态导入各功能模块
+// 每个模块在自身求值结束时把导出名挂到 window，保证后续模块与旧脚本仍可访问。
+import './settings/wallpaper-engine.js';
+import './misc/lan.js';
+import './misc/private-server.js';
+import './mods/favorites.js';
+import './mods/mod-detail.js';
+import './mods/mod-install.js';
+import './accounts/skin-figure.js';
+import './accounts/accounts.js';
+import './launch/launch.js';
+import './launch/java.js';
+import './versions/versions.js';
+import './mods/mod-browse.js';
+import './misc/sponsors.js';
+import './misc/dino-game.js';
+import './settings/custom-theme.js';
+import './settings/liquid-glass.js';
+import './settings/personalize.js';
+import './settings/other-settings.js';
+import './misc/utils.js';
+import './misc/custom-select.js';
+import './mods/resource.js';
+import './versions/version-settings.js';
+import './launch/launch-settings.js';
+import './misc/announcement.js';
+import './settings/window-theme.js';
+import './settings/settings-misc.js';
+import './misc/ui-components.js';
+import './versions/custom-download.js';
+import './launch/java-mgr.js';
+import './misc/console-log.js';
+import './misc/feedback.js';
+import './misc/cloud.js';
+import './settings/settings-load-save.js';
+import './misc/feature-flags.js';
+import './launch/init-setup.js';
+import './misc/plugin-runtime.js';
+import './misc/server-host.js';
+
+export const featureModuleCount = 37;

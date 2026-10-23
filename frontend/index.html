@@ -675,45 +675,10 @@
   <!-- ====================================================================== -->
   <!-- Vite 模块入口：阶段 1 仅验证构建管线，后续在此显式 import core 与 feature 模块 -->
   <script type="module" src="/src/main.js"></script>
-  <!-- core 模块（tauri-bridge / utils / api）由 src/main.js 加载并暴露全局别名 -->
-  <script src="js/wallpaper-engine.js" defer></script>
+  <!-- core 模块由 src/main.js 加载并暴露全局别名 -->
   <script src="js/rose-loader.js" defer></script>
 
-  <!-- 页面交互逻辑层（js/app/）：响应点击、调 API、操作 DOM -->
-  <script src="js/app/lan.js" defer></script>
-  <script src="js/app/private-server.js" defer></script>
-  <script src="js/app/favorites.js" defer></script>
-  <script src="js/app/mod-detail.js" defer></script>
-  <script src="js/app/mod-install.js" defer></script>
-  <script src="js/app/skin-figure.js" defer></script>
-  <script src="js/app/accounts.js" defer></script>
-  <script src="js/app/launch.js" defer></script>
-  <script src="js/app/java.js" defer></script>
-  <script src="js/app/versions.js" defer></script>
-  <script src="js/app/mod-browse.js" defer></script>
-  <script src="js/app/sponsors.js" defer></script>
-  <script src="js/app/dino-game.js" defer></script>
-  <script src="js/app/custom-theme.js" defer></script>
-  <script src="js/app/liquid-glass.js" defer></script>
-  <script src="js/app/personalize.js" defer></script>
-  <script src="js/app/other-settings.js" defer></script>
-  <script src="js/app/utils.js" defer></script>
-  <script src="js/app/custom-select.js" defer></script>
-  <script src="js/app/resource.js" defer></script>
-  <script src="js/app/version-settings.js" defer></script>
-  <script src="js/app/launch-settings.js" defer></script>
-  <script src="js/app/announcement.js" defer></script>
-  <script src="js/app/window-theme.js" defer></script>
-  <script src="js/app/settings-misc.js" defer></script>
-  <script src="js/app/ui-components.js" defer></script>
-  <script src="js/app/custom-download.js" defer></script>
-  <script src="js/app/java-mgr.js" defer></script>
-  <script src="js/app/console-log.js" defer></script>
-  <script src="js/app/feedback.js" defer></script>
-  <script src="js/app/cloud.js" defer></script>
-  <script src="js/app/settings-load-save.js" defer></script>
-  <script src="js/app/feature-flags.js" defer></script>
-  <script src="js/app/init-setup.js" defer></script>
+  <!-- 功能模块已迁入 src/features/，由 src/main.js 按原顺序导入 -->
   <script src="js/app.js" defer></script>
   <script src="js/mod-slug-map.js" defer></script>
   <!-- mod-chinese-names.js 延迟加载 -->
@@ -743,9 +708,7 @@
   <script src="js/vue/page-lan-portmap.js" defer></script>
   <script src="js/vue/page-lan-enderlink.js" defer></script>
   <script src="js/vue/page-plugins.js" defer></script>
-  <script src="js/app/plugin-runtime.js" defer></script>
   <script src="js/vue/page-private-server.js" defer></script>
-  <script src="js/app/server-host.js" defer></script>
   <script src="js/vue/page-server-host.js" defer></script>
   <script src="js/vue/page-toolbox.js" defer></script>
   <script src="js/vue/page-accounts.js" defer></script>
