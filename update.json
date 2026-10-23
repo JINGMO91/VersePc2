@@ -1,28 +1,28 @@
 {
-    "version": "1.7.1",
-    "releaseName": "v1.7.1",
-    "releaseDate": "2026-10-22",
-    "releaseNotes": "VersePC2 v1.7.1\n\n修复:\n- 修复 NeoForge 及依赖官方 Maven 的安装器在国内网络下安装卡住/失败的问题：下载地址优先使用国内镜像，失败自动回退官方源\n- 修复整合包导入时 NeoForge 安装停滞导致整包导入无法完成的问题\n\n安全:\n- 修复插件与资源包解压时的路径穿越风险（Zip Slip）\n- 修复解压路径校验相关的若干编译问题\n\n优化:\n- 禁用启动器内 WebView2 默认右键菜单（刷新/另存为/检查等），输入框保留复制粘贴\n- 精简仓库中与源码无关的文件\n\n说明:\n- 版本下载与联机功能正常开放",
+    "version": "1.7.2",
+    "releaseName": "v1.7.2",
+    "releaseDate": "2026-10-23",
+    "releaseNotes": "VersePC2 v1.7.2\n\n新增:\n- 记住关闭前的窗口大小与最大化状态\n\n修复:\n- 修复 Fabric / NeoForge 版本因原版与加载器重复 ASM 库导致启动退出码 1\n- 修复启动即退时只提示“检查 Java 版本”，现在直接显示 stderr 中的具体异常\n- 修复模组前置依赖解析：按游戏版本与加载器选择兼容文件，修正 CurseForge 关系类型与加载器 ID\n- 修复模组搜索：JEI Forge 等关键词能正确命中 JEI 本体，NeoForge 使用正确的加载器筛选\n- 修复整合包模组批量下载失败：并发上限调整为 64，CurseForge 文件接口支持官方源回退，失败提示更明确\n- 修复运行中每 2 分钟强制内存压缩造成的周期性卡顿（约 1 秒）\n- 修复 WE 壁纸列表混入其他 Steam 账号订阅、WE 视频大文件播放失败\n- 修复场景渲染器启动超时与下载地址 404，增加 v1.4.3 回退；场景壁纸暂时显示预览图\n\n优化:\n- WE 视频改为本地协议 + HTTP Range 流式读取，降低内存占用\n- 插件与资源包解压路径校验加强（Zip Slip）",
     "files": {
         "win-x64": {
-            "url": "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.7.1/VersePC2.exe",
-            "size": 74473984,
-            "sha256": "8267e0547e1b30bee2ea116f47d01601f444330bf50081d318e9030d4eeb1702"
+            "url": "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.7.2/VersePC2.exe",
+            "size": 74567680,
+            "sha256": "d508a6c41214d01829d1f99939fd912cffc457d1589e934b502947651adccc9d"
         },
         "linux-x86_64": {
-            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.1/VersePC2-linux-x86_64",
-            "size": 70443904,
-            "sha256": "a61b677c9d06df20e1a3493930519623dd5da1ef4c725cce62f121518dfd023f"
+            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.2/VersePC2-linux-x86_64",
+            "size": 70508448,
+            "sha256": "9a232c3c71550446735600cd3e73b1bd97d8583bbf7b34fc8bb1c8435d36dc79"
         },
         "macos-x86_64": {
-            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.1/VersePC2-macos-x86_64.zip",
-            "size": 62505981,
-            "sha256": "bda56d6bf6131dec00939b1691ce790df9df2e99ccce53e6b1b3c45b1b8d9b7f"
+            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.2/VersePC2-macos-x86_64.zip",
+            "size": 62536616,
+            "sha256": "0c60f94c5eb7cba6deeab0dc77c5f9f0655bf766c121832e3ea4c77e2a1006de"
         },
         "macos-aarch64": {
-            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.1/VersePC2-macos-aarch64.zip",
-            "size": 62589375,
-            "sha256": "e6a7516bc8af7931f37af639c3fcf41ab6cb52a1476351b7286da48ffc2bfca0"
+            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.2/VersePC2-macos-aarch64.zip",
+            "size": 62614732,
+            "sha256": "3e7be08094bb66f02abc969abf0230b0c037dfff78ed1b72de4440a58ac519a5"
         }
     }
 }
