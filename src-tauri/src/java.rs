@@ -1135,6 +1135,25 @@ fn save_custom_java(entries: &Vec<Value>) -> bool {
     }
 }
 
+/// 启动器托管 Java 的根目录（data_dir/java）
+fn managed_java_root() -> PathBuf {
+    storage::resolve_data_dir().join("java")
+}
+
+/// 判断 javaHome 是否位于启动器托管目录内。
+/// canonicalize 后比较，防止通过 `..` 或符号链接绕过；目录不存在时返回 false。
+fn is_managed_java_home(java_home: &Path) -> bool {
+    let root = match managed_java_root().canonicalize() {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    let home = match java_home.canonicalize() {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    home != root && home.starts_with(&root)
+}
+
 /// 强制刷新缓存（手动添加 / 设置当前 Java 后调用）
 pub fn invalidate_cache() {
     let mut cache = JAVA_CACHE.lock().unwrap();
@@ -2038,13 +2057,14 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
             save_custom_java(&custom.as_array().cloned().unwrap_or_default());
             invalidate_cache();
 
-            // 仅 source=imported 且请求删除文件时才删除目录；manual 是原位引用不删
+            // 仅 source=imported 且请求删除文件时才删除目录；manual 是原位引用不删。
+            // 再叠加托管目录校验，避免条目里的 javaHome 指向系统目录时误删
             if delete_files {
                 if let Some(entry) = &removed_entry {
                     let source = utils::get_str(entry, "source");
                     if source == "imported" {
                         let java_home = utils::get_str(entry, "javaHome");
-                        if !java_home.is_empty() {
+                        if !java_home.is_empty() && is_managed_java_home(Path::new(&java_home)) {
                             let _ = std::fs::remove_dir_all(&java_home);
                         }
                     }
@@ -2257,44 +2277,66 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
 
         "POST /api/java/delete" => {
             let data = body.clone().unwrap_or(Value::Null);
-            let java_path = crate::utils::get_str(&data, "javaPath").to_string();
-            if java_path.is_empty() {
-                return Some(ApiResult::err(400, "缺少 javaPath 参数"));
+            // 前端 java-mgr.js 传的是 javaHome（保留 javaPath 兼容旧调用）
+            let mut java_home_str = crate::utils::get_str(&data, "javaHome");
+            if java_home_str.is_empty() {
+                java_home_str = crate::utils::get_str(&data, "javaPath");
             }
-            // 不允许删除正在使用的 Java
-            let settings = storage::load_settings();
-            let current = crate::utils::get_str(&settings, "javaPath");
-            if current == java_path {
+            if java_home_str.is_empty() {
+                return Some(ApiResult::err(400, "缺少 javaHome 参数"));
+            }
+            // 允许传 java 可执行文件或 javaHome
+            let mut home = PathBuf::from(&java_home_str);
+            if !home.join("bin").join(java_bin_name()).exists() {
+                if let Some(p) = home.parent().and_then(|p| p.parent()) {
+                    home = p.to_path_buf();
+                }
+            }
+
+            // 关键护栏：只允许删除启动器托管目录（data_dir/java）内的 Java。
+            // 否则对 java.exe 取 parent().parent() 会把系统 JDK
+            // （如 C:\Program Files\Java\jdk-17）当成 javaHome 整个目录删掉。
+            if !is_managed_java_home(&home) {
                 return Some(ApiResult::ok(json!({
                     "success": false,
-                    "error": "该 Java 正在使用，请先切换到其他 Java"
+                    "error": "只能删除启动器安装的 Java，系统或手动添加的 Java 请勿在此删除",
+                    "message": "只能删除启动器安装的 Java"
                 })));
             }
-            // 删除 javaHome 整个目录
-            let java_home = Path::new(&java_path)
-                .parent()
-                .and_then(|p| p.parent())
-                .map(|p| p.to_path_buf());
-            if let Some(home) = java_home {
-                if home.exists() {
-                    match std::fs::remove_dir_all(&home) {
-                        Ok(()) => {
-                            invalidate_cache();
-                            Some(ApiResult::ok(json!({
-                                "success": true,
-                                "message": format!("已删除: {}", home.display())
-                            })))
-                        }
-                        Err(e) => Some(ApiResult::ok(json!({
-                            "success": false,
-                            "error": format!("删除失败: {}", e)
-                        }))),
-                    }
-                } else {
-                    Some(ApiResult::err(404, "Java 目录不存在"))
+
+            // 不允许删除正在使用的 Java（按 javaHome 规范化后比较）
+            let settings = storage::load_settings();
+            let current = crate::utils::get_str(&settings, "javaPath");
+            if !current.is_empty() {
+                let current_exe = PathBuf::from(&current);
+                let current_home = current_exe
+                    .parent()
+                    .and_then(|p| p.parent())
+                    .unwrap_or(current_exe.as_path());
+                if current_home.canonicalize().ok() == home.canonicalize().ok() {
+                    return Some(ApiResult::ok(json!({
+                        "success": false,
+                        "error": "该 Java 正在使用，请先切换到其他 Java",
+                        "message": "该 Java 正在使用，请先切换到其他 Java"
+                    })));
                 }
-            } else {
-                Some(ApiResult::err(400, "无法解析 Java Home 路径"))
+            }
+
+            if !home.exists() {
+                return Some(ApiResult::err(404, "Java 目录不存在"));
+            }
+            match std::fs::remove_dir_all(&home) {
+                Ok(()) => {
+                    invalidate_cache();
+                    Some(ApiResult::ok(json!({
+                        "success": true,
+                        "message": format!("已删除: {}", home.display())
+                    })))
+                }
+                Err(e) => Some(ApiResult::ok(json!({
+                    "success": false,
+                    "error": format!("删除失败: {}", e)
+                }))),
             }
         }
 

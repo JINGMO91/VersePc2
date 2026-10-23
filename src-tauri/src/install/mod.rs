@@ -137,6 +137,9 @@ pub async fn perform_installation(
         .unwrap_or(&version_id)
         .to_string();
     let version_dir = versions_dir.join(&game_version);
+    // 记录版本目录是否由本次安装新建：只有本次新建的目录，失败/取消时才允许整目录清理。
+    // 否则会连用户已有的 mods/、saves/、options.txt 一起删掉。
+    let version_dir_was_new = !version_dir.exists();
     let version_json_path = version_dir.join(format!("{}.json", game_version));
     if let Err(e) = tokio::fs::create_dir_all(&version_dir).await {
         append_install_log(&data_dir, &format!("[{}] 创建版本目录失败: {} — {}", log_now(), version_dir.display(), e));
@@ -148,7 +151,9 @@ pub async fn perform_installation(
     }
     let json_str = serde_json::to_string_pretty(&version_details).unwrap_or_default();
     if let Err(e) = tokio::fs::write(&version_json_path, &json_str).await {
-        let _ = tokio::fs::remove_dir_all(&version_dir).await;
+        if version_dir_was_new {
+            let _ = tokio::fs::remove_dir_all(&version_dir).await;
+        }
         append_install_log(&data_dir, &format!("[{}] 写入版本 JSON 失败: {} — {}", log_now(), version_json_path.display(), e));
         session::update_session(&app, &session_id, |s| {
             s.stage = session::InstallStage::Failed;
@@ -204,7 +209,9 @@ pub async fn perform_installation(
         ).await {
             Ok(()) => update!(session::InstallStage::ClientJar, 100, "客户端文件已下载"),
             Err(e) => {
-                let _ = tokio::fs::remove_dir_all(&version_dir).await;
+                if version_dir_was_new {
+                    let _ = tokio::fs::remove_dir_all(&version_dir).await;
+                }
                 let cancelled = e.contains("已取消");
                 if cancelled {
                     append_install_log(&data_dir, &format!("[{}] 安装取消: {}", log_now(), actual_version_id));
@@ -274,9 +281,11 @@ pub async fn perform_installation(
         .collect()
         .await;
     drop(lib_results);
-    // 取消同样清理未完成的版本目录
+    // 取消同样清理未完成的版本目录（仅限本次新建的目录）
     if session::is_cancelled(&cancel_flag) {
-        let _ = tokio::fs::remove_dir_all(&version_dir).await;
+        if version_dir_was_new {
+            let _ = tokio::fs::remove_dir_all(&version_dir).await;
+        }
         append_install_log(&data_dir, &format!("[{}] 安装取消: {}", log_now(), actual_version_id));
         session::update_session(&app, &session_id, |s| {
             s.stage = session::InstallStage::Cancelled;
@@ -288,7 +297,9 @@ pub async fn perform_installation(
     let failed_total = failed_libs.load(AtomicOrdering::SeqCst);
     if failed_total > 0 {
         let fail_msg = format!("依赖库下载失败 {} 个，请检查网络或稍后重试", failed_total);
-        let _ = tokio::fs::remove_dir_all(&version_dir).await;
+        if version_dir_was_new {
+            let _ = tokio::fs::remove_dir_all(&version_dir).await;
+        }
         append_install_log(&data_dir, &format!("[{}] 安装失败: {} — {}", log_now(), actual_version_id, fail_msg));
         session::update_session(&app, &session_id, |s| {
             s.stage = session::InstallStage::Failed;
