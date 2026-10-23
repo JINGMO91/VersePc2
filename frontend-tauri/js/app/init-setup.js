@@ -88,6 +88,16 @@ async function init() {
     }
   } catch (e) {}
 
+  // 尽早恢复自定义导航栏宽度，避免启动时先显示默认宽度再跳变
+  try {
+    const savedNavWidth = await window.electronAPI.store.get('versepc_nav_width');
+    const navWidth = parseInt(savedNavWidth, 10);
+    if (Number.isFinite(navWidth)) {
+      const clamped = Math.max(64, Math.min(160, navWidth));
+      document.body.style.setProperty('--classic-sidebar-width', clamped + 'px');
+    }
+  } catch (e) {}
+
   function setProgress(val, statusText) {
     if (!splashProgress) return;
     splashProgress.style.width = Math.min(val, 100) + '%';

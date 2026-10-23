@@ -310,6 +310,17 @@ function applyAutoCollapseNavValue(enabled) {
   if (st) st.autoCollapseNav = !!enabled;
 }
 
+/** 应用「默认导航栏宽度」（仅经典导航栏生效，单位 px） */
+function applyNavWidthValue(value) {
+  let width = parseInt(value, 10);
+  if (!Number.isFinite(width)) width = 80;
+  width = Math.max(64, Math.min(160, width));
+  document.body.style.setProperty('--classic-sidebar-width', width + 'px');
+  window.electronAPI.store.set('versepc_nav_width', width).catch(() => {});
+  const st = getPersonalizeState();
+  if (st) st.navWidth = width;
+}
+
 /** 兼容旧调用：enabled 表示“显示名称”，内部转换为新的“名称隐藏” */
 function applySidebarLabelsValue(enabled) {
   applyHideNavLabelsValue(!enabled);
@@ -623,7 +634,7 @@ async function loadPersonalizeStateIntoStore() {
     if (saved) legacy = JSON.parse(saved);
   } catch (e) { /* 忽略旧数据解析错误 */ }
 
-  const [savedTheme, savedWallpaper, glassSaved, liquidGlassSaved, customColor, customLight, weWallpaperSaved, navMinimalSaved, navHideLabelsSaved, navAutoCollapseSaved, rememberWindowSizeSaved, startFullscreenSaved] = await Promise.all([
+  const [savedTheme, savedWallpaper, glassSaved, liquidGlassSaved, customColor, customLight, weWallpaperSaved, navMinimalSaved, navHideLabelsSaved, navAutoCollapseSaved, navWidthSaved, rememberWindowSizeSaved, startFullscreenSaved] = await Promise.all([
     window.electronAPI?.store?.get('versepc_theme'),
     window.electronAPI?.store?.get('versepc_wallpaper'),
     window.electronAPI?.store?.get('versepc_glass_effect'),
@@ -634,6 +645,7 @@ async function loadPersonalizeStateIntoStore() {
     window.electronAPI?.store?.get('versepc_nav_minimal'),
     window.electronAPI?.store?.get('versepc_nav_hide_labels'),
     window.electronAPI?.store?.get('versepc_nav_auto_collapse'),
+    window.electronAPI?.store?.get('versepc_nav_width'),
     window.electronAPI?.store?.get('versepc_window_remember_size'),
     window.electronAPI?.store?.get('versepc_window_start_fullscreen'),
   ]);
@@ -676,6 +688,12 @@ async function loadPersonalizeStateIntoStore() {
     ? (navAutoCollapseSaved === '1' || navAutoCollapseSaved === true)
     : true;
 
+  // ── 默认导航栏宽度：默认 80px ──
+  const savedNavWidth = parseInt(navWidthSaved, 10);
+  st.navWidth = Number.isFinite(savedNavWidth)
+    ? Math.max(64, Math.min(160, savedNavWidth))
+    : 80;
+
   // ── 窗口大小记忆：单项键优先，默认开启（保留 1.7.2 已有的自动记忆行为） ──
   st.rememberWindowSize = rememberWindowSizeSaved !== null && rememberWindowSizeSaved !== undefined
     ? (rememberWindowSizeSaved === '1' || rememberWindowSizeSaved === true)
@@ -713,6 +731,7 @@ async function savePersonalizeSettings() {
         minimalNav: st.minimalNav,
         hideNavLabels: st.hideNavLabels,
         autoCollapseNav: st.autoCollapseNav,
+        navWidth: st.navWidth,
         // 兼容旧字段（旧版本读取这两个字段）
         sidebarLabels: !st.hideNavLabels,
         sidebarPin: !st.autoCollapseNav,
@@ -727,6 +746,7 @@ async function savePersonalizeSettings() {
         minimalNav: document.getElementById('setting-minimal-nav')?.checked ?? false,
         hideNavLabels: document.getElementById('setting-nav-hide-labels')?.checked ?? true,
         autoCollapseNav: document.getElementById('setting-nav-auto-collapse')?.checked ?? true,
+        navWidth: document.getElementById('setting-nav-width')?.value ?? 80,
         sidebarLabels: !(document.getElementById('setting-nav-hide-labels')?.checked ?? true),
         sidebarPin: !(document.getElementById('setting-nav-auto-collapse')?.checked ?? true),
         rememberWindowSize: document.getElementById('setting-window-remember-size')?.checked ?? true,
@@ -743,6 +763,7 @@ async function savePersonalizeSettings() {
     await window.electronAPI.store.set('versepc_nav_minimal', settings.minimalNav ? '1' : '0');
     await window.electronAPI.store.set('versepc_nav_hide_labels', settings.hideNavLabels ? '1' : '0');
     await window.electronAPI.store.set('versepc_nav_auto_collapse', settings.autoCollapseNav ? '1' : '0');
+    await window.electronAPI.store.set('versepc_nav_width', Number(settings.navWidth) || 80);
     await window.electronAPI.store.set('versepc_window_remember_size', settings.rememberWindowSize ? '1' : '0');
     await window.electronAPI.store.set('versepc_window_start_fullscreen', settings.startFullscreen ? '1' : '0');
     showToast('个性化设置已保存', 'success');
@@ -764,6 +785,7 @@ async function resetPersonalizeSettings() {
     st.minimalNav = false;
     st.hideNavLabels = true;
     st.autoCollapseNav = true;
+    st.navWidth = 80;
     st.rememberWindowSize = true;
     st.startFullscreen = false;
     st.customColor = '#4c8dff';
@@ -785,6 +807,7 @@ async function resetPersonalizeSettings() {
   applyMinimalNavValue(false);
   applyHideNavLabelsValue(true);
   applyAutoCollapseNavValue(true);
+  applyNavWidthValue(80);
   applyRememberWindowSizeValue(true);
   applyStartFullscreenValue(false);
 
@@ -800,6 +823,7 @@ async function resetPersonalizeSettings() {
       minimalNav: false,
       hideNavLabels: true,
       autoCollapseNav: true,
+      navWidth: 80,
       sidebarLabels: false,
       sidebarPin: false,
       rememberWindowSize: true,
@@ -821,6 +845,7 @@ async function resetPersonalizeSettings() {
     await window.electronAPI.store.set('versepc_nav_minimal', '0');
     await window.electronAPI.store.set('versepc_nav_hide_labels', '1');
     await window.electronAPI.store.set('versepc_nav_auto_collapse', '1');
+    await window.electronAPI.store.set('versepc_nav_width', 80);
     await window.electronAPI.store.set('versepc_window_remember_size', '1');
     await window.electronAPI.store.set('versepc_window_start_fullscreen', '0');
     await window.electronAPI.store.delete('versepc_window_state');
@@ -847,4 +872,5 @@ async function loadPersonalizeSettings() {
   applyMinimalNavValue(st.minimalNav);
   applyHideNavLabelsValue(st.hideNavLabels);
   applyAutoCollapseNavValue(st.autoCollapseNav);
+  applyNavWidthValue(st.navWidth);
 }

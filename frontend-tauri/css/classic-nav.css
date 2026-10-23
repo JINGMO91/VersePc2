@@ -21,7 +21,12 @@ body.classic-nav .sidebar {
     border-right: 1px solid var(--border);
     border-radius: 0;
     background: var(--bg-glass);
-    box-shadow: none;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.85) inset,
+        0 -1px 0 rgba(255, 255, 255, 0.12) inset,
+        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+        0 18px 40px rgba(0, 0, 0, 0.10),
+        12px 0 32px rgba(0, 0, 0, 0.06);
     opacity: 1;
     pointer-events: auto;
     transform: translateX(0);
@@ -290,18 +295,27 @@ body.classic-nav .nav-sub-btn.active {
 html[data-theme="dark"] body.classic-nav .sidebar {
     background: linear-gradient(180deg, rgba(44, 46, 54, 0.95), rgba(33, 35, 41, 0.93));
     border-right-color: rgba(255, 255, 255, 0.16);
-    box-shadow: none;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.14) inset,
+        0 -1px 0 rgba(255, 255, 255, 0.05) inset,
+        0 10px 30px rgba(0, 0, 0, 0.40),
+        12px 0 32px rgba(0, 0, 0, 0.18);
 }
 
 html[data-liquid-glass] body.classic-nav .sidebar {
     border: none;
     border-right: 1px solid rgba(255, 255, 255, 0.55);
     border-radius: 0;
-    box-shadow: none;
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.85) inset,
+        12px 0 32px rgba(0, 0, 0, 0.06);
 }
 
 html[data-theme="dark"][data-liquid-glass] body.classic-nav .sidebar {
     border-right-color: rgba(255, 255, 255, 0.16);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.14) inset,
+        12px 0 32px rgba(0, 0, 0, 0.18);
 }
 
 /* 弹窗打开时侧栏让位：保留占位，避免内容区在弹窗下跳动 */
@@ -314,10 +328,6 @@ body.classic-nav:has(.modal[data-state="open"]) .sidebar {
 
 /* 窄窗口下经典侧栏仍保持固定宽度；内容区由 main-container 的 padding 让位 */
 @media (max-width: 900px) {
-    body.classic-nav {
-        --classic-sidebar-width: 76px;
-    }
-
     body.classic-nav .nav-sub-btn {
         padding-left: 7px;
         font-size: 9px;
