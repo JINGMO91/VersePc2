@@ -18,8 +18,9 @@
       customColorGroupVisible: false,
       glassEffect: false,
       liquidGlass: false,
-      sidebarLabels: false,
-      sidebarPin: false,
+      minimalNav: false,
+      hideNavLabels: true,
+      autoCollapseNav: true,
       // 窗口大小记忆默认开启，保持 1.7.2 起已有的自动记忆行为
       rememberWindowSize: true,
       startFullscreen: false,
@@ -463,11 +464,14 @@
       onLiquidChange(enabled) {
         if (typeof applyLiquidGlassEffectValue === 'function') applyLiquidGlassEffectValue(enabled);
       },
-      onSidebarLabelsChange(enabled) {
-        if (typeof applySidebarLabelsValue === 'function') applySidebarLabelsValue(enabled);
+      onMinimalNavChange(enabled) {
+        if (typeof applyMinimalNavValue === 'function') applyMinimalNavValue(enabled);
       },
-      onSidebarPinChange(enabled) {
-        if (typeof applySidebarPinValue === 'function') applySidebarPinValue(enabled);
+      onHideNavLabelsChange(enabled) {
+        if (typeof applyHideNavLabelsValue === 'function') applyHideNavLabelsValue(enabled);
+      },
+      onAutoCollapseNavChange(enabled) {
+        if (typeof applyAutoCollapseNavValue === 'function') applyAutoCollapseNavValue(enabled);
       },
       onRememberWindowSizeChange(enabled) {
         if (typeof applyRememberWindowSizeValue === 'function') applyRememberWindowSizeValue(enabled);
@@ -495,17 +499,24 @@
             </div>
             <div class="form-group">
               <label class="checkbox-label">
-                <input type="checkbox" id="setting-sidebar-labels" :checked="state.sidebarLabels" @change="onSidebarLabelsChange($event.target.checked)">
-                <span>侧边栏按钮显示名称</span>
+                <input type="checkbox" id="setting-minimal-nav" :checked="state.minimalNav" @change="onMinimalNavChange($event.target.checked)">
+                <span>简约导航栏</span>
               </label>
-              <span class="form-hint">在侧边栏导航按钮底部显示页面名称，默认关闭</span>
+              <span class="form-hint">关闭时使用经典侧栏（图标 + 名称，资源子菜单在侧栏内展开）；开启后切换为悬浮胶囊导航，默认关闭</span>
             </div>
-            <div class="form-group">
+            <div class="form-group nav-sub-options" v-show="state.minimalNav">
               <label class="checkbox-label">
-                <input type="checkbox" id="setting-sidebar-pin" :checked="state.sidebarPin" @change="onSidebarPinChange($event.target.checked)">
-                <span>侧边栏单点不自动回收</span>
+                <input type="checkbox" id="setting-nav-hide-labels" :checked="state.hideNavLabels" @change="onHideNavLabelsChange($event.target.checked)">
+                <span>导航栏钮名称隐藏</span>
               </label>
-              <span class="form-hint">开启后点击侧边栏导航不会自动收起，可手动点关闭按钮或遮罩收起，默认关闭</span>
+              <span class="form-hint">开启后简约导航栏只显示图标，不显示按钮名称，默认开启</span>
+            </div>
+            <div class="form-group nav-sub-options" v-show="state.minimalNav">
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-nav-auto-collapse" :checked="state.autoCollapseNav" @change="onAutoCollapseNavChange($event.target.checked)">
+                <span>导航栏单点自动收回</span>
+              </label>
+              <span class="form-hint">开启后点击简约导航栏的导航项会自动收起，默认开启</span>
             </div>
             <div class="form-group">
               <label class="checkbox-label">

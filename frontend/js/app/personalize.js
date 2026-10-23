@@ -273,20 +273,51 @@ function applyLiquidGlassEffectValue(enabled) {
   if (st) st.liquidGlass = !!enabled;
 }
 
-/** 应用侧边栏固定（选中后不自动收起）：body 类 + 持久化 */
-function applySidebarPinValue(enabled) {
-  document.body.classList.toggle('sidebar-keep-open', !!enabled);
-  window.electronAPI.store.set('versepc_sidebar_pin', enabled ? '1' : '0').catch(() => {});
+/** 应用「简约导航栏」：经典侧栏（默认）↔ 悬浮胶囊 */
+function applyMinimalNavValue(enabled) {
+  window.electronAPI.store.set('versepc_nav_minimal', enabled ? '1' : '0').catch(() => {});
+  if (typeof window.applyNavigationMode === 'function') window.applyNavigationMode(!!enabled);
   const st = getPersonalizeState();
-  if (st) st.sidebarPin = !!enabled;
+  if (st) st.minimalNav = !!enabled;
+  // 经典侧栏不挂胶囊折射；切回简约时按当前液态玻璃状态重新同步
+  if (st) syncLiquidGlassSurfaces(st.liquidGlass);
+  // 切换模式后同步两个子选项的状态类（经典侧栏会忽略这两个类）
+  applyHideNavLabelsValue(st ? st.hideNavLabels : true);
+  applyAutoCollapseNavValue(st ? st.autoCollapseNav : true);
 }
 
-/** 应用侧边栏按钮底部名称显示（body 类 + 持久化） */
-function applySidebarLabelsValue(enabled) {
-  document.body.classList.toggle('show-nav-labels', !!enabled);
-  window.electronAPI.store.set('versepc_sidebar_labels', enabled ? '1' : '0').catch(() => {});
+/** 应用「导航栏钮名称隐藏」：开启时隐藏简约胶囊的文字标签 */
+function applyHideNavLabelsValue(enabled) {
+  if (document.body.classList.contains('minimal-nav')) {
+    document.body.classList.toggle('show-nav-labels', !enabled);
+  } else {
+    document.body.classList.remove('show-nav-labels');
+  }
+  window.electronAPI.store.set('versepc_nav_hide_labels', enabled ? '1' : '0').catch(() => {});
   const st = getPersonalizeState();
-  if (st) st.sidebarLabels = !!enabled;
+  if (st) st.hideNavLabels = !!enabled;
+}
+
+/** 应用「导航栏单点自动收回」：开启时点击导航项后自动收起简约胶囊 */
+function applyAutoCollapseNavValue(enabled) {
+  if (document.body.classList.contains('minimal-nav')) {
+    document.body.classList.toggle('sidebar-keep-open', !enabled);
+  } else {
+    document.body.classList.remove('sidebar-keep-open');
+  }
+  window.electronAPI.store.set('versepc_nav_auto_collapse', enabled ? '1' : '0').catch(() => {});
+  const st = getPersonalizeState();
+  if (st) st.autoCollapseNav = !!enabled;
+}
+
+/** 兼容旧调用：enabled 表示“显示名称”，内部转换为新的“名称隐藏” */
+function applySidebarLabelsValue(enabled) {
+  applyHideNavLabelsValue(!enabled);
+}
+
+/** 兼容旧调用：enabled 表示“保持展开”，内部转换为新的“单点自动收回” */
+function applySidebarPinValue(enabled) {
+  applyAutoCollapseNavValue(!enabled);
 }
 
 /** 应用“记住启动器窗口大小”（仅持久化，下次关闭/启动时生效） */
@@ -312,9 +343,12 @@ function syncLiquidGlassSurfaces(enabled) {
   const engine = window.LiquidGlass;
   if (!engine || !engine.supported) return;
   const targets = [
-    [document.querySelector('.sidebar'), { depth: 0.5, strength: 0.34, blur: 1.5 }],
     [document.getElementById('sidebar-toggle-btn'), { depth: 0.5, strength: 0.3, blur: 1.2 }]
   ];
+  // SDF 折射只适合胶囊造型；经典侧栏是整块面板，不挂折射层
+  if (document.body.classList.contains('minimal-nav')) {
+    targets.unshift([document.querySelector('.sidebar'), { depth: 0.5, strength: 0.34, blur: 1.5 }]);
+  }
   targets.forEach(([element, options]) => {
     if (!element) return;
     if (enabled) engine.apply(element, options);
@@ -589,7 +623,7 @@ async function loadPersonalizeStateIntoStore() {
     if (saved) legacy = JSON.parse(saved);
   } catch (e) { /* 忽略旧数据解析错误 */ }
 
-  const [savedTheme, savedWallpaper, glassSaved, liquidGlassSaved, customColor, customLight, weWallpaperSaved, sidebarLabelsSaved, sidebarPinSaved, rememberWindowSizeSaved, startFullscreenSaved] = await Promise.all([
+  const [savedTheme, savedWallpaper, glassSaved, liquidGlassSaved, customColor, customLight, weWallpaperSaved, navMinimalSaved, navHideLabelsSaved, navAutoCollapseSaved, rememberWindowSizeSaved, startFullscreenSaved] = await Promise.all([
     window.electronAPI?.store?.get('versepc_theme'),
     window.electronAPI?.store?.get('versepc_wallpaper'),
     window.electronAPI?.store?.get('versepc_glass_effect'),
@@ -597,8 +631,9 @@ async function loadPersonalizeStateIntoStore() {
     window.electronAPI?.store?.get('versepc_custom_theme_color'),
     window.electronAPI?.store?.get('versepc_custom_theme_light'),
     window.electronAPI?.store?.get('versepc_we_wallpaper'),
-    window.electronAPI?.store?.get('versepc_sidebar_labels'),
-    window.electronAPI?.store?.get('versepc_sidebar_pin'),
+    window.electronAPI?.store?.get('versepc_nav_minimal'),
+    window.electronAPI?.store?.get('versepc_nav_hide_labels'),
+    window.electronAPI?.store?.get('versepc_nav_auto_collapse'),
     window.electronAPI?.store?.get('versepc_window_remember_size'),
     window.electronAPI?.store?.get('versepc_window_start_fullscreen'),
   ]);
@@ -626,15 +661,20 @@ async function loadPersonalizeStateIntoStore() {
     ? (liquidGlassSaved === '1' || liquidGlassSaved === true)
     : (legacy && legacy.liquidGlass !== undefined ? !!legacy.liquidGlass : false);
 
-  // ── 侧边栏按钮名称：单项键优先，其次旧复合键，默认关闭 ──
-  st.sidebarLabels = sidebarLabelsSaved !== null && sidebarLabelsSaved !== undefined
-    ? (sidebarLabelsSaved === '1' || sidebarLabelsSaved === true)
-    : (legacy && legacy.sidebarLabels !== undefined ? !!legacy.sidebarLabels : false);
-
-  // ── 侧边栏固定：单项键优先，默认关闭 ──
-  st.sidebarPin = sidebarPinSaved !== null && sidebarPinSaved !== undefined
-    ? (sidebarPinSaved === '1' || sidebarPinSaved === true)
+  // ── 简约导航栏：默认关闭（使用经典侧栏） ──
+  st.minimalNav = navMinimalSaved !== null && navMinimalSaved !== undefined
+    ? (navMinimalSaved === '1' || navMinimalSaved === true)
     : false;
+
+  // ── 导航栏钮名称隐藏：默认开启（简约模式下只显示图标） ──
+  st.hideNavLabels = navHideLabelsSaved !== null && navHideLabelsSaved !== undefined
+    ? (navHideLabelsSaved === '1' || navHideLabelsSaved === true)
+    : true;
+
+  // ── 导航栏单点自动收回：默认开启 ──
+  st.autoCollapseNav = navAutoCollapseSaved !== null && navAutoCollapseSaved !== undefined
+    ? (navAutoCollapseSaved === '1' || navAutoCollapseSaved === true)
+    : true;
 
   // ── 窗口大小记忆：单项键优先，默认开启（保留 1.7.2 已有的自动记忆行为） ──
   st.rememberWindowSize = rememberWindowSizeSaved !== null && rememberWindowSizeSaved !== undefined
@@ -670,8 +710,12 @@ async function savePersonalizeSettings() {
         wallpaper: st.wallpaper,
         glassEffect: st.glassEffect,
         liquidGlass: st.liquidGlass,
-        sidebarLabels: st.sidebarLabels,
-        sidebarPin: st.sidebarPin,
+        minimalNav: st.minimalNav,
+        hideNavLabels: st.hideNavLabels,
+        autoCollapseNav: st.autoCollapseNav,
+        // 兼容旧字段（旧版本读取这两个字段）
+        sidebarLabels: !st.hideNavLabels,
+        sidebarPin: !st.autoCollapseNav,
         rememberWindowSize: st.rememberWindowSize,
         startFullscreen: st.startFullscreen
       }
@@ -680,8 +724,11 @@ async function savePersonalizeSettings() {
         wallpaper: document.querySelector('.wallpaper-option.active')?.dataset.wallpaper || 'none',
         glassEffect: document.getElementById('setting-glass-effect')?.checked ?? false,
         liquidGlass: document.getElementById('setting-liquid-glass')?.checked ?? false,
-        sidebarLabels: document.body.classList.contains('show-nav-labels'),
-        sidebarPin: document.body.classList.contains('sidebar-keep-open'),
+        minimalNav: document.getElementById('setting-minimal-nav')?.checked ?? false,
+        hideNavLabels: document.getElementById('setting-nav-hide-labels')?.checked ?? true,
+        autoCollapseNav: document.getElementById('setting-nav-auto-collapse')?.checked ?? true,
+        sidebarLabels: !(document.getElementById('setting-nav-hide-labels')?.checked ?? true),
+        sidebarPin: !(document.getElementById('setting-nav-auto-collapse')?.checked ?? true),
         rememberWindowSize: document.getElementById('setting-window-remember-size')?.checked ?? true,
         startFullscreen: document.getElementById('setting-window-start-fullscreen')?.checked ?? false
       };
@@ -693,8 +740,9 @@ async function savePersonalizeSettings() {
     await window.electronAPI.store.set('versepc_wallpaper', settings.wallpaper);
     await window.electronAPI.store.set('versepc_glass_effect', settings.glassEffect ? '1' : '0');
     await window.electronAPI.store.set('versepc_liquid_glass', settings.liquidGlass ? '1' : '0');
-    await window.electronAPI.store.set('versepc_sidebar_labels', settings.sidebarLabels ? '1' : '0');
-    await window.electronAPI.store.set('versepc_sidebar_pin', settings.sidebarPin ? '1' : '0');
+    await window.electronAPI.store.set('versepc_nav_minimal', settings.minimalNav ? '1' : '0');
+    await window.electronAPI.store.set('versepc_nav_hide_labels', settings.hideNavLabels ? '1' : '0');
+    await window.electronAPI.store.set('versepc_nav_auto_collapse', settings.autoCollapseNav ? '1' : '0');
     await window.electronAPI.store.set('versepc_window_remember_size', settings.rememberWindowSize ? '1' : '0');
     await window.electronAPI.store.set('versepc_window_start_fullscreen', settings.startFullscreen ? '1' : '0');
     showToast('个性化设置已保存', 'success');
@@ -713,8 +761,9 @@ async function resetPersonalizeSettings() {
     st.wallpaper = 'none';
     st.glassEffect = false;
     st.liquidGlass = false;
-    st.sidebarLabels = false;
-    st.sidebarPin = false;
+    st.minimalNav = false;
+    st.hideNavLabels = true;
+    st.autoCollapseNav = true;
     st.rememberWindowSize = true;
     st.startFullscreen = false;
     st.customColor = '#4c8dff';
@@ -733,8 +782,9 @@ async function resetPersonalizeSettings() {
   await applyWallpaperByName('none');
   applyGlassEffectValue(false);
   applyLiquidGlassEffectValue(false);
-  applySidebarLabelsValue(false);
-  applySidebarPinValue(false);
+  applyMinimalNavValue(false);
+  applyHideNavLabelsValue(true);
+  applyAutoCollapseNavValue(true);
   applyRememberWindowSizeValue(true);
   applyStartFullscreenValue(false);
 
@@ -747,6 +797,9 @@ async function resetPersonalizeSettings() {
       wallpaper: 'none',
       glassEffect: false,
       liquidGlass: false,
+      minimalNav: false,
+      hideNavLabels: true,
+      autoCollapseNav: true,
       sidebarLabels: false,
       sidebarPin: false,
       rememberWindowSize: true,
@@ -765,8 +818,9 @@ async function resetPersonalizeSettings() {
     await window.electronAPI.store.set('versepc_panorama_theme', 'overworld');
     await window.electronAPI.store.set('versepc_glass_effect', '0');
     await window.electronAPI.store.set('versepc_liquid_glass', '0');
-    await window.electronAPI.store.set('versepc_sidebar_labels', '0');
-    await window.electronAPI.store.set('versepc_sidebar_pin', '0');
+    await window.electronAPI.store.set('versepc_nav_minimal', '0');
+    await window.electronAPI.store.set('versepc_nav_hide_labels', '1');
+    await window.electronAPI.store.set('versepc_nav_auto_collapse', '1');
     await window.electronAPI.store.set('versepc_window_remember_size', '1');
     await window.electronAPI.store.set('versepc_window_start_fullscreen', '0');
     await window.electronAPI.store.delete('versepc_window_state');
@@ -790,6 +844,7 @@ async function loadPersonalizeSettings() {
   await applyWallpaperByName(st.wallpaper);
   applyGlassEffectValue(st.glassEffect);
   applyLiquidGlassEffectValue(st.liquidGlass);
-  applySidebarLabelsValue(st.sidebarLabels);
-  applySidebarPinValue(st.sidebarPin);
+  applyMinimalNavValue(st.minimalNav);
+  applyHideNavLabelsValue(st.hideNavLabels);
+  applyAutoCollapseNavValue(st.autoCollapseNav);
 }

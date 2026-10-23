@@ -78,6 +78,16 @@ async function init() {
   } catch (e) {}
   _mark('theme');
 
+  // 导航栏模式尽早应用：默认经典侧栏，开启「简约导航栏」后切回悬浮胶囊。
+  // 尽早切换可避免已保存简约模式的用户在启动时看到经典侧栏闪一下。
+  try {
+    const savedNavMode = await window.electronAPI.store.get('versepc_nav_minimal');
+    const useMinimalNav = savedNavMode === '1' || savedNavMode === true;
+    if (typeof window.applyNavigationMode === 'function') {
+      window.applyNavigationMode(useMinimalNav);
+    }
+  } catch (e) {}
+
   function setProgress(val, statusText) {
     if (!splashProgress) return;
     splashProgress.style.width = Math.min(val, 100) + '%';
@@ -468,8 +478,9 @@ function loadWallpaperSettings() {
 
 function setupNavigation() {
   // 完成导航后收起悬浮胶囊（安卓抽屉式：选中即收起）
-  // 「侧边栏单点不自动回收」开启时（body.sidebar-keep-open）跳过自动收起，保留遮罩/Esc/关闭按钮手动收起
+  // 经典侧栏常驻，不因导航点击收起；简约模式由「导航栏单点自动收回」控制
   const collapseSidebar = () => {
+    if (document.body.classList.contains('classic-nav')) return;
     if (document.body.classList.contains('sidebar-keep-open')) return;
     if (typeof window.closeSidebarPanel === 'function') window.closeSidebarPanel();
   };

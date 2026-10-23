@@ -82,6 +82,47 @@ function updateHomeStats() {
 let isWindowMode = false;
 let isWindowMaximized = false;
 
+/**
+ * 应用导航栏模式。
+ * classic（默认）：左侧固定侧栏，图标 + 名称，资源等子菜单在侧栏内展开。
+ * minimal：保留原有的悬浮胶囊导航。
+ */
+function applyNavigationMode(minimal) {
+  const body = document.body;
+  const useMinimal = !!minimal;
+  body.classList.toggle('minimal-nav', useMinimal);
+  body.classList.toggle('classic-nav', !useMinimal);
+  try {
+    localStorage.setItem('versepc_nav_minimal', useMinimal ? '1' : '0');
+  } catch (e) {}
+
+  if (useMinimal) {
+    body.classList.remove('classic-sidebar-collapsed');
+    let open = false;
+    try { open = localStorage.getItem('versepc_sidebar_open') === '1'; } catch (e) {}
+    body.classList.toggle('sidebar-open', open);
+  } else {
+    body.classList.remove('sidebar-open');
+    // 经典侧栏始终显示名称、点击导航不自动收起；这两个状态类只属于简约模式
+    body.classList.remove('show-nav-labels');
+    body.classList.remove('sidebar-keep-open');
+    let collapsed = false;
+    try { collapsed = localStorage.getItem('versepc_classic_sidebar_collapsed') === '1'; } catch (e) {}
+    body.classList.toggle('classic-sidebar-collapsed', collapsed);
+  }
+
+  const toggleBtn = document.getElementById('sidebar-toggle-btn');
+  if (toggleBtn) {
+    const expanded = useMinimal
+      ? body.classList.contains('sidebar-open')
+      : !body.classList.contains('classic-sidebar-collapsed');
+    toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  }
+  // 导航栏宽度变化会影响 Vue 网格/卡片布局
+  window.dispatchEvent(new Event('resize'));
+}
+window.applyNavigationMode = applyNavigationMode;
+
 function setupWindowControls() {
   const windowControls = document.getElementById('window-controls');
   const windowModeCheckbox = document.getElementById('setting-window-mode');
@@ -93,10 +134,11 @@ function setupWindowControls() {
   }
   if (windowControls && !isMac) windowControls.style.display = 'flex';
 
-  // 侧边栏悬浮胶囊：左上角圆形按钮切换展开/收起，遮罩点击与 Esc 收起
+  // 侧边导航：经典模式为左侧固定侧栏，简约模式为悬浮胶囊
   const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
   if (sidebarToggleBtn) {
     const overlay = document.getElementById('sidebar-overlay');
+    const isClassicNav = () => document.body.classList.contains('classic-nav');
 
     const setSidebarOpen = (open) => {
       document.body.classList.toggle('sidebar-open', open);
@@ -106,34 +148,51 @@ function setupWindowControls() {
       window.dispatchEvent(new Event('resize'));
     };
 
+    const setClassicCollapsed = (collapsed) => {
+      document.body.classList.toggle('classic-sidebar-collapsed', collapsed);
+      sidebarToggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      try { localStorage.setItem('versepc_classic_sidebar_collapsed', collapsed ? '1' : '0'); } catch (e) {}
+      window.dispatchEvent(new Event('resize'));
+    };
+
     sidebarToggleBtn.addEventListener('click', () => {
-      setSidebarOpen(!document.body.classList.contains('sidebar-open'));
+      if (isClassicNav()) {
+        setClassicCollapsed(!document.body.classList.contains('classic-sidebar-collapsed'));
+      } else {
+        setSidebarOpen(!document.body.classList.contains('sidebar-open'));
+      }
     });
 
     if (overlay) {
       overlay.addEventListener('click', () => {
-        // 「侧边栏单点不自动回收」开启时，点击遮罩/页面区域不收起，保持常驻展开
+        if (isClassicNav()) return;
+        // 「导航栏单点自动收回」关闭时（body.sidebar-keep-open），点击遮罩/页面区域不收起
         if (document.body.classList.contains('sidebar-keep-open')) return;
         setSidebarOpen(false);
       });
     }
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+      if (e.key === 'Escape' && !isClassicNav() && document.body.classList.contains('sidebar-open')) {
         setSidebarOpen(false);
       }
     });
 
-    // 供页面导航等逻辑复用：完成导航后自动收起胶囊
-    window.closeSidebarPanel = () => setSidebarOpen(false);
+    // 供页面导航等逻辑复用：完成导航后自动收起胶囊（经典侧栏不收起）
+    window.closeSidebarPanel = () => {
+      if (isClassicNav()) return;
+      setSidebarOpen(false);
+    };
 
-    // 恢复上次的展开状态
-    try {
-      if (localStorage.getItem('versepc_sidebar_open') === '1') {
-        document.body.classList.add('sidebar-open');
-        sidebarToggleBtn.setAttribute('aria-expanded', 'true');
-      }
-    } catch (e) {}
+    // 恢复简约模式上次的展开状态（经典模式由 applyNavigationMode 恢复）
+    if (!isClassicNav()) {
+      try {
+        if (localStorage.getItem('versepc_sidebar_open') === '1') {
+          document.body.classList.add('sidebar-open');
+          sidebarToggleBtn.setAttribute('aria-expanded', 'true');
+        }
+      } catch (e) {}
+    }
   }
 
   const winBtnMinimize = document.getElementById('win-btn-minimize');
