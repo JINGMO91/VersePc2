@@ -5,6 +5,7 @@
 let currentModDetailData = null;
 let mdAllVersions = [];
 let mdCurrentTab = '';
+let mdLoaderFilter = '';
 let currentModDetailType = 'mod';
 let mdCurrentDeps = [];
 let mdDepsResolved = {};
@@ -101,6 +102,26 @@ function switchMdTab(tab) {
     const el = document.getElementById('md-tab-' + name);
     if (el) el.classList.toggle('active', name === tab);
   });
+  // 加载器筛选只在“版本”标签下向右展开
+  const loaderFilter = document.getElementById('md-loader-filter');
+  if (loaderFilter) {
+    const open = tab === 'versions';
+    loaderFilter.classList.toggle('open', open);
+    loaderFilter.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+}
+
+function updateMdLoaderChips() {
+  document.querySelectorAll('#md-loader-filter .md-loader-chip').forEach(chip => {
+    chip.classList.toggle('active', (chip.dataset.loader || '') === mdLoaderFilter);
+  });
+}
+
+function setMdLoaderFilter(loader) {
+  mdLoaderFilter = (loader || '').toLowerCase();
+  updateMdLoaderChips();
+  // 保留当前游戏版本标签，只重新渲染版本列表
+  switchMdVersionTab(mdCurrentTab || '', window._mdTabMode);
 }
 
 async function renderModDescription(detail) {
@@ -265,6 +286,8 @@ function installCurrentDetailVersion() {
 }
 
 function resetMdDetailView() {
+  mdLoaderFilter = '';
+  updateMdLoaderChips();
   switchMdTab('description');
   const descEl = document.getElementById('md-body-content');
   if (descEl) descEl.innerHTML = '';
@@ -504,6 +527,7 @@ function renderMdVersionTabs(detailSeq) {
     tabsContainer.innerHTML = tabsHtml;
   }
   window._mdTabMode = mode;
+  mdCurrentTab = '';
   renderMdVersionList(mdAllVersions);
 }
 
@@ -1125,8 +1149,16 @@ function _sortVersionsByNumber(versions) {
 
 function renderMdVersionList(versions) {
   const container = document.getElementById('md-version-list');
-  if (versions.length === 0) {
-    container.innerHTML = '<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">无匹配版本</p>';
+  if (!container) return;
+
+  // 加载器筛选：只保留 loaders 中包含目标加载器的版本
+  if (mdLoaderFilter) {
+    versions = (versions || []).filter(v =>
+      (v.loaders || []).some(l => l.toLowerCase() === mdLoaderFilter));
+  }
+
+  if (!versions || versions.length === 0) {
+    container.innerHTML = `<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">${mdLoaderFilter ? '该加载器下无匹配版本' : '无匹配版本'}</p>`;
     return;
   }
 

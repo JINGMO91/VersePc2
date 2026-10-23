@@ -1047,6 +1047,32 @@ async function maybeShowPostInstallDeps(projectId, source, versionId, savePath, 
     const optionalRefs = ((versionData && versionData.dependencies) || [])
       .filter(d => d && d.projectId && (d.dependencyType === 'optional' || d.dependencyType === '2'));
 
+    // 没有任何声明依赖时不必弹窗
+    if (versionData && (versionData.dependencies || []).length === 0) return;
+
+    // 先立刻弹出“检查中”弹窗，再异步查版本，避免安装完成后干等
+    const existing = document.getElementById('post-install-deps-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'post-install-deps-modal';
+    modal.className = 'modal-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:10005;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+    modal.innerHTML = `<div style="background:var(--bg-primary);border-radius:14px;padding:22px;width:92%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.35);">
+      <h3 style="margin:0 0 6px;font-size:16px;font-weight:700;">前置模组</h3>
+      <p style="margin:0 0 14px;font-size:13px;color:var(--text-secondary);">模组安装已完成，正在检查前置...</p>
+      <div id="pi-loading" style="display:flex;align-items:center;gap:8px;padding:10px 0 16px;font-size:13px;color:var(--text-muted);">
+        <span class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
+        正在检查前置...
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="pi-skip" class="btn btn-secondary">跳过</button>
+        <button id="pi-download" class="btn btn-primary" disabled>一键下载</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#pi-skip').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
     const targetVid = matchInstalledVersion(targetGame, targetLoader);
     const installedPromise = targetVid
       ? API.getVersionMods(targetVid).catch(() => [])
@@ -1101,15 +1127,14 @@ async function maybeShowPostInstallDeps(projectId, source, versionId, savePath, 
     });
     const optional = [...optionalMap.values()].filter(d => !isInstalled(d));
 
-    if (required.length === 0 && optional.length === 0) return;
-
-    const existing = document.getElementById('post-install-deps-modal');
-    if (existing) existing.remove();
-
-    const modal = document.createElement('div');
-    modal.id = 'post-install-deps-modal';
-    modal.className = 'modal-overlay';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:10005;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);';
+    if (required.length === 0 && optional.length === 0) {
+      const loading = modal.querySelector('#pi-loading');
+      if (loading) loading.innerHTML = '未检测到需要下载的前置';
+      const skip = modal.querySelector('#pi-skip');
+      if (skip) skip.textContent = '知道了';
+      setTimeout(() => { if (modal.parentNode) modal.remove(); }, 1400);
+      return;
+    }
 
     const rowHtml = (dep, index) => {
       const ver = dep.compatibleVersion;
@@ -1150,12 +1175,11 @@ async function maybeShowPostInstallDeps(projectId, source, versionId, savePath, 
           <input type="checkbox" id="pi-select-all" style="width:14px;height:14px;accent-color:var(--primary);"> 全选可选前置
         </label>
         <div style="display:flex;gap:10px;justify-content:flex-end;">
-          <button id="pi-skip" style="padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-primary);cursor:pointer;font-size:13px;">跳过</button>
-          <button id="pi-download" style="padding:8px 18px;border-radius:8px;border:none;background:var(--primary);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">一键下载</button>
+          <button id="pi-skip" class="btn btn-secondary">跳过</button>
+          <button id="pi-download" class="btn btn-primary">一键下载</button>
         </div>
       </div>
     </div>`;
-    document.body.appendChild(modal);
 
     const downloadBtn = modal.querySelector('#pi-download');
     const selectAll = modal.querySelector('#pi-select-all');
@@ -1238,6 +1262,8 @@ async function maybeShowPostInstallDeps(projectId, source, versionId, savePath, 
     };
   } catch (e) {
     console.warn('[PostInstallDeps] 前置弹窗失败:', e);
+    const failedModal = document.getElementById('post-install-deps-modal');
+    if (failedModal) failedModal.remove();
   }
 }
 
