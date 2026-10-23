@@ -5,6 +5,7 @@
 let currentModDetailData = null;
 let mdAllVersions = [];
 let mdCurrentTab = '';
+let mdLoaderFilter = '';
 let currentModDetailType = 'mod';
 let mdCurrentDeps = [];
 let mdDepsResolved = {};
@@ -101,6 +102,26 @@ function switchMdTab(tab) {
     const el = document.getElementById('md-tab-' + name);
     if (el) el.classList.toggle('active', name === tab);
   });
+  // 加载器筛选只在“版本”标签下向右展开
+  const loaderFilter = document.getElementById('md-loader-filter');
+  if (loaderFilter) {
+    const open = tab === 'versions';
+    loaderFilter.classList.toggle('open', open);
+    loaderFilter.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+}
+
+function updateMdLoaderChips() {
+  document.querySelectorAll('#md-loader-filter .md-loader-chip').forEach(chip => {
+    chip.classList.toggle('active', (chip.dataset.loader || '') === mdLoaderFilter);
+  });
+}
+
+function setMdLoaderFilter(loader) {
+  mdLoaderFilter = (loader || '').toLowerCase();
+  updateMdLoaderChips();
+  // 保留当前游戏版本标签，只重新渲染版本列表
+  switchMdVersionTab(mdCurrentTab || '', window._mdTabMode);
 }
 
 async function renderModDescription(detail) {
@@ -265,6 +286,8 @@ function installCurrentDetailVersion() {
 }
 
 function resetMdDetailView() {
+  mdLoaderFilter = '';
+  updateMdLoaderChips();
   switchMdTab('description');
   const descEl = document.getElementById('md-body-content');
   if (descEl) descEl.innerHTML = '';
@@ -504,6 +527,7 @@ function renderMdVersionTabs(detailSeq) {
     tabsContainer.innerHTML = tabsHtml;
   }
   window._mdTabMode = mode;
+  mdCurrentTab = '';
   renderMdVersionList(mdAllVersions);
 }
 
@@ -579,18 +603,45 @@ async function loadModDependencies() {
 
   if (!depsSection || !depsList) return;
 
+  // 依赖兼容性优先跟随下载页当前筛选（版本/加载器），
+  // 未筛选时才回退到已选中的游戏实例，避免“筛选了 1.21.11 Fabric 却按 Forge 实例检查”
+  const verInfo = await getInstalledVersionInfo();
+  const filterGameVersion = getCustomSelectValue('mod-filter-version') || '';
+  const filterLoader = getCustomSelectValue('mod-filter-loader') || '';
+  const currentGameVersion = filterGameVersion || verInfo.gameVersion;
+  const currentLoader = filterLoader || verInfo.loaderType;
+  const hasVersionFilter = !!(currentGameVersion || currentLoader);
+
+  // 只汇总当前目标游戏版本/加载器下的依赖。
+  // 不能把 mdAllVersions 里所有历史版本的依赖取并集，否则旧版本的前置会污染当前版本，
+  // 出现“26.3 明明有对应版本，却显示某个旧前置无对应版本”的误报。
+  const targetVersions = hasVersionFilter
+    ? mdAllVersions.filter(v => {
+        const gvOk = !currentGameVersion || (v.gameVersions || []).includes(currentGameVersion);
+        const lOk = !currentLoader || (v.loaders || []).some(l => l.toLowerCase() === currentLoader.toLowerCase());
+        return gvOk && lOk;
+      })
+    : mdAllVersions;
+
   const allDeps = new Map();
   const mdSource = currentModDetailSource || 'modrinth';
-  mdAllVersions.forEach(v => {
+  targetVersions.forEach(v => {
     (v.dependencies || []).forEach(d => {
-      if (d.projectId && !allDeps.has(d.projectId)) {
-        let type = d.dependencyType || '';
-        if (mdSource === 'curseforge') {
-          // 后端已将 CurseForge relationType 统一为 required/optional/incompatible
-          type = type === 'required' ? 'required' : (type === 'incompatible' ? 'incompatible' : 'optional');
-        }
-        allDeps.set(d.projectId, Object.assign({}, d, { dependencyType: type }));
+      if (!d.projectId) return;
+      let type = d.dependencyType || '';
+      if (mdSource === 'curseforge') {
+        // 后端已将 CurseForge relationType 统一为 required/optional/incompatible
+        type = type === 'required' ? 'required' : (type === 'incompatible' ? 'incompatible' : 'optional');
       }
+      const existing = allDeps.get(d.projectId);
+      if (existing) {
+        // 同一目标下多个文件对同一前置的要求不一致时，required 优先
+        if (type === 'required' && existing.dependencyType !== 'required') {
+          existing.dependencyType = 'required';
+        }
+        return;
+      }
+      allDeps.set(d.projectId, Object.assign({}, d, { dependencyType: type }));
     });
   });
 
@@ -604,15 +655,6 @@ async function loadModDependencies() {
 
   const requiredDeps = depArray.filter(d => d.dependencyType === 'required');
   depsSection.style.display = 'block';
-
-  // 依赖兼容性优先跟随下载页当前筛选（版本/加载器），
-  // 未筛选时才回退到已选中的游戏实例，避免“筛选了 1.21.11 Fabric 却按 Forge 实例检查”
-  const verInfo = await getInstalledVersionInfo();
-  const filterGameVersion = getCustomSelectValue('mod-filter-version') || '';
-  const filterLoader = getCustomSelectValue('mod-filter-loader') || '';
-  const currentGameVersion = filterGameVersion || verInfo.gameVersion;
-  const currentLoader = filterLoader || verInfo.loaderType;
-  const hasVersionFilter = !!(currentGameVersion || currentLoader);
 
   if (!hasVersionFilter) {
     if (depsCount) depsCount.textContent = `(${requiredDeps.length} 必选, ${depArray.length - requiredDeps.length} 可选) — 请先选择游戏版本`;
@@ -701,8 +743,8 @@ async function loadModDependencies() {
         } catch (e) { console.warn('[ModInstall] 依赖检查失败:', e.message); }
       }
 
-      const compatibleCount = requiredDeps.filter(d => versionInfo[d.projectId]?.hasCompatibleVersion).length;
-      const incompatibleCount = requiredDeps.filter(d => !versionInfo[d.projectId]?.hasCompatibleVersion).length;
+      const compatibleCount = depArray.filter(d => versionInfo[d.projectId]?.hasCompatibleVersion).length;
+      const incompatibleCount = depArray.filter(d => !versionInfo[d.projectId]?.hasCompatibleVersion).length;
       if (depsCount) {
         let countText = `(${requiredDeps.length} 必选, ${depArray.length - requiredDeps.length} 可选)`;
         countText += ` — ${compatibleCount} 个有对应版本`;
@@ -1107,8 +1149,16 @@ function _sortVersionsByNumber(versions) {
 
 function renderMdVersionList(versions) {
   const container = document.getElementById('md-version-list');
-  if (versions.length === 0) {
-    container.innerHTML = '<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">无匹配版本</p>';
+  if (!container) return;
+
+  // 加载器筛选：只保留 loaders 中包含目标加载器的版本
+  if (mdLoaderFilter) {
+    versions = (versions || []).filter(v =>
+      (v.loaders || []).some(l => l.toLowerCase() === mdLoaderFilter));
+  }
+
+  if (!versions || versions.length === 0) {
+    container.innerHTML = `<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">${mdLoaderFilter ? '该加载器下无匹配版本' : '无匹配版本'}</p>`;
     return;
   }
 
