@@ -383,8 +383,10 @@ pub fn build_launch_arguments(
         jvm_args.push("-Dlog4j2.formatMsgNoLookups=true".to_string());
     }
 
-    // macOS 必须在主线程启动（LWJGL 要求）
-    if cfg!(target_os = "macos") {
+    // macOS 必须在主线程启动（LWJGL 要求），用户已配置时不重复添加
+    if cfg!(target_os = "macos")
+        && !jvm_args.iter().any(|a| a.starts_with("-XstartOnFirstThread"))
+    {
         jvm_args.insert(0, "-XstartOnFirstThread".to_string());
     }
 
@@ -794,32 +796,21 @@ fn compare_lib_version(a: &str, b: &str) -> std::cmp::Ordering {
     Ordering::Equal
 }
 
-/// 判断库是否为 native 库（按 classifiers 判断）
-fn is_native_library(lib: &Value, current_os: &str) -> bool {
-    let classifiers = lib
-        .get("downloads")
-        .and_then(|d| d.get("classifiers"))
-        .and_then(|c| c.as_object());
-    if let Some(classifiers) = classifiers {
-        let native_keys = [
-            format!("natives-{}", current_os),
-            format!("natives-{}-legacy", current_os),
-            format!("natives-{}-arm64", current_os),
-        ];
-        for k in &native_keys {
-            if classifiers.contains_key(k) {
-                return true;
-            }
-        }
-        // 检查 lib.name 中是否含 natives-<os> 后缀
-        let name = utils::get_str(lib, "name");
-        if name.contains(&format!(":natives-{}:", current_os))
-            || name.contains(&format!(":natives-{}-legacy:", current_os))
-        {
-            return true;
-        }
+/// 判断库是否为 native 库（任何平台的 natives-* 都不应进入 classpath）
+fn is_native_library(lib: &Value, _current_os: &str) -> bool {
+    // 旧版 JSON 用 natives 字段 + classifiers；新版 JSON 把原生包作为独立 classifier 条目
+    lib.get("natives").is_some() || utils::get_str(lib, "name").contains(":natives-")
+}
+
+/// 原生库包使用的平台后缀（Windows/macOS/Linux）
+fn native_os_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "macos"
+    } else {
+        "linux"
     }
-    false
 }
 
 /// Maven 名称转相对路径
@@ -919,7 +910,15 @@ fn extract_natives_dir(
         .cloned()
         .unwrap_or_default();
     let current_platform = dep_check::current_platform_name();
+    let native_os = native_os_name();
     let is_64 = cfg!(target_pointer_width = "64");
+    let is_arm64 = cfg!(target_arch = "aarch64");
+    // 同一库可能同时提供通用包（x86_64）与 arm64 专用包，arm64 上优先专用包
+    let has_arm_variant = libraries.iter().any(|lib| {
+        let name = utils::get_str(lib, "name");
+        name.contains(&format!(":natives-{}-arm64", native_os))
+            || name.contains(&format!(":natives-{}-aarch64", native_os))
+    });
 
     // 搜索路径：外部根 libraries 优先，其次本地 libraries，再 .minecraft/libraries
     let mut search_bases: Vec<PathBuf> = Vec::new();
@@ -974,13 +973,25 @@ fn extract_natives_dir(
                 continue;
             }
             let platform_native = native_suffix.strip_prefix("natives-").unwrap_or("");
-            let valid = if is_64 {
-                platform_native == current_platform
-                    || platform_native == format!("{}-x64", current_platform)
+            // Minecraft 的规则名是 osx，但原生包后缀是 macos/natives-macos
+            let arch_ok = if is_arm64 {
+                if has_arm_variant {
+                    platform_native.ends_with("arm64") || platform_native.ends_with("aarch64")
+                } else {
+                    !platform_native.ends_with("x86") && !platform_native.ends_with("x64")
+                }
             } else {
-                platform_native == format!("{}-x86", current_platform)
-                    || platform_native == current_platform
+                !platform_native.ends_with("arm64")
+                    && !platform_native.ends_with("aarch64")
+                    && !(is_64 && platform_native.ends_with("-x86"))
             };
+            let valid = arch_ok
+                && (platform_native == native_os
+                    || platform_native == format!("{}-legacy", native_os)
+                    || platform_native == format!("{}-x64", native_os)
+                    || platform_native == format!("{}-x86", native_os)
+                    || platform_native == format!("{}-arm64", native_os)
+                    || platform_native == format!("{}-aarch64", native_os));
             if !valid {
                 continue;
             }
@@ -1114,7 +1125,8 @@ fn native_lib_exists(natives_dir: &Path, key: &str, ext: &str) -> bool {
     };
     entries.flatten().any(|entry| {
         let name = entry.file_name().to_string_lossy().to_lowercase();
-        name.contains(key) && name.ends_with(&format!(".{}", ext))
+        name.contains(key)
+            && (name.ends_with(&format!(".{}", ext)) || name.ends_with(".jnilib"))
     })
 }
 
@@ -2010,21 +2022,33 @@ fn get_screen_size() -> (u32, u32, u32) {
             }
         }
     }
-    // macOS：Finder 桌面 bounds（逻辑像素）
+    // macOS：system_profiler 读取主显示器分辨率（避免 osascript 触发自动化权限弹窗）
     #[cfg(target_os = "macos")]
     {
-        if let Ok(out) = std::process::Command::new("osascript")
-            .args(["-e", "tell application \"Finder\" to get bounds of window of desktop"])
-            .output()
-        {
-            let text = String::from_utf8_lossy(&out.stdout);
-            let nums: Vec<u32> = text.split(',').filter_map(|s| s.trim().parse().ok()).collect();
-            if nums.len() == 4 && nums[2] > nums[0] && nums[3] > nums[1] {
-                let w = nums[2] - nums[0];
-                let h = nums[3] - nums[1];
-                return (w, h, h);
+        static MAC_SCREEN: std::sync::OnceLock<(u32, u32, u32)> = std::sync::OnceLock::new();
+        return *MAC_SCREEN.get_or_init(|| {
+            if let Ok(out) = std::process::Command::new("system_profiler")
+                .arg("SPDisplaysDataType")
+                .output()
+            {
+                let text = String::from_utf8_lossy(&out.stdout);
+                for line in text.lines() {
+                    let line = line.trim();
+                    if let Some(pos) = line.find("Resolution:") {
+                        let rest = &line[pos + 11..];
+                        let mut parts = rest.split_whitespace();
+                        if let Some(size) = parts.next() {
+                            let nums: Vec<u32> =
+                                size.split('x').filter_map(|s| s.parse().ok()).collect();
+                            if nums.len() == 2 && nums[0] > 0 && nums[1] > 0 {
+                                return (nums[0], nums[1], nums[1]);
+                            }
+                        }
+                    }
+                }
             }
-        }
+            (0, 0, 0)
+        });
     }
     (0, 0, 0)
 }

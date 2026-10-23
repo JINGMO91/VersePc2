@@ -1561,8 +1561,16 @@ async fn install_mojang_runtime(
     } else {
         "linux"
     };
+    // Apple Silicon 缺少专用运行时（旧组件）时回退到 mac-os（可通过 Rosetta 运行）
     let platform_runtimes = runtime_list
         .get(platform_key)
+        .or_else(|| {
+            if platform_key == "mac-os-arm64" {
+                runtime_list.get("mac-os")
+            } else {
+                None
+            }
+        })
         .and_then(|v| v.as_object())
         .ok_or_else(|| format!("平台 {} 无 Java 运行时", platform_key))?;
 

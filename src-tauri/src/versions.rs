@@ -2711,12 +2711,22 @@ async fn handle_export_script(body: &Option<Value>) -> crate::api::ApiResult {
     let script_path = temp_dir.join(&file_name);
 
     match std::fs::write(&script_path, &content) {
-        Ok(_) => ApiResult::ok(json!({
-            "success": true,
-            "content": content,
-            "fileName": file_name,
-            "path": script_path.to_string_lossy()
-        })),
+        Ok(_) => {
+            #[cfg(unix)]
+            if ext == "sh" {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(
+                    &script_path,
+                    std::fs::Permissions::from_mode(0o755),
+                );
+            }
+            ApiResult::ok(json!({
+                "success": true,
+                "content": content,
+                "fileName": file_name,
+                "path": script_path.to_string_lossy()
+            }))
+        }
         Err(e) => ApiResult::err(500, &format!("写入脚本失败: {}", e)),
     }
 }
