@@ -630,7 +630,11 @@ pub fn build_classpath(
     external_version_dir: Option<&Path>,
     libraries_dir: &Path,
 ) -> Vec<String> {
-    let mut classpath: Vec<String> = Vec::new();
+    // 同一 group:artifact 只保留版本最高的一个。
+    // 典型场景：原版 1.21.10 带 asm 9.6，Fabric 带 asm 9.10.1，
+    // 两个 jar 同时进入 classpath 会让 Fabric 校验报
+    // "duplicate ASM classes found on classpath" 并以退出码 1 结束。
+    let mut entries: Vec<ClasspathEntry> = Vec::new();
     let libraries = version_json
         .get("libraries")
         .and_then(|v| v.as_array())
@@ -672,41 +676,122 @@ pub fn build_classpath(
             continue;
         }
 
+        let mut resolved_path: Option<String> = None;
+
         // 优先用 downloads.artifact.path
         if let Some(artifact) = lib.get("downloads").and_then(|d| d.get("artifact")) {
             if let Some(path) = artifact.get("path").and_then(|p| p.as_str()) {
                 if !path.is_empty() {
-                    if let Some(found) = find_lib_in_bases(&search_bases, path) {
-                        if !classpath.contains(&found) {
-                            classpath.push(found);
-                        }
-                        continue;
-                    }
+                    resolved_path = find_lib_in_bases(&search_bases, path);
                 }
             }
         }
 
         // 回退：从 maven name 解析路径
-        if !name.is_empty() {
+        if resolved_path.is_none() && !name.is_empty() {
             if let Some(rel_path) = maven_name_to_path(&name) {
-                if let Some(found) = find_lib_in_bases(&search_bases, &rel_path) {
-                    if !classpath.contains(&found) {
-                        classpath.push(found);
-                    }
-                    continue;
-                }
+                resolved_path = find_lib_in_bases(&search_bases, &rel_path);
             }
-            // 最后回退：扫描目录
-            if let Some(found) = find_lib_by_fallback(&name, &search_bases) {
-                if !classpath.contains(&found) {
-                    classpath.push(found);
-                }
-            }
+        }
+
+        // 最后回退：扫描目录
+        if resolved_path.is_none() && !name.is_empty() {
+            resolved_path = find_lib_by_fallback(&name, &search_bases);
+        }
+
+        if let Some(path) = resolved_path {
+            push_classpath_entry(&mut entries, &name, path);
         }
     }
 
     let _ = (current_os, current_arch); // 标记变量已用
-    classpath
+    entries.into_iter().map(|e| e.path).collect()
+}
+
+/// classpath 中的一条库记录
+struct ClasspathEntry {
+    /// group:artifact（用于同名库去重）
+    key: Option<String>,
+    version: String,
+    path: String,
+}
+
+/// 加入 classpath；同一 group:artifact 已存在时保留版本更高的那个
+fn push_classpath_entry(entries: &mut Vec<ClasspathEntry>, name: &str, path: String) {
+    // 同一路径只保留一次
+    if entries.iter().any(|e| e.path == path) {
+        return;
+    }
+    let key = lib_artifact_key(name);
+    let version = lib_version_of(name, &path);
+    if let Some(k) = key.as_deref() {
+        if let Some(existing) = entries
+            .iter_mut()
+            .find(|e| e.key.as_deref() == Some(k))
+        {
+            if compare_lib_version(&version, &existing.version) == std::cmp::Ordering::Greater {
+                existing.version = version;
+                existing.path = path;
+            }
+            return;
+        }
+    }
+    entries.push(ClasspathEntry {
+        key,
+        version,
+        path,
+    });
+}
+
+/// 从 Maven 坐标取 group:artifact 作为去重键
+fn lib_artifact_key(name: &str) -> Option<String> {
+    let mut parts = name.split(':');
+    let group = parts.next()?.trim();
+    let artifact = parts.next()?.trim();
+    if group.is_empty() || artifact.is_empty() {
+        return None;
+    }
+    Some(format!("{}:{}", group, artifact))
+}
+
+/// 从 Maven 坐标或文件路径取库版本号
+fn lib_version_of(name: &str, path: &str) -> String {
+    if let Some(v) = name.split(':').nth(2) {
+        let v = v.trim();
+        if !v.is_empty() {
+            return v.to_string();
+        }
+    }
+    Path::new(path)
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string()
+}
+
+/// 库版本比较：按 `.`/`-`/`_`/`+` 分段，数字段按数值比较，其余按字符串比较
+fn compare_lib_version(a: &str, b: &str) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    let split = |s: &str| {
+        s.split(|c: char| c == '.' || c == '-' || c == '_' || c == '+')
+            .map(|p| p.to_string())
+            .collect::<Vec<_>>()
+    };
+    let av = split(a);
+    let bv = split(b);
+    for i in 0..av.len().max(bv.len()) {
+        let x = av.get(i).map(|s| s.as_str()).unwrap_or("0");
+        let y = bv.get(i).map(|s| s.as_str()).unwrap_or("0");
+        let ord = match (x.parse::<u64>(), y.parse::<u64>()) {
+            (Ok(nx), Ok(ny)) => nx.cmp(&ny),
+            _ => x.cmp(y),
+        };
+        if ord != Ordering::Equal {
+            return ord;
+        }
+    }
+    Ordering::Equal
 }
 
 /// 判断库是否为 native 库（按 classifiers 判断）

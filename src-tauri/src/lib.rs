@@ -823,7 +823,8 @@ pub fn run() {
             // 最小化/恢复内存优化
             // - 最小化：延迟 1.5s 后第一次优化，之后每 30s 循环执行
             // - 恢复：立即停止循环，通知前端恢复壁纸
-            // - 空闲 3 分钟无操作：自动执行一次优化
+            // 不在窗口正常显示时定时压缩工作集：EmptyWorkingSet 会打断 WebView2
+            // 渲染线程，造成约 1 秒的周期性卡顿。
             if let Some(main_win) = app.get_webview_window("main") {
                 let app_handle = app.handle().clone();
                 let main_win_for_min = main_win.clone();
@@ -875,22 +876,6 @@ pub fn run() {
                     }
                 });
 
-                // ===== 每 2 分钟自动优化（窗口正常显示时也保持低内存） =====
-                let main_win_for_idle = main_win.clone();
-                tauri::async_runtime::spawn(async move {
-                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(120));
-                    loop {
-                        interval.tick().await;
-                        // 如果此时正最小化（有单独的优化循环在跑），跳过
-                        let minimized = main_win_for_idle.is_minimized().unwrap_or(false);
-                        if !minimized {
-                            // 压缩整个进程树（含 WebView2 子进程），任务管理器内存稳定在低位
-                            trim_working_set_tree();
-                            // 同步提示前端做 GC + 清理隐藏图片缓存
-                            let _ = main_win_for_idle.emit("memory-optimize-request", ());
-                        }
-                    }
-                });
             }
 
             // 初始化 theseus 事件系统：把 Tauri AppHandle 注入 theseus，
