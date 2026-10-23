@@ -59,10 +59,20 @@ const PageModDetail = {
     <div class="md-body">
       <div class="md-layout">
         <div class="md-layout-main">
-          <div class="md-tabs">
-            <button class="md-tab active" data-tab="description" onclick="switchMdTab('description')">描述</button>
-            <button class="md-tab" data-tab="versions" onclick="switchMdTab('versions')">版本</button>
-            <button class="md-tab" data-tab="gallery" onclick="switchMdTab('gallery')" id="md-gallery-tab" style="display:none">画廊</button>
+          <div class="md-tab-row">
+            <div class="md-tabs">
+              <button class="md-tab active" data-tab="description" onclick="switchMdTab('description')">描述</button>
+              <button class="md-tab" data-tab="versions" onclick="switchMdTab('versions')">版本</button>
+              <button class="md-tab" data-tab="gallery" onclick="switchMdTab('gallery')" id="md-gallery-tab" style="display:none">画廊</button>
+            </div>
+            <div id="md-loader-filter" class="md-loader-filter" aria-hidden="true">
+              <span class="md-loader-filter-label">加载器</span>
+              <button class="md-loader-chip active" data-loader="" onclick="setMdLoaderFilter('')" title="显示全部加载器">全部</button>
+              <button class="md-loader-chip" data-loader="forge" onclick="setMdLoaderFilter('forge')" title="只看 Forge 版本">Forge</button>
+              <button class="md-loader-chip" data-loader="fabric" onclick="setMdLoaderFilter('fabric')" title="只看 Fabric 版本">Fabric</button>
+              <button class="md-loader-chip" data-loader="neoforge" onclick="setMdLoaderFilter('neoforge')" title="只看 NeoForge 版本">NeoForge</button>
+              <button class="md-loader-chip" data-loader="quilt" onclick="setMdLoaderFilter('quilt')" title="只看 Quilt 版本">Quilt</button>
+            </div>
           </div>
           <div id="md-tab-description" class="md-tab-content active">
             <div id="md-body-content" class="md-body-content"></div>

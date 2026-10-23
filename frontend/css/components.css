@@ -4244,6 +4244,13 @@ html[data-theme="dark"][data-liquid-glass] .theme-option.active {
 }
 
 /* ===== 资源详情页（描述 / 画廊 / 侧边栏） ===== */
+.md-tab-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
 .md-tabs {
     display: inline-flex;
     gap: 2px;
@@ -4251,7 +4258,53 @@ html[data-theme="dark"][data-liquid-glass] .theme-option.active {
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    margin-bottom: 16px;
+    margin-bottom: 0;
+}
+/* 版本标签右侧的加载器筛选：点击“版本”后向右展开 */
+.md-loader-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateX(-6px);
+    pointer-events: none;
+    transition: max-width 0.28s ease, opacity 0.2s ease, transform 0.28s ease;
+}
+.md-loader-filter.open {
+    max-width: 560px;
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+.md-loader-filter-label {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    user-select: none;
+}
+.md-loader-chip {
+    flex: 0 0 auto;
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.md-loader-chip:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+.md-loader-chip.active {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
 }
 .md-tab {
     padding: 8px 18px;
