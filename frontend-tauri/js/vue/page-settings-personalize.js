@@ -18,8 +18,13 @@
       customColorGroupVisible: false,
       glassEffect: false,
       liquidGlass: false,
-      sidebarLabels: false,
-      sidebarPin: false,
+      minimalNav: false,
+      hideNavLabels: false,
+      autoCollapseNav: false,
+      navWidth: 80,
+      // 窗口大小记忆默认开启，保持 1.7.2 起已有的自动记忆行为
+      rememberWindowSize: true,
+      startFullscreen: false,
       panoramaTheme: 'overworld',
       panoramaSpeed: 5,
       panoramaFollow: false,
@@ -460,11 +465,20 @@
       onLiquidChange(enabled) {
         if (typeof applyLiquidGlassEffectValue === 'function') applyLiquidGlassEffectValue(enabled);
       },
-      onSidebarLabelsChange(enabled) {
-        if (typeof applySidebarLabelsValue === 'function') applySidebarLabelsValue(enabled);
+      onMinimalNavChange(enabled) {
+        if (typeof applyMinimalNavValue === 'function') applyMinimalNavValue(enabled);
       },
-      onSidebarPinChange(enabled) {
-        if (typeof applySidebarPinValue === 'function') applySidebarPinValue(enabled);
+      onHideNavLabelsChange(enabled) {
+        if (typeof applyHideNavLabelsValue === 'function') applyHideNavLabelsValue(enabled);
+      },
+      onAutoCollapseNavChange(enabled) {
+        if (typeof applyAutoCollapseNavValue === 'function') applyAutoCollapseNavValue(enabled);
+      },
+      onRememberWindowSizeChange(enabled) {
+        if (typeof applyRememberWindowSizeValue === 'function') applyRememberWindowSizeValue(enabled);
+      },
+      onStartFullscreenChange(enabled) {
+        if (typeof applyStartFullscreenValue === 'function') applyStartFullscreenValue(enabled);
       }
     },
     template: `
@@ -486,17 +500,90 @@
             </div>
             <div class="form-group">
               <label class="checkbox-label">
-                <input type="checkbox" id="setting-sidebar-labels" :checked="state.sidebarLabels" @change="onSidebarLabelsChange($event.target.checked)">
-                <span>侧边栏按钮显示名称</span>
+                <input type="checkbox" id="setting-minimal-nav" :checked="state.minimalNav" @change="onMinimalNavChange($event.target.checked)">
+                <span>简约导航栏</span>
               </label>
-              <span class="form-hint">在侧边栏导航按钮底部显示页面名称，默认关闭</span>
+              <span class="form-hint">关闭时使用经典侧栏（图标 + 名称，资源子菜单在侧栏内展开）；开启后切换为悬浮胶囊导航，默认关闭</span>
+            </div>
+            <div class="form-group nav-sub-options" v-show="state.minimalNav">
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-nav-hide-labels" :checked="state.hideNavLabels" @change="onHideNavLabelsChange($event.target.checked)">
+                <span>导航栏钮名称隐藏</span>
+              </label>
+              <span class="form-hint">开启后简约导航栏只显示图标，不显示按钮名称，默认关闭</span>
+            </div>
+            <div class="form-group nav-sub-options" v-show="state.minimalNav">
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-nav-auto-collapse" :checked="state.autoCollapseNav" @change="onAutoCollapseNavChange($event.target.checked)">
+                <span>导航栏单点自动收回</span>
+              </label>
+              <span class="form-hint">开启后点击简约导航栏的导航项会自动收起，默认关闭</span>
             </div>
             <div class="form-group">
               <label class="checkbox-label">
-                <input type="checkbox" id="setting-sidebar-pin" :checked="state.sidebarPin" @change="onSidebarPinChange($event.target.checked)">
-                <span>侧边栏单点不自动回收</span>
+                <input type="checkbox" id="setting-window-remember-size" :checked="state.rememberWindowSize" @change="onRememberWindowSizeChange($event.target.checked)">
+                <span>记住启动器窗口大小</span>
               </label>
-              <span class="form-hint">开启后点击侧边栏导航不会自动收起，可手动点关闭按钮或遮罩收起，默认关闭</span>
+              <span class="form-hint">开启后，每次打开启动器都会恢复上次关闭时的窗口大小与最大化状态（关闭时处于全屏则恢复之前的常规大小），默认开启</span>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="setting-window-start-fullscreen" :checked="state.startFullscreen" @change="onStartFullscreenChange($event.target.checked)">
+                <span>启动时全屏</span>
+              </label>
+              <span class="form-hint">开启后，每次打开启动器都以全屏显示（优先于窗口大小记忆）；可按右上角最大化按钮退出全屏，默认关闭</span>
+            </div>
+          </div>
+  `
+  };
+
+  // ============== 布局卡片 ==============
+
+  const LayoutCard = {
+    name: 'LayoutCard',
+    data() {
+      return { resettingHome: false };
+    },
+    computed: {
+      state() { return window.VersePC.personalizeState; }
+    },
+    methods: {
+      onNavWidthInput(value) {
+        if (typeof applyNavWidthValue === 'function') applyNavWidthValue(value);
+      },
+      resetNavWidth() {
+        if (typeof applyNavWidthValue === 'function') applyNavWidthValue(80);
+        if (typeof showToast === 'function') showToast('导航栏宽度已恢复默认', 'success');
+      },
+      resetHomeLayout() {
+        if (this.resettingHome) return;
+        try { localStorage.removeItem('versepc_home_layout_v1'); } catch (e) {}
+        // 通知主页立即回到默认布局（主页为常驻挂载，不会自动重读存储）
+        window.dispatchEvent(new CustomEvent('versepc-home-layout-reset'));
+        this.resettingHome = true;
+        if (typeof showToast === 'function') showToast('主页布局已恢复默认', 'success');
+        const self = this;
+        setTimeout(function () { self.resettingHome = false; }, 1500);
+      }
+    },
+    template: `
+          <div class="card">
+            <h3>布局</h3>
+            <div class="form-group">
+              <label>默认导航栏宽度 <span id="nav-width-value">{{ state.navWidth }}px</span></label>
+              <input type="range" id="setting-nav-width" class="wallpaper-slider" min="64" max="160" step="1"
+                     :value="state.navWidth" @input="onNavWidthInput($event.target.value)">
+              <span class="form-hint">仅经典导航栏生效，默认 80px；拖动后立即生效</span>
+              <div style="margin-top:10px;">
+                <button class="btn btn-secondary" @click="resetNavWidth">恢复默认宽度</button>
+              </div>
+            </div>
+            <div class="layout-subsection">
+              <h4>主页布局</h4>
+              <p class="form-hint" style="color:#6b7280;font-size:13px;margin:0 0 12px;">恢复主页控件（软件名 / 头像 / 版本卡 / 启动按钮 / 存档坞）的默认位置与头像缩放</p>
+              <button class="btn btn-secondary" @click="resetHomeLayout" :disabled="resettingHome">
+                {{ resettingHome ? '已恢复' : '恢复主页默认布局' }}
+              </button>
             </div>
           </div>
   `
@@ -506,13 +593,11 @@
 
   const PageSettingsPersonalize = {
     name: 'PageSettingsPersonalize',
-    data() {
-      return { resettingHome: false };
-    },
     components: {
       ThemeAppearanceCard: ThemeAppearanceCard,
       BackgroundCard: BackgroundCard,
-      VisualEffectsCard: VisualEffectsCard
+      VisualEffectsCard: VisualEffectsCard,
+      LayoutCard: LayoutCard
     },
     template: `
           <div class="page-header">
@@ -522,13 +607,7 @@
             <theme-appearance-card></theme-appearance-card>
             <background-card></background-card>
             <visual-effects-card></visual-effects-card>
-            <div class="card">
-              <h3>主页布局</h3>
-              <p class="form-hint" style="color:#6b7280;font-size:13px;margin:0 0 12px;">恢复主页控件（软件名 / 头像 / 版本卡 / 启动按钮 / 存档坞）的默认位置与头像缩放</p>
-              <button class="btn btn-secondary" @click="resetHomeLayout" :disabled="resettingHome">
-                {{ resettingHome ? '已恢复' : '恢复主页默认布局' }}
-              </button>
-            </div>
+            <layout-card></layout-card>
             <div class="form-actions">
               <button class="btn btn-primary" @click="save">保存设置</button>
               <button class="btn btn-secondary" @click="reset">重置默认</button>
@@ -547,16 +626,6 @@
       },
       reset() {
         if (typeof resetPersonalizeSettings === 'function') resetPersonalizeSettings();
-      },
-      resetHomeLayout() {
-        if (this.resettingHome) return;
-        try { localStorage.removeItem('versepc_home_layout_v1'); } catch (e) {}
-        // 通知主页立即回到默认布局（主页为常驻挂载，不会自动重读存储）
-        window.dispatchEvent(new CustomEvent('versepc-home-layout-reset'));
-        this.resettingHome = true;
-        if (typeof showToast === 'function') showToast('主页布局已恢复默认', 'success');
-        const self = this;
-        setTimeout(function () { self.resettingHome = false; }, 1500);
       }
     }
   };

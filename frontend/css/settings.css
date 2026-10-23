@@ -33,6 +33,31 @@
     margin-bottom: 0;
 }
 
+/* 「简约导航栏」下一级选项：缩进并加左侧引导线，体现层级关系 */
+.form-group.nav-sub-options {
+    margin-left: 18px;
+    padding-left: 14px;
+    border-left: 2px solid var(--border);
+}
+
+.form-group.nav-sub-options .checkbox-label span {
+    font-size: 12.5px;
+}
+
+/* 布局卡片内的分区（如「主页布局」） */
+.layout-subsection {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.layout-subsection h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
 .form-group label {
     display: block;
     font-size: 13px;
