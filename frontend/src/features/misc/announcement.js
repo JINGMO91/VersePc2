@@ -4,13 +4,14 @@ import { switchPage } from '../settings/window-theme.js';
 import { navigateToPage } from '../versions/versions.js';
 
 import { appState } from '../../core/app-state.js';
+import { registerActions } from '../../core/actions.js';
 
 const SUPPORT_MILESTONES = [1, 50, 100];
 
 function getLaunchCount() {
     try { return parseInt(localStorage.getItem('verse_launchCount') || '0', 10); }
     catch (e) { return 0; }
-}
+}
 function incrementLaunchCount() {
     if (appState._launchCounted) return getLaunchCount();
     appState._launchCounted = true;
@@ -213,6 +214,14 @@ async function checkAnnouncementPopup() {
 async function showUpdateAnnouncement() {
     await showAnnouncementModal(true);
 }
+
+// 静态模板按钮统一走事件委托
+registerActions({
+  openSupportPage,
+  dismissSupportModal,
+  dismissAnnouncementModal,
+  announcementGotoUpdateSettings,
+});
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { getLaunchCount, incrementLaunchCount, isSupportMilestone, checkSupportMilestone, showSupportModal, openSupportPage, dismissSupportModal, showAnnouncementModal, dismissAnnouncementModal, announcementGotoUpdateSettings, checkAnnouncementPopup, showUpdateAnnouncement, SUPPORT_MILESTONES, ANNOUNCEMENT_CONTENT };

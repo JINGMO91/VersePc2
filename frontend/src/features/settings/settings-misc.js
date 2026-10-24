@@ -296,6 +296,7 @@ function browseJavaPath() {
 
 registerActions({
   openScreenshot: (event, el, url) => window.open(url, '_blank'),
+  closeScreenshotModal,
 });
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）

@@ -1,7 +1,8 @@
 // vset-actions.js — data-action 注册
 import { registerActions as registerActions } from '../../core/actions.js';
 import { previewMod, toggleModInManager, removeModFromManager } from './vset-mods.js';
-import { openModTranslateDialog } from './vset-translate.js';
+import { openModTranslateDialog, switchTranslateTab, startQuickTranslate, startAutoTranslate, exportModLangFile, importModLangFile } from './vset-translate.js';
+import { hideModal } from '../misc/ui-components.js';
 
 registerActions({
   closeOverlay: (event, el) => el.closest('.modal-overlay')?.remove(),
@@ -9,4 +10,10 @@ registerActions({
   previewMod: (event, el, projectId) => previewMod(projectId),
   openModTranslateDialog: (event, el, fileName, modName) => openModTranslateDialog(fileName, modName),
   removeModFromManager: (event, el, fileName) => removeModFromManager(fileName),
+  switchTranslateTab: (event, el, tab) => switchTranslateTab(tab),
+  startQuickTranslate,
+  startAutoTranslate,
+  exportModLangFile,
+  importModLangFile,
+  hideModal: (event, el, id) => hideModal(id),
 });

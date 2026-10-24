@@ -4,6 +4,7 @@ import { switchPage } from './window-theme.js';
 import { bridge } from '../../core/tauri-bridge.js';
 import { _lazyLoadScript } from '../../core/utils.js';
 import { navigateToPage } from '../versions/versions.js';
+import { registerActions } from '../../core/actions.js';
 
 const api = bridge;
 
@@ -422,5 +423,13 @@ const api = bridge;
     } else {
         initUpdaterUI();
     }
+
+// 静态模板按钮统一走事件委托
+registerActions({
+    handleWindowUpdatePillClick,
+    dismissUpdateModal,
+    gotoUpdateSettings,
+    downloadFromQuark,
+});
 
 export { initUpdaterUI, showUpdatedNotice, showUpdatePill, hideUpdatePill, handleWindowUpdatePillClick, resetButtons, formatBytes, showReleaseNotes, escapeHtml, handleCheckUpdate, handleDownloadUpdate, handleInstallUpdate, handleSkipVersion, dismissUpdateCard, downloadFromGitHub, downloadFromQuark, showUpdatePopup, dismissUpdateModal, gotoUpdateSettings, addUpdateDots };

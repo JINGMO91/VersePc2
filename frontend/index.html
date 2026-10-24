@@ -257,7 +257,7 @@
   <div id="global-drag-strip" data-tauri-drag-region class="global-drag-strip"></div>
   <!-- 浮动窗口控制栏：最顶层，不占空间，右上角 -->
   <div class="floating-window-bar">
-    <div id="window-update-pill" class="window-update-pill" style="display:none" role="button" onclick="handleWindowUpdatePillClick()">
+    <div id="window-update-pill" class="window-update-pill" style="display:none" role="button" data-action="handleWindowUpdatePillClick">
       <span class="window-update-pill__spinner" id="window-update-pill-spinner"></span>
       <span id="window-update-pill-text"></span>
     </div>
@@ -543,10 +543,10 @@
               <div class="support-modal-subtitle">你已经使用 VersePC2 启动 <span class="support-modal-count" id="support-modal-count">0</span> 次了</div>
               <div class="support-modal-desc">如果喜欢，可以去爱发电支持豆杰</div>
               <div class="support-modal-actions">
-                <button class="btn btn-accent" onclick="openSupportPage()">
+                <button class="btn btn-accent" data-action="openSupportPage">
                   去支持
                 </button>
-                <button class="btn btn-secondary" onclick="dismissSupportModal()">下次一定</button>
+                <button class="btn btn-secondary" data-action="dismissSupportModal">下次一定</button>
               </div>
             </div>
           </div>
@@ -557,7 +557,7 @@
           <div class="modal-content announcement-modal-content">
             <div class="modal-header">
               <h3>更新公告</h3>
-              <button class="modal-close" onclick="dismissAnnouncementModal()">&times;</button>
+              <button class="modal-close" data-action="dismissAnnouncementModal">&times;</button>
             </div>
             <div class="modal-body announcement-modal-body">
               <div class="announcement-version" id="announcement-version-badge"></div>
@@ -571,8 +571,8 @@
                 <span>下次启动不再弹出</span>
               </label>
               <div style="display:flex;gap:8px;margin-left:auto;">
-                <button class="modal-btn modal-btn--secondary" onclick="announcementGotoUpdateSettings()">更新设置</button>
-                <button class="modal-btn modal-btn--primary" onclick="dismissAnnouncementModal()">我已知晓</button>
+                <button class="modal-btn modal-btn--secondary" data-action="announcementGotoUpdateSettings">更新设置</button>
+                <button class="modal-btn modal-btn--primary" data-action="dismissAnnouncementModal">我已知晓</button>
               </div>
             </div>
           </div>
@@ -582,7 +582,7 @@
           <div class="modal-content announcement-modal-content" style="max-width:520px;">
             <div class="modal-header">
               <h3 id="update-modal-title">发现新版本</h3>
-              <button class="modal-close" onclick="dismissUpdateModal()">&times;</button>
+              <button class="modal-close" data-action="dismissUpdateModal">&times;</button>
             </div>
             <div class="modal-body announcement-modal-body">
               <div class="announcement-version" id="update-modal-version"></div>
@@ -591,9 +591,9 @@
               </div>
             </div>
             <div class="modal-footer announcement-modal-footer" style="justify-content:flex-end;gap:10px;">
-              <button class="modal-btn modal-btn--primary" id="update-modal-goto-btn" onclick="gotoUpdateSettings()">前往更新</button>
-              <button class="modal-btn modal-btn--secondary" id="update-modal-quark-btn" onclick="downloadFromQuark()">夸克网盘更新</button>
-              <button class="modal-btn modal-btn--primary" id="update-modal-acknowledge-btn" onclick="dismissUpdateModal()" style="display:none;">我已知晓</button>
+              <button class="modal-btn modal-btn--primary" id="update-modal-goto-btn" data-action="gotoUpdateSettings">前往更新</button>
+              <button class="modal-btn modal-btn--secondary" id="update-modal-quark-btn" data-action="downloadFromQuark">夸克网盘更新</button>
+              <button class="modal-btn modal-btn--primary" id="update-modal-acknowledge-btn" data-action="dismissUpdateModal" style="display:none;">我已知晓</button>
             </div>
           </div>
         </div>
@@ -602,7 +602,7 @@
           <div class="modal-content" style="max-width:800px;">
             <div class="modal-header">
               <h3>游戏截图</h3>
-              <button class="modal-close" onclick="closeScreenshotModal()">&times;</button>
+              <button class="modal-close" data-action="closeScreenshotModal">&times;</button>
             </div>
             <div id="screenshot-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;max-height:60vh;overflow-y:auto;padding:12px;">
             </div>
@@ -666,7 +666,7 @@
       </div>
     </div>
 
-    <div id="dl-fab" class="dl-fab" style="display:none" onclick="navigateToPage('downloads')">
+    <div id="dl-fab" class="dl-fab" style="display:none" data-action="navigateToPage" data-args='["downloads"]'>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       <span class="dl-fab-badge" id="dl-fab-badge" style="display:none">0</span>
     </div>
@@ -695,7 +695,7 @@
     <div class="modal-content" style="max-width:560px;">
       <div class="modal-header">
         <h3>模组汉化</h3>
-        <button class="modal-close" onclick="hideModal('mod-translate-modal')">&times;</button>
+        <button class="modal-close" data-action="hideModal" data-args='["mod-translate-modal"]'>&times;</button>
       </div>
       <div class="modal-body" id="mod-translate-body">
         <div id="mod-translate-loading" style="text-align:center;padding:30px 0;">
@@ -708,9 +708,9 @@
             <div style="font-size:12px;color:var(--text-muted);" id="mod-translate-langinfo"></div>
           </div>
           <div id="mod-translate-tabs" style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border-color);">
-            <button class="mod-translate-tab active" data-tab="quick" onclick="switchTranslateTab('quick')">快速汉化</button>
-            <button class="mod-translate-tab" data-tab="auto" onclick="switchTranslateTab('auto')">AI 机翻</button>
-            <button class="mod-translate-tab" data-tab="manual" onclick="switchTranslateTab('manual')">手动汉化</button>
+            <button class="mod-translate-tab active" data-tab="quick" data-action="switchTranslateTab" data-args='["quick"]'>快速汉化</button>
+            <button class="mod-translate-tab" data-tab="auto" data-action="switchTranslateTab" data-args='["auto"]'>AI 机翻</button>
+            <button class="mod-translate-tab" data-tab="manual" data-action="switchTranslateTab" data-args='["manual"]'>手动汉化</button>
           </div>
           <div id="mod-translate-tab-quick" class="mod-translate-panel">
             <p style="color:var(--text-secondary);font-size:13px;line-height:1.7;margin-bottom:12px;">
@@ -723,7 +723,7 @@
               <p id="mod-translate-quick-progress-text" style="font-size:12px;color:var(--text-muted);margin-top:6px;">准备中...</p>
             </div>
             <div id="mod-translate-quick-result" style="display:none;padding:10px 12px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
-            <button class="btn btn-primary" id="mod-translate-quick-btn" onclick="startQuickTranslate()">
+            <button class="btn btn-primary" id="mod-translate-quick-btn" data-action="startQuickTranslate">
               开始快速汉化
             </button>
           </div>
@@ -741,7 +741,7 @@
               <p id="mod-translate-progress-text" style="font-size:12px;color:var(--text-muted);margin-top:6px;">准备中...</p>
             </div>
             <div id="mod-translate-result" style="display:none;padding:10px 12px;border-radius:6px;margin-bottom:12px;font-size:13px;"></div>
-            <button class="btn btn-primary" id="mod-translate-start-btn" onclick="startAutoTranslate()">
+            <button class="btn btn-primary" id="mod-translate-start-btn" data-action="startAutoTranslate">
               开始机翻
             </button>
           </div>
@@ -759,8 +759,8 @@
               </ol>
             </div>
             <div style="display:flex;gap:8px;">
-              <button class="btn btn-secondary" onclick="exportModLangFile()">导出语言文件</button>
-              <button class="btn btn-secondary" onclick="importModLangFile()">导入中文语言文件</button>
+              <button class="btn btn-secondary" data-action="exportModLangFile">导出语言文件</button>
+              <button class="btn btn-secondary" data-action="importModLangFile">导入中文语言文件</button>
             </div>
           </div>
         </div>

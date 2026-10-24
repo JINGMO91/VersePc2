@@ -6,6 +6,7 @@ import { retryLoadVersions, quickDeleteErrorVersion, toggleErrorVersions } from 
 import { selectLoaderVersion } from './versions-install.js';
 import { deleteVersion } from './versions-delete.js';
 import { selectFabricApiVersion, selectFabricApiDetailVersion } from './versions-loaders.js';
+import { navigateToPage } from './versions-nav.js';
 
 registerActions({
   retryLoadVersions,
@@ -19,4 +20,5 @@ registerActions({
   selectLoaderVersion: (event, el, version) => selectLoaderVersion(version),
   selectFabricApiVersion: (event, el, versionId, displayText) => selectFabricApiVersion(versionId || '', displayText),
   selectFabricApiDetailVersion: (event, el, versionId, displayText) => selectFabricApiDetailVersion(versionId || '', displayText),
+  navigateToPage: (event, el, page) => navigateToPage(page),
 });
