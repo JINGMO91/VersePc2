@@ -19,7 +19,7 @@ import { loadAccounts } from '../../features/accounts/accounts-list.js';
 import { handleLaunch, updateGameStatus, stopGameInstance } from '../../features/launch/launch.js';
 import { showToast } from '../../features/misc/ui-components.js';
 import { loadVersions } from '../../features/versions/versions-list.js';
-import { navigateToPage } from '../../features/versions/versions-nav.js';
+import { navigateToPage } from '../../core/navigation.js';
 
 import { appState } from '../../core/app-state.js';
 
@@ -152,6 +152,9 @@ const PageHome = {
     applyLayout(force) {
       const page = this.$refs.homePage;
       if (!page) return;
+      // 页面隐藏时 clientWidth/Height 为 0，按 0 计算会把所有控件压到左上角；
+      // 页面重新可见后尺寸变化会由 ResizeObserver 重新应用一次
+      if (!page.clientWidth || !page.clientHeight) return;
       const layout = force ? {} : loadHomeLayout();
       const pw = page.clientWidth, ph = page.clientHeight;
       for (const key of ['title', 'avatar', 'version', 'launch', 'saves', 'running']) {
@@ -240,6 +243,9 @@ const PageHome = {
             };
             el.addEventListener('click', swallow, true);
             setTimeout(function () { el.removeEventListener('click', swallow, true); }, 350);
+          } else if (typeof onTap === 'function') {
+            // 原地松手（未拖动）= 点击：控件自身没有 click 绑定（如头像）时由这里触发
+            onTap();
           }
         };
         document.addEventListener('pointermove', onMove);
@@ -280,16 +286,20 @@ const PageHome = {
       }
       // 版本卡：按住拖动（内部点击切版本不受影响）
       this.bindDrag(this.$refs.versionEl, 'version', null);
-      // 启动按钮：按住拖动 + 点击启动
-      this.bindDrag(this.$refs.launchEl, 'launch', function () {
-        if (typeof handleLaunch === 'function') handleLaunch();
-      });
+      // 启动按钮：按住拖动；点击启动由 init-setup-nav 里绑定的 click 监听负责，这里不再重复触发
+      this.bindDrag(this.$refs.launchEl, 'launch', null);
       // 运行卡片：按住拖动（排除内部「停止」按钮，避免点击停止被拖动吞掉）
       this.bindDrag(this.$refs.runningEl, 'running', null, '.home-running-stop');
       // 存档坞：按住拖动（存档卡点击启动不受影响）
       this.bindDrag(this.$refs.dockEl, 'saves', null);
       // 窗口尺寸变化时把控件收回可视区域
       window.addEventListener('resize', function () { self.applyLayout(); });
+      // 页面自身尺寸变化同样要重新收敛：导航模式切换的 padding 过渡、侧栏展开/收起、
+      // 全屏切换都不会触发 window.resize，只监听窗口事件会漏掉这些情况
+      if (typeof ResizeObserver !== 'undefined' && this.$refs.homePage) {
+        this._layoutObserver = new ResizeObserver(function () { self.applyLayout(); });
+        this._layoutObserver.observe(this.$refs.homePage);
+      }
       // 个性化页「恢复主页默认布局」
       window.addEventListener('versepc-home-layout-reset', function () { self.applyLayout(true); });
     },
@@ -382,6 +392,12 @@ const PageHome = {
       if (typeof stopGameInstance === 'function') {
         stopGameInstance(sessionId);
       }
+    }
+  },
+  beforeUnmount() {
+    if (this._layoutObserver) {
+      this._layoutObserver.disconnect();
+      this._layoutObserver = null;
     }
   },
   mounted() {
