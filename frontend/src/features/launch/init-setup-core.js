@@ -8,7 +8,7 @@ import { applyCustomThemeColor as applyCustomThemeColor, getSavedCustomThemeLigh
 import { initWallpaperAutoAdapt as initWallpaperAutoAdapt } from '../settings/personalize.js';
 import { loadSettings as loadSettings } from '../settings/settings-load-save.js';
 import { initWallpaper as initWallpaper } from '../settings/wallpaper-engine.js';
-import { loadVersions as loadVersions } from '../versions/versions.js';
+import { loadVersions as loadVersions } from '../versions/versions-list.js';
 import { waitForVueMount as waitForVueMount } from '../../core/vue-ready.js';
 import { S } from './init-setup-state.js';
 import { backgroundLoadWallpaper, setupWindowMemoryEvents } from './init-setup-window.js';

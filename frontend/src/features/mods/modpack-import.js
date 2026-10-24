@@ -8,10 +8,20 @@
 import { bridge } from '../../core/tauri-bridge.js';
 import { showToast } from '../misc/ui-components.js';
 import { loadVersions } from '../versions/versions-list.js';
-import { dlManager } from '../versions/custom-download.js';
 import { DynamicIsland } from '../misc/dynamic-island.js';
 import { featureBridge } from '../../core/feature-bridge.js';
 import { formatSize } from '../../core/utils.js';
+
+// 下载管理面板只在导入进度上报时才需要，按需加载；同一模块的多次调用按注册顺序执行
+let _dlManager = null;
+let _dlManagerPromise = null;
+function withDownloadManager(fn) {
+    if (_dlManager) { fn(_dlManager); return; }
+    _dlManagerPromise = _dlManagerPromise || import('../versions/custom-download.js')
+        .then((m) => { _dlManager = m.dlManager; return _dlManager; })
+        .catch((e) => console.error('[Modpack] 下载模块加载失败:', e));
+    _dlManagerPromise.then(() => { if (_dlManager) fn(_dlManager); });
+}
 
     function init() {
         setupGlobalDrop();
@@ -121,8 +131,8 @@ import { formatSize } from '../../core/utils.js';
 
         if (_useVIsland) {
             DynamicIsland.show(file.name || '整合包导入');
-        } else if (typeof dlManager !== 'undefined') {
-            dlManager.add(taskId, file.name || '整合包导入', 'modpack', sessionId, iconUrl);
+        } else {
+            withDownloadManager((dl) => dl.add(taskId, file.name || '整合包导入', 'modpack', sessionId, iconUrl));
         }
 
         // 进度监听：优先 Tauri event，其次 Electron IPC
@@ -201,10 +211,10 @@ import { formatSize } from '../../core/utils.js';
                     stageHistory: stageHistoryCopy,
                     currentFile: data.currentFile || ''
                 });
-            } else if (typeof dlManager !== 'undefined') {
+            } else {
                 var updateData = { progress: displayPct, status: 'downloading', message: stageText, stageHistory: stageHistoryCopy, currentFile: data.currentFile || '' };
                 if (filesMapped) updateData.files = filesMapped;
-                dlManager.update(taskId, updateData);
+                withDownloadManager((dl) => dl.update(taskId, updateData));
             }
         }
 
@@ -270,8 +280,8 @@ import { formatSize } from '../../core/utils.js';
                 featureBridge.modpackImporting = false;
                 if (_useVIsland) {
                     DynamicIsland.update({ progress: 100, status: 'completed', message: '安装完成' });
-                } else if (typeof dlManager !== 'undefined') {
-                    dlManager.update(taskId, { progress: 100, status: 'completed', message: '安装完成' });
+                } else {
+                    withDownloadManager((dl) => dl.update(taskId, { progress: 100, status: 'completed', message: '安装完成' }));
                 }
                 if (typeof showToast === 'function' && !_useVIsland) {
                     showToast('整合包 "' + (result.name || file.name) + '" 导入成功！', 'success');
@@ -282,8 +292,8 @@ import { formatSize } from '../../core/utils.js';
                 var errMsg = (result && result.error) ? result.error : '导入失败';
                 if (_useVIsland) {
                     DynamicIsland.update({ status: 'failed', message: errMsg });
-                } else if (typeof dlManager !== 'undefined') {
-                    dlManager.update(taskId, { status: 'failed', message: errMsg });
+                } else {
+                    withDownloadManager((dl) => dl.update(taskId, { status: 'failed', message: errMsg }));
                 }
                 if (typeof showToast === 'function' && !_useVIsland) {
                     showToast('导入失败: ' + errMsg, 'error');
@@ -297,8 +307,8 @@ import { formatSize } from '../../core/utils.js';
             var catchMsg = '导入出错: ' + (err.message || err);
             if (_useVIsland) {
                 DynamicIsland.update({ status: 'failed', message: catchMsg });
-            } else if (typeof dlManager !== 'undefined') {
-                dlManager.update(taskId, { status: 'failed', message: catchMsg });
+            } else {
+                withDownloadManager((dl) => dl.update(taskId, { status: 'failed', message: catchMsg }));
             }
             if (typeof showToast === 'function' && !_useVIsland) {
                 showToast(catchMsg, 'error');

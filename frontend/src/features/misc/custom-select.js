@@ -1,5 +1,15 @@
-import { serverHostRefreshVersions, serverHostDetectLoader } from './server-host.js';
-import { loadMods } from '../mods/mod-browse.js';
+// 模组列表与开服页模块按需加载，避免进入启动包
+function reloadMods() {
+    import('../mods/mod-browse.js')
+        .then((m) => m.loadMods())
+        .catch((e) => console.error('[Select] 模组模块加载失败:', e));
+}
+
+function detectServerHostLoader() {
+    import('./server-host.js')
+        .then((m) => m.serverHostDetectLoader())
+        .catch((e) => console.error('[Select] 开服模块加载失败:', e));
+}
 
 // ─── 自定义下拉菜单组件 ──────────────────────────────────
 class CustomSelect {
@@ -235,7 +245,7 @@ function initAllCustomSelects() {
 
     if (!customSelectInstances['mod-filter-loader']) {
         customSelectInstances['mod-filter-loader'] = new CustomSelect('mod-filter-loader-wrapper', {
-            onChange: () => loadMods()
+            onChange: () => reloadMods()
         });
         customSelectInstances['mod-filter-loader'].setOptions([
             { value: '', text: '全部' },
@@ -247,7 +257,7 @@ function initAllCustomSelects() {
 
     if (!customSelectInstances['mod-filter-sort']) {
         customSelectInstances['mod-filter-sort'] = new CustomSelect('mod-filter-sort-wrapper', {
-            onChange: () => loadMods()
+            onChange: () => reloadMods()
         });
         customSelectInstances['mod-filter-sort'].setOptions([
             { value: 'relevance', text: '相关度' },
@@ -259,7 +269,7 @@ function initAllCustomSelects() {
 
     if (!customSelectInstances['mod-filter-source']) {
         customSelectInstances['mod-filter-source'] = new CustomSelect('mod-filter-source-wrapper', {
-            onChange: () => loadMods()
+            onChange: () => reloadMods()
         });
         customSelectInstances['mod-filter-source'].setOptions([
             { value: 'any', text: '全部' },
@@ -270,7 +280,7 @@ function initAllCustomSelects() {
 
     if (!customSelectInstances['mod-filter-category']) {
         customSelectInstances['mod-filter-category'] = new CustomSelect('mod-filter-category-wrapper', {
-            onChange: () => loadMods()
+            onChange: () => reloadMods()
         });
         customSelectInstances['mod-filter-category'].setOptions([
             { value: '', text: '全部' }
@@ -279,7 +289,7 @@ function initAllCustomSelects() {
 
     if (!customSelectInstances['mod-filter-version']) {
         customSelectInstances['mod-filter-version'] = new CustomSelect('mod-filter-version-wrapper', {
-            onChange: () => loadMods()
+            onChange: () => reloadMods()
         });
         customSelectInstances['mod-filter-version'].setOptions([
             { value: '', text: '全部' }
@@ -341,7 +351,7 @@ function initAllCustomSelects() {
     // 开服页面版本选择器（选项由 serverHostRefreshVersions 动态填充）
     if (!customSelectInstances['server-host-version']) {
         customSelectInstances['server-host-version'] = new CustomSelect('server-host-version-wrapper', {
-            onChange: () => { if (typeof serverHostDetectLoader === 'function') serverHostDetectLoader(); }
+            onChange: () => detectServerHostLoader()
         });
         customSelectInstances['server-host-version'].setOptions([{ value: '', text: '加载中...' }]);
     }

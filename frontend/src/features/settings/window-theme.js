@@ -5,7 +5,7 @@ import { API } from '../../core/api.js';
  */
 import { bridge } from '../../core/tauri-bridge.js';
 
-import { resetCarouselPosition, showAccountList, getCurrentDetailAccount } from '../accounts/accounts.js';
+import { getCurrentDetailAccount } from '../accounts/accounts-state.js';
 import { applyAccentColor } from '../launch/java.js';
 import { showToast } from '../misc/ui-components.js';
 import { updateWallpaperTheme } from './wallpaper-engine.js';
@@ -13,6 +13,14 @@ import { selectLaunchVersion } from '../versions/versions-list.js';
 import { navigateToPage, openVersionDetail } from '../versions/versions-nav.js';
 
 import { appState } from '../../core/app-state.js';
+
+// 账户页模块按需加载，避免把账户详情/轮播渲染拉进启动包
+function withAccountList(name, ...args) {
+  import('../accounts/accounts-list.js')
+    .then((m) => m[name](...args))
+    .catch((e) => console.error('[Theme] 账户模块加载失败:', name, e));
+}
+
 function switchTheme(themeName) {
   document.documentElement.setAttribute('data-theme', themeName);
   document.documentElement.classList.toggle('dark-theme', themeName === 'dark');
@@ -362,7 +370,7 @@ function switchPage(pageName) {
   if (!target || target === currentPage) return;
 
   if (currentPage && currentPage.id === 'page-accounts' && getCurrentDetailAccount()) {
-    showAccountList();
+    withAccountList('showAccountList');
   }
 
   if (currentPage) {
@@ -382,9 +390,9 @@ function switchPage(pageName) {
 
   // 切到账户页后，等页面动画/hidden→visible 完成、尺寸稳定，再把轮播轨道定位到中间，
   // 避免首次进入时卡片闪到最左边
-  if (pageName === 'accounts' && typeof resetCarouselPosition === 'function') {
-    setTimeout(() => resetCarouselPosition(), 450);
-    setTimeout(() => resetCarouselPosition(), 900);
+  if (pageName === 'accounts') {
+    setTimeout(() => withAccountList('resetCarouselPosition'), 450);
+    setTimeout(() => withAccountList('resetCarouselPosition'), 900);
   }
 }
 

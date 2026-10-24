@@ -3,7 +3,7 @@ import { API as API } from '../../core/api.js';
 import { vmHolders as vmHolders } from '../../core/vm-holders.js';
 import { escapeHtml as escapeHtml } from '../../core/utils.js';
 import { showToast as showToast, showModal as showModal, hideModal as hideModal } from '../misc/ui-components.js';
-import { versionsState as S } from './versions-state.js';
+import { versionsState as S, getSelectedFolder } from './versions-state.js';
 import { loadVersions, renderInstalledVersionsInto } from './versions-list.js';
 
 async function addExternalFolder() {
@@ -155,11 +155,6 @@ async function confirmAddExternalFolder() {
     confirmBtn.disabled = false;
     confirmBtn.textContent = '添加';
   }
-}
-
-function getSelectedFolder() {
-  try { return localStorage.getItem('versepc_selected_folder') || '__internal'; }
-  catch (e) { return '__internal'; }
 }
 
 function setSelectedFolder(folder) {

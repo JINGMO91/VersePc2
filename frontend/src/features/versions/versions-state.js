@@ -30,3 +30,9 @@ export const versionsState = {
   _fabricApiDetailRecommendedId: '',
   _pendingFabricApiAfterInstall: null,
 };
+
+// 当前选中的版本目录（内置 / 外置目录路径），从本地存储读取
+export function getSelectedFolder() {
+  try { return localStorage.getItem('versepc_selected_folder') || '__internal'; }
+  catch (e) { return '__internal'; }
+}

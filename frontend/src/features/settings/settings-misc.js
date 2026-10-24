@@ -2,7 +2,6 @@ import { API } from '../../core/api.js';
 import { bridge } from '../../core/tauri-bridge.js';
 
 import { formatBytes } from '../../core/utils.js';
-import { loadAccounts } from '../accounts/accounts.js';
 import { loadLaunchSettings } from '../launch/launch-settings.js';
 import { showToast } from '../misc/ui-components.js';
 import { loadOtherSettings } from './other-settings.js';
@@ -12,6 +11,13 @@ import { setupSettingsSubmenu } from './window-theme.js';
 
 import { actionAttrs, registerActions } from '../../core/actions.js';
 import { waitForVueMount } from '../../core/vue-ready.js';
+
+// 清除头像后需要刷新账户数据，账户模块按需加载，避免进入启动包
+function reloadAccounts() {
+    import('../accounts/accounts-list.js')
+        .then((m) => m.loadAccounts())
+        .catch((e) => console.error('[Settings] 账户模块加载失败:', e));
+}
 
 function checkForUpdates() {
     showToast('正在检查更新...', 'info');
@@ -258,7 +264,7 @@ function clearImage(type) {
             const launchAvatar = document.getElementById('launch-avatar');
             if (homeAvatar) homeAvatar.style.backgroundImage = '';
             if (launchAvatar) launchAvatar.style.backgroundImage = '';
-            loadAccounts();
+            reloadAccounts();
             showToast('头像已清除', 'success');
         }).catch(e => showToast('清除失败', 'error'));
     }
