@@ -80,60 +80,8 @@
     color: var(--accent);
 }
 
-.dep-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 8px;
-}
-
-.dep-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-radius: var(--radius);
-    font-size: 13px;
-}
-
-.dep-item.dep-ok {
-    background: rgba(76, 175, 80, 0.1);
-    color: var(--green);
-}
-
-.dep-item.dep-warn {
-    background: rgba(255, 152, 0, 0.1);
-    color: var(--orange);
-}
-
-.dep-item.dep-error {
-    background: rgba(239, 83, 80, 0.1);
-    color: var(--red);
-}
-
-.dep-icon {
-    font-weight: bold;
-    font-size: 14px;
-    min-width: 16px;
-    text-align: center;
-}
-
-.progress-bar-container {
-    width: 100%;
-    height: 6px;
-    background: var(--bg-tertiary);
-    border-radius: 9999px;
-    overflow: hidden;
-}
-
-.progress-bar-container .progress-bar {
-    height: 100%;
-    background: var(--primary);
-    border-radius: 9999px;
-    transition: width 0.3s ease-out;
-    width: 0%;
-    margin-bottom: 0;
-}
+/* 依赖检查列表与进度条容器：对应标记已改由 Vue 组件渲染，原 .dep-* /
+   .progress-bar-container 规则已无引用，故移除。 */
 
 
 
@@ -143,11 +91,7 @@
 }
 
 /* 世界列表 - 存档条目网格 */
-.world-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-}
+/* .world-list 容器已无引用；.world-item 仍在使用，故保留 */
 
 .world-item {
     background: var(--bg-card-glass);
@@ -163,19 +107,7 @@
     border-color: var(--accent);
 }
 
-.world-name {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.world-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--text-muted);
-}
+/* .world-name / .world-meta 已无引用，移除 */
 
 #page-accounts {
     position: relative;

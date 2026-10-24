@@ -212,33 +212,14 @@
     background-color: var(--bg-hover);
 }
 
-.modal-btn--outline {
-    background-color: transparent;
-    color: var(--text-primary);
-    border-color: var(--border);
-}
+/* modal-btn 变体：仅 --secondary / --danger 有引用（features/misc/ui-components.js、
+   features/versions/vset-repair.js），原 --outline / --ghost / --destructive 已无引用，移除。 */
 
-.modal-btn--outline:hover {
-    background-color: var(--bg-hover);
-}
-
-.modal-btn--ghost {
-    background-color: transparent;
-    color: var(--text-secondary);
-}
-
-.modal-btn--ghost:hover {
-    background-color: var(--bg-hover);
-    color: var(--text-primary);
-}
-
-.modal-btn--destructive,
 .modal-btn--danger {
     background-color: #ef4444;
     color: #ffffff;
 }
 
-.modal-btn--destructive:hover,
 .modal-btn--danger:hover {
     background-color: #dc2626;
 }
@@ -254,47 +235,11 @@
     max-width: 48rem;
 }
 
-.modal-xl .modal-content {
-    max-width: 56rem;
-}
+/* .modal-xl 已无引用（最大宽度由各弹窗自身的内联 max-width 控制），移除 */
 
-/* Scrollable content
- * Reference: Radix UI - maxHeight: '85vh' */
+/* .modal-content--scrollable 已无引用，移除 */
 
-.modal-content--scrollable .modal-body {
-    overflow-y: auto;
-    max-height: calc(85vh - 8rem);
-}
-
-/* Skeleton loading
- * Reference: Tailwind CSS animate-pulse pattern */
-
-.modal-skeleton {
-    background-color: var(--bg-tertiary);
-    border-radius: 0.375rem;
-}
-
-@keyframes modal-pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-.modal-skeleton--animated {
-    animation: modal-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.modal-skeleton--line {
-    height: 1rem;
-    margin-bottom: 0.75rem;
-}
-
-.modal-skeleton--line:last-child {
-    width: 60%;
-}
+/* .modal-skeleton* 与 @keyframes modal-pulse 已无引用，移除 */
 
 /* Loading spinner */
 
