@@ -6,6 +6,7 @@
 import './styles/tailwind.css';
 import './features/misc/rose-loader.js';
 import './features/registry.js';
+import './features/misc/translate-modal-tabs.js';
 import './core/plugin-compat.js';
 import './vue/mount.js';
 import { init } from './features/launch/init-setup.js';

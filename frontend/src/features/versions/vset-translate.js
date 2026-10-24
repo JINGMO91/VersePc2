@@ -1,5 +1,6 @@
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { showToast as showToast, showModal as showModal } from '../misc/ui-components.js';
+import { switchTranslateTab as switchTranslateTab } from '../misc/translate-modal-tabs.js';
 import { appState as appState } from '../../core/app-state.js';
 import { S } from './vset-state.js';
 
@@ -82,15 +83,6 @@ async function _resolveModJarPath(fileName) {
 function _getTranslateAIConfig() {
   try { return JSON.parse(localStorage.getItem('v-island-ai-config') || '{}'); }
   catch (_) { return {}; }
-}
-
-function switchTranslateTab(tab) {
-  document.querySelectorAll('.mod-translate-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.tab === tab);
-  });
-  document.getElementById('mod-translate-tab-quick').style.display = tab === 'quick' ? '' : 'none';
-  document.getElementById('mod-translate-tab-auto').style.display = tab === 'auto' ? '' : 'none';
-  document.getElementById('mod-translate-tab-manual').style.display = tab === 'manual' ? '' : 'none';
 }
 
 async function startQuickTranslate() {
