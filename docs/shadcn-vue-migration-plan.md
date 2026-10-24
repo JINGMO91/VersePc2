@@ -204,7 +204,7 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 | P1 组件基座 | 已完成 | 2026-10-24 | 已生成 16 个组件；预览页 `frontend/dev-components.html` |
 | P2 试点页 | 已完成 | 2026-10-24 | 试点页「问题反馈」，产出迁移 playbook |
 | P3 批量迁移 | 已完成 | 2026-10-24 | 4 批共 19 个页面；100+ 通用控件迁移完成 |
-| P4 收尾 | 部分完成 | 2026-10-24 | 已加护栏与死类清理；整站死 CSS 收敛留待后续 |
+| P4 收尾 | 已完成 | 2026-10-24 | 护栏两项 + 死 CSS 核减 + 组件层文档与页面模板 |
 
 ### 执行记录
 
@@ -215,7 +215,8 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 - P2：跳过 preflight 导致 `input/textarea/select` 不继承文字颜色，暗色主题下黑字不可读，已在 `tailwind.css` 补最小重置。
 - P3：19 个页面分批迁移，100+ 个通用控件换成 `components/verse` 封装。识别出**命令式样式切换**这一类隐患：`#mod-multiselect-toggle` 与 `#md-fav-btn` 的激活态由 features 层用 `classList` 切换 `.btn-primary/.btn-secondary` 并重写 `innerHTML`，换成组件后切换将失去视觉反馈，故保留原生按钮与旧类。另写脚本扫描全部 88 个转换后带 id 的元素，确认无其他同类依赖。
 - P3：又修复多处失效的内联事件绑定（settings-other 的 `onkeydown`、mods 的 `oninput`、cloud 的 `@input`、accounts 的 `@change` 等）。**仍有存量失效项**：`#sponsor-search-input` 的 `oninput="filterSponsors(...)"`、`page-mods` / `page-mod-favorites` 上 4 处 checkbox/select 的内联处理器，这些是非替换元素上的绑定，留给后续单独处理。
-- P4：`check-architecture.mjs` 增加存量样式快照校验，未登记的新 CSS 文件会直接报错，阻止「继续堆手写 CSS」。删除已无引用的 `.vset-input` 相关规则；整站 31 个 CSS 的收敛（`.btn` / `.card` / `.text-input` 等全局类）依赖所有页面迁移完毕，本轮按域删除了页面专有规则，全局类仍需保留。
+- P4：`check-architecture.mjs` 增加两项护栏。一是**存量样式快照**：`frontend/public` 下未登记的 CSS 文件直接报错，阻止继续新增手写 CSS。二是**内联样式棘轮**：页面模板中 ≥120 字符的 `style="..."` 只允许减少（基线 29 处），增加即报错。
+- P4：死 CSS 按引用逐个核实后核减 132 行，涉及 `components/base-ui.css` 与 `modal.css`。整站 31 个 CSS 的全局类（`.btn` / `.card` / `.text-input`）仍被 JS 动态生成的标记与自研模态框使用，需等这些结构迁移完才能删；`components/theme.css`、`components/version-ui.css`、`dialogs.css` 本轮未发现可安全删除的整块规则，留待结构迁移后一并处理。
 - 待办：`vue-sonner` 的 Toaster 未接入，通知继续用现有 `#toast-container`。
 - 待办：自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`。它们的显示状态与选项由 features 层命令式驱动（`style.display`、`customSelectInstances`），替换需要同步改写交互代码，风险独立，建议单独立项。
 
