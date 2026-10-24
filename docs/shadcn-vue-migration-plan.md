@@ -201,7 +201,7 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 | 阶段 | 状态 | 完成日期 | 备注 |
 | --- | --- | --- | --- |
 | P0 基建 | 已完成 | 2026-10-24 | 只引 theme + utilities，跳过 preflight；token 经 `@theme inline` 映射到现有变量 |
-| P1 组件基座 | 已完成 | 2026-10-24 | 已生成 16 个组件；预览页 `frontend/dev-components.html` |
+| P1 组件基座 | 已完成 | 2026-10-24 | 已生成 15 个组件；预览页 `frontend/dev-components.html` |
 | P2 试点页 | 已完成 | 2026-10-24 | 试点页「问题反馈」，产出迁移 playbook |
 | P3 批量迁移 | 已完成 | 2026-10-24 | 4 批共 19 个页面；100+ 通用控件迁移完成 |
 | P4 收尾 | 已完成 | 2026-10-24 | 护栏两项 + 死 CSS 核减 + 组件层文档与页面模板 |
