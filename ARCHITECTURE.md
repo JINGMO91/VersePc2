@@ -64,8 +64,8 @@ npm run verify
 | 步骤 | 命令 | 当前结果 |
 | --- | --- | --- |
 | ESLint | `npm run lint` | 0 error / 0 warning |
-| 单元测试 | `npm run test` | 79 个文件 / 767 项通过 |
-| 覆盖率棘轮 | `npm run test:coverage:check` | core 62.3% / features 37.9% / 总 39.0% 基线 |
+| 单元测试 | `npm run test` | 94 个文件 / 1395 项通过 |
+| 覆盖率棘轮 | `npm run test:coverage:check` | core 90.9% / features 55.4% / 总 57.0% 基线 |
 | 循环依赖 | `npm run arch:cycles`（madge） | 0 条 |
 | 生产构建 | `npm run build:web` | 成功，无构建警告 |
 | 架构护栏 | `node scripts/check-architecture.mjs --strict` | 通过 |
@@ -94,8 +94,12 @@ CI（`.github/workflows/verify.yml`）包含：Lint、前端单测、循环依�
 - 页面模板中超长内联 `style` 超过基线（只允许下降）。
 - 首屏 JS 总量超过 800 KB，或单个分包超过 600 KB。
 - 650/900 行级超大业务文件以警告形式报告，提示继续拆分（前端 650 行、Rust 900 行）。
+- 业务文件超过前端 700 行或 Rust 1200 行时阻断；测试文件不计入该硬阈值。
 - `core` 层反向 import `features` 或 `vue`（`plugin-compat.js` 为唯一登记例外）。
 - `features` 层反向 import `vue/pages` 或 `vue/modals`。
+- `features` 跨域依赖按域到域的边登记，只允许减少；新增跨域调用必须走 `core` 中立入口。
+- 模块加载即执行 `setInterval` / `document.addEventListener` / `window.*` 的文件按顶层副作用登记，新增即阻断。
+- `features` 直接访问 `window.__TAURI__` / `window.__TAURI_INTERNALS__` 按文件登记存量，只允许下降；新增访问必须走 `core/tauri-bridge.js`。
 - `components` 层 import `features`、`vue` 或 `core`。
 - 覆盖率与测试密度低于 `scripts/coverage-baseline.json` / `scripts/test-density-baseline.json`（只升不降）。
 
@@ -103,10 +107,10 @@ CI（`.github/workflows/verify.yml`）包含：Lint、前端单测、循环依�
 
 | 指标 | 数值 |
 | --- | --- |
-| 前端业务 JS/MJS 文件 | 229 |
+| 前端业务 JS/MJS 文件 | 230 |
 | Vue SFC | 61 |
-| Rust 文件 | 185 |
-| 前端最大业务文件 | `core/tauri-bridge.js` 674 行 |
+| Rust 文件 | 187 |
+| 前端最大业务文件 | `features/misc/server-host.js` 622 行 |
 | Rust 最大文件 | `transfer.rs` 961 行 |
 | 首屏 JS（入口 + modulepreload） | 17 个文件，548 KB（上限 800 KB） |
 | 最大生产分包 | `vue.esm-bundler` 173.2 KB；业务入口 `main` 166.5 KB（上限 600 KB） |
@@ -114,9 +118,9 @@ CI（`.github/workflows/verify.yml`）包含：Lint、前端单测、循环依�
 | ESLint | 0 warning |
 | npm 依赖漏洞 | 0 |
 | Rust Clippy | `-D warnings` 通过 |
-| Rust 测试 | 103 项通过（含基础版本安装、重复安装、缺失版本等 5 个 mock 服务集成场景） |
-| 前端单测 | 85 个文件 / 1030 项 |
-| 前端行覆盖 | core 62.3% / features 37.9% / 总计 39.0%（棘轮基线） |
+| Rust 测试 | 105 项通过（含基础版本安装、重复安装、缺失版本等 5 个 mock 服务集成场景） |
+| 前端单测 | 94 个文件 / 1395 项 |
+| 前端行覆盖 | core 90.9% / features 55.4% / 总计 57.0%（棘轮基线） |
 | Playwright E2E | 7 个 spec（启动、导航、设置、版本错误、模组、Java、云盘） |
 
 ## 测试策略
@@ -133,7 +137,23 @@ CI（`.github/workflows/verify.yml`）包含：Lint、前端单测、循环依�
 
 - `frontend/public/js/*.bundle.js`：第三方运行时（Three.js、skinview3d 等）的生成产物，不手改；首屏与页面按需加载均不包含它们。
 - `frontend/public/css/**`：历史页面样式，已在架构检查中登记为快照；新页面禁止新增独立 CSS，存量随页面迁移逐步减少。
-- 超大业务文件：核心拆分（版本设置、收藏、反馈、资源、皮肤 API、CurseForge 工具、依赖/启动/系统/游戏接口）已完成，前端最大业务文件降至 `core/tauri-bridge.js` 674 行；Rust 超过 900 行告警线的仅剩 `transfer.rs` 961、`server_host/mod.rs` 951、`updater.rs` 905，均不属于本次拆分范围，列为后续可选优化项。
+- 超大业务文件：核心拆分（版本设置、收藏、反馈、资源、皮肤 API、CurseForge 工具、依赖/启动/系统/游戏接口、更新器）已完成，前端业务文件最大为 `features/misc/server-host.js` 622 行；Rust 超过 900 行告警线的仅剩 `transfer.rs` 961、`server_host/mod.rs` 951，列为后续可选优化项。
+
+## 更新链路资源优化（2026-10-25）
+
+排查结论（依据 `data/logs/updater-download.log` 与 `updater.rs`）：
+
+- 每次重试/换源都新建 `reqwest::Client`，连接池与 TLS 会话被丢弃；同时 30 秒“总请求超时”会把 74 MB 安装包在慢速镜像上反复截断，触发多轮续传。
+- 下载完成后用 8 KB 缓冲同步重读整包做 SHA-256；本机实测 74 MB 哈希约 8–10 秒，表现为一段持续的 CPU/磁盘占用，并阻塞异步运行时。
+- 进度事件每 300 ms 推送一次且前端每次重建进度 DOM；检查更新会等待全部镜像源返回后才结束。
+- `data/updates` 缺少清理，实测残留旧安装包 74 MB 与断点文件 37 MB。
+
+已做优化：
+
+- 下载复用单一 HTTP 客户端（`connect_timeout` 15 秒、总超时 1800 秒），传输停滞由 60 秒无数据检测负责。
+- 全新下载在流式写入时同步计算 SHA-256，不再二次读盘；断点续传走 `spawn_blocking` + 1 MB 缓冲异步校验。
+- 检查更新改为首个有效源返回即取消其余请求；进度事件节流到 500 ms，前端只更新文本与宽度。
+- 自动下载延后 2 秒启动，并自动清理超过 7 天的更新缓存。
 
 ## 约定
 

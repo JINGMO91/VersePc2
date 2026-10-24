@@ -19,6 +19,8 @@
  *       且在 index.html 中以第一顺位加载（早于所有业务 JS）。
  */
 
+import { createBridgeModules } from './tauri-bridge-modules.js';
+
 export const bridge = (function () {
   'use strict';
 
@@ -407,148 +409,12 @@ export const bridge = (function () {
     }
   };
 
-  // ============== 原本已有的三个模块 ==============
-
-  // 下面的代码直接从原 tauri-bridge.js 保留 privateServer / serverHost / redstoneOnline
-
-  // ── invoke 封装（复用上面的 invoke） ──
-
-  // ── 私人服务器（7 个命令） ──
-  var privateServer = {
-    list: function () { return invoke('private_server_list'); },
-    save: function (servers) { return invoke('private_server_save', { servers: servers }); },
-    add: function (server) { return invoke('private_server_add', { server: server }); },
-    update: function (server) { return invoke('private_server_update', { server: server }); },
-    delete: function (id) { return invoke('private_server_delete', { id: id }); },
-    check: function (address) { return invoke('private_server_check', { address: address }); },
-    copyAddress: function (address) { return invoke('private_server_copy_address', { address: address }); },
-    getIcon: function (icon) { return invoke('private_server_icon', { icon: icon }); }
-  };
-
-  // ── 本地开服（11 个命令 + 2 个事件） ──
-  var serverHost = {
-    list: function () { return invoke('server_host_list'); },
-    create: function (opts) {
-      opts = opts || {};
-      return invoke('server_host_create', {
-        versionId: opts.versionId,
-        name: opts.name,
-        port: opts.port,
-        options: {
-          maxMem: opts.maxMem,
-          onlineMode: opts.onlineMode,
-          syncMods: opts.syncMods
-        }
-      });
-    },
-    start: function (opts) {
-      opts = opts || {};
-      return invoke('server_host_start', { serverId: opts.id });
-    },
-    stop: function (opts) {
-      opts = opts || {};
-      return invoke('server_host_stop', { serverId: opts.id });
-    },
-    command: function (opts) {
-      opts = opts || {};
-      return invoke('server_host_command', { serverId: opts.id, cmd: opts.command });
-    },
-    status: function (opts) {
-      var serverId = (opts && opts.id) ? opts.id : null;
-      return invoke('server_host_status', { serverId: serverId });
-    },
-    delete: function (opts) {
-      opts = opts || {};
-      return invoke('server_host_delete', { serverId: opts.id });
-    },
-    openDir: function (opts) {
-      var serverId = (opts && opts.id) ? opts.id : null;
-      return invoke('server_host_open_dir', { serverId: serverId });
-    },
-    resolveVersion: function (opts) {
-      opts = opts || {};
-      return invoke('server_host_resolve_version', { versionId: opts.versionId });
-    },
-    detectLoader: function (opts) {
-      opts = opts || {};
-      return invoke('server_host_detect_loader', { versionId: opts.versionId });
-    },
-    syncMods: function (opts) {
-      opts = opts || {};
-      return invoke('server_host_sync_mods', {
-        serverId: opts.id,
-        clientVersionId: opts.clientVersionId || opts.versionId || ''
-      });
-    },
-    onLog: function (cb) {
-      return onTauriEvent('server-host:log', cb, function (p) { return p; });
-    },
-    onStatus: function (cb) {
-      return onTauriEvent('server-host:status', cb, function (p) { return p; });
-    }
-  };
-
-  // ── 红石联机（9 个命令 + 4 个事件） ──
-  var _rsUnlisteners = [];
-
-  var redstoneOnline = {
-    getServers: function () { return invoke('redstone_servers'); },
-    scanPort: function () { return invoke('redstone_scan_port'); },
-    start: function (params) { return invoke('redstone_start', { params: params }); },
-    stop: function () { return invoke('redstone_stop'); },
-    getStatus: function () { return invoke('redstone_status'); },
-    onLog: function (callback) {
-      var unsub = onTauriEvent('redstone:log', callback, function (payload) {
-        if (typeof payload === 'string') return payload;
-        return (payload && payload.message) || '';
-      });
-      _rsUnlisteners.push(unsub);
-      return unsub;
-    },
-    onDisconnected: function (callback) {
-      var unsub = onTauriEvent('redstone:disconnected', callback, function () { return undefined; });
-      _rsUnlisteners.push(unsub);
-      return unsub;
-    },
-    onReconnecting: function (callback) {
-      var unsub = onTauriEvent('redstone:reconnecting', callback, function (payload) { return payload || {}; });
-      _rsUnlisteners.push(unsub);
-      return unsub;
-    },
-    onReconnected: function (callback) {
-      var unsub = onTauriEvent('redstone:reconnected', callback, function (payload) { return payload || {}; });
-      _rsUnlisteners.push(unsub);
-      return unsub;
-    },
-    removeListeners: function () {
-      while (_rsUnlisteners.length) {
-        var fn = _rsUnlisteners.pop();
-        try { fn(); } catch (_) {}
-      }
-    }
-  };
-
-  // EnderLink 联机对象（对应 Rust 端 enderlink_online.rs）
-  var enderlinkOnline = {
-    getRooms: function () { return invoke('enderlink_rooms'); },
-    getNodes: function () { return invoke('enderlink_nodes'); },
-    download: function () { return invoke('enderlink_download'); },
-    start: function (params) { return invoke('enderlink_start', { params: params }); },
-    stop: function () { return invoke('enderlink_stop'); },
-    getStatus: function () { return invoke('enderlink_status'); },
-    onLog: function (callback) {
-      var unsub = onTauriEvent('enderlink:log', callback, function (payload) {
-        return { message: payload.message, ts: payload.ts };
-      });
-      _rsUnlisteners.push(unsub);
-      return unsub;
-    },
-    onDisconnected: function (callback) {
-      var unsub = onTauriEvent('enderlink:disconnected', callback, function () { return undefined; });
-      _rsUnlisteners.push(unsub);
-      return unsub;
-    }
-  };
+  // ============== 联机与本地开服模块 ==============
+  var _bridgeModules = createBridgeModules({ invoke: invoke, onTauriEvent: onTauriEvent });
+  var privateServer = _bridgeModules.privateServer;
+  var serverHost = _bridgeModules.serverHost;
+  var redstoneOnline = _bridgeModules.redstoneOnline;
+  var enderlinkOnline = _bridgeModules.enderlinkOnline;
 
   // ============== 注入到 bridge ==============
 
@@ -655,6 +521,8 @@ export const bridge = (function () {
     return new Proxy(target, {
       get: function (t, prop) {
         if (prop in t) return t[prop];
+        // thenable 探测：不能把 bridge 伪装成 Promise，否则 await/return 会永久挂起
+        if (prop === 'then') return undefined;
         if (typeof prop === 'string' && !prop.startsWith('__')) {
           console.warn('[tauri-bridge] 访问未实现的视桥接口 ' + String(prop) + '，返回空函数');
           return function () { return Promise.resolve(null); };

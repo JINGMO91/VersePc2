@@ -11,18 +11,24 @@
 
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
+use futures_util::stream::FuturesUnordered;
 use futures_util::StreamExt;
 use reqwest::Client;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter};
-use tokio::io::AsyncWriteExt;
+
+#[path = "updater_download.rs"]
+mod updater_download;
+#[path = "updater_install.rs"]
+mod updater_install;
+
+use updater_download::{clean_stale_updates, download_with_fallback};
+use updater_install::{install_and_restart, pending_notice_path, write_pending_notice};
 
 // ============== 常量 ==============
 
@@ -170,70 +176,12 @@ fn hex_lower(bytes: &[u8]) -> String {
     s
 }
 
-fn verify_file(path: &Path, expected_size: u64, expected_sha: Option<&str>) -> bool {
-    use std::io::Read;
-    if !path.exists() {
-        return false;
-    }
-    if let Ok(md) = fs::metadata(path)
-        && expected_size > 0 && md.len() != expected_size {
-            return false;
-        }
-    if let Some(sha) = expected_sha {
-        let Ok(mut f) = fs::File::open(path) else {
-            return false;
-        };
-        let mut hasher = Sha256::new();
-        let mut buf = [0u8; 8192];
-        loop {
-            match f.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => hasher.update(&buf[..n]),
-                Err(_) => return false,
-            }
-        }
-        if !hex_lower(&hasher.finalize()).eq_ignore_ascii_case(sha) {
-            return false;
-        }
-    }
-    true
-}
-
 // 更新配置（跳过版本）路径：便携数据目录/updater-config.json
 fn update_config_path() -> PathBuf {
     crate::storage::resolve_data_dir().join("updater-config.json")
 }
 
 // 自更新重启后的一次性"已更新提示"文件：升级前写入，重启启动时前端读取并删除
-fn pending_notice_path() -> PathBuf {
-    crate::storage::resolve_data_dir().join("pending-update-notice.json")
-}
-
-fn write_pending_notice(version: &str, notes: &str) {
-    let data = json!({
-        "version": version,
-        "notes": notes,
-        "updatedAt": chrono::Local::now().to_rfc3339()
-    });
-    let path = pending_notice_path();
-    if let Some(dir) = path.parent() {
-        let _ = std::fs::create_dir_all(dir);
-    }
-    let _ = std::fs::write(&path, serde_json::to_string_pretty(&data).unwrap_or_else(|_| "{}".to_string()));
-}
-
-#[tauri::command]
-pub fn updater_get_pending_notice() -> Result<Value, String> {
-    let path = pending_notice_path();
-    if !path.exists() {
-        return Ok(Value::Null);
-    }
-    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let _ = std::fs::remove_file(&path);
-    let v: Value = serde_json::from_str(&content).unwrap_or_else(|_| json!({}));
-    Ok(v)
-}
-
 fn load_skipped_version() -> Option<String> {
     let path = update_config_path();
     let content = fs::read_to_string(&path).ok()?;
@@ -315,13 +263,12 @@ async fn fetch_update_json() -> Result<UpdateRelease, String> {
         .build()
         .map_err(|e| format!("初始化网络失败: {}", e))?;
 
-    let tasks: Vec<_> = UPDATE_JSON_SOURCES
-        .iter()
-        .map(|url| try_fetch_source(&client, url))
-        .collect();
-    let results = futures_util::future::join_all(tasks).await;
-
-    for r in results {
+    // 哪个源先返回有效结果就用哪个，其余请求立即取消；比等待全部源返回更快、更省资源
+    let mut tasks = FuturesUnordered::new();
+    for url in UPDATE_JSON_SOURCES {
+        tasks.push(try_fetch_source(&client, url));
+    }
+    while let Some(r) = tasks.next().await {
         if let Ok(Some(release)) = r {
             return Ok(release);
         }
@@ -374,284 +321,15 @@ pub async fn updater_check_for_updates(app: AppHandle) -> Result<Value, String> 
     }));
 
     // 自动更新：检测到新版本即后台自动下载，无需用户点击。下载完成后在用户关闭程序时自动替换。
+    // 延后 2 秒再启动，避免与启动阶段的 Java 探测、首屏渲染同时抢占 CPU/磁盘。
     let app2 = app.clone();
     let rel2 = release.clone();
     tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(2)).await;
         let _ = download_update_inner(&app2, &rel2).await;
     });
 
     Ok(json!({ "available": true, "version": release.tag_ver }))
-}
-
-// ============== 下载更新 ==============
-
-async fn stream_download(
-    app: &AppHandle,
-    url: &str,
-    target: &Path,
-    expected_size: u64,
-) -> Result<(), String> {
-    let tmp = target.with_extension("part");
-    let mut resume = 0u64;
-    if let Ok(md) = fs::metadata(&tmp) {
-        resume = md.len();
-    }
-    if expected_size > 0 && resume >= expected_size {
-        return Ok(());
-    }
-    log_download(&format!(
-        "[stream] 开始下载 {} resume={}B expected={}B",
-        url, resume, expected_size
-    ));
-
-    let client = Client::builder()
-        .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let mut req = client.get(url);
-    if resume > 0 {
-        req = req.header("Range", format!("bytes={}-", resume));
-    }
-    let resp = tokio::time::timeout(Duration::from_secs(20), req.send())
-        .await
-        .map_err(|_| "TTFB 超时：服务器响应头迟迟未返回，切换镜像".to_string())?
-        .map_err(|e| format!("连接失败: {}", e))?;
-    let status_206 = resp.status().as_u16() == 206;
-    if !resp.status().is_success() && !status_206 {
-        return Err(format!("HTTP {}", resp.status()));
-    }
-    if resume > 0 && !status_206 {
-        // 该源不支持 Range（返回 200 全量）：保留 .part 断点给下一个支持 Range 的镜像续传，
-        // 并返回特殊错误让 fallback 直接切换镜像（同源重试无意义，只会再次全量重下导致进度回跳）
-        log_download(&format!(
-            "[stream] 服务器不支持 Range(HTTP {})，保留断点，切换镜像续传",
-            resp.status().as_u16()
-        ));
-        return Err("NO_RANGE_SOURCE: 服务器不支持断点续传，切换镜像".to_string());
-    }
-
-    let total = if status_206 {
-        resp.headers()
-            .get("content-range")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.split('/').nth(1))
-            .and_then(|s| s.parse::<u64>().ok())
-            .unwrap_or(0)
-    } else {
-        resp.content_length().unwrap_or(0)
-    };
-    let total = if total > 0 { total } else { expected_size };
-
-    // 断点续传提示：拿到 total 后再发，与下载中的 percent 用同一基准，避免基准不同导致百分比跳动
-    if resume > 0 {
-        let pct = if total > 0 {
-            ((resume as f64 / total as f64) * 100.0 * 10.0).round() / 10.0
-        } else {
-            0.0
-        };
-        log_download(&format!("[stream] 断点续传 resume={}B total={}B ({:.1}%)", resume, total, pct));
-        emit(app, "download-progress", &json!({
-            "percent": pct,
-            "transferred": resume,
-            "total": total.max(resume),
-            "bytesPerSecond": 0,
-            "resuming": true,
-        }));
-    } else {
-        log_download(&format!("[stream] 全新下载 total={}B (content-length)", total));
-    }
-
-    let mut f = tokio::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&tmp)
-        .await
-        .map_err(|e| format!("创建文件失败: {}", e))?;
-
-    let mut stream = resp.bytes_stream();
-    let mut transferred = resume;
-    let mut last_report = Instant::now();
-    let mut last_bytes = resume;
-    let mut last_log_pct = -1.0;
-    // 距上次收到数据的时刻；仅当超过 IDLE_TIMEOUT 仍无任何字节时才判源失效，
-    // 避免把 Gitee 高峰期"慢但仍在传"的连接误杀。
-    let idle_timeout = Duration::from_secs(60);
-
-    loop {
-        let waited = tokio::time::timeout(idle_timeout, stream.next()).await;
-        let chunk = match waited {
-            Ok(Some(r)) => r.map_err(|e| format!("下载中断: {}", e))?,
-            Ok(None) => break,
-            Err(_) => {
-                // 60 秒整未收到任何数据块：判定该源暂时失效（切换/续传）
-                log_download(&format!("[stream] 60s 无数据，切换镜像 (transferred={}B)", transferred));
-                return Err("下载长时间无数据，切换镜像".to_string());
-            }
-        };
-        transferred += chunk.len() as u64;
-        f.write_all(&chunk).await.map_err(|e| format!("写入失败: {}", e))?;
-
-        if last_report.elapsed().as_millis() >= 300 {
-            let elapsed = last_report.elapsed().as_secs_f64().max(0.001);
-            let pct = if total > 0 {
-                (transferred as f64 / total as f64) * 100.0
-            } else {
-                0.0
-            };
-            emit(app, "download-progress", &json!({
-                "percent": (pct * 10.0).round() / 10.0,
-                "transferred": transferred,
-                "total": total.max(transferred),
-                "bytesPerSecond": ((transferred - last_bytes) as f64 / elapsed) as u64,
-            }));
-            // 诊断日志：按约 2% 采样记录，避免刷屏
-            if pct - last_log_pct >= 2.0 || transferred >= total {
-                log_download(&format!(
-                    "[progress] {:.1}% transferred={}B total={}B",
-                    pct, transferred, total
-                ));
-                last_log_pct = pct;
-            }
-            last_report = Instant::now();
-            last_bytes = transferred;
-        }
-    }
-
-    f.flush().await.map_err(|e| e.to_string())?;
-    f.sync_all().await.map_err(|e| e.to_string())?;
-    drop(f);
-
-    let final_size = fs::metadata(&tmp).map(|m| m.len()).unwrap_or(0);
-    log_download(&format!(
-        "[stream] 流结束 final={}B expected={}B 完整={}",
-        final_size,
-        expected_size,
-        final_size == expected_size
-    ));
-    if total > 0 {
-        emit(app, "download-progress", &json!({
-            "percent": 100.0,
-            "transferred": total,
-            "total": total,
-            "bytesPerSecond": 0
-        }));
-    }
-    Ok(())
-}
-
-/// 连接建立/TTFB 阶段失败：源当前基本不通（被墙/宕机/节点失效），多耗重试只会拖慢换源；
-/// 与"传输中途断流"（源能出数据，只是链路抖动，值得续传重试）区分开。
-fn is_dead_source_error(e: &str) -> bool {
-    e.contains("TTFB 超时") || e.contains("连接失败")
-}
-
-async fn download_with_fallback(
-    app: &AppHandle,
-    url: &str,
-    target: &Path,
-    expected_size: u64,
-    expected_sha: Option<&str>,
-) -> Result<(), String> {
-    if verify_file(target, expected_size, expected_sha) {
-        if expected_size > 0 {
-            emit(app, "download-progress", &json!({
-                "percent": 100.0,
-                "transferred": expected_size,
-                "total": expected_size,
-                "bytesPerSecond": 0
-            }));
-        }
-        return Ok(());
-    }
-    let _ = fs::remove_file(target);
-    let part = target.with_extension("part");
-
-    // 基准源波动多是瞬时性的（Gitee 高峰期偶发丢包），直接换源会丢掉续传进度且可能更慢。
-    // 因此：同一源最多重试 MAX_RETRY_PER_SOURCE 次，每次都沿用 .part 断点续传；
-    // 连接/TTFB 失败（源基本不通）只重试 MAX_RETRY_DEAD_SOURCE 次，快速换下一源；
-    // 所有源第一轮仍全部失败时，断点已保留，再完整扫描一轮（断点续传继续），仍失败才放弃。
-    const MAX_RETRY_PER_SOURCE: u32 = 3;
-    const MAX_RETRY_DEAD_SOURCE: u32 = 1;
-
-    let sources = build_download_sources(url);
-    let mut last_err = String::new();
-    for pass in 0..2 {
-        if pass > 0 {
-            log_download("[fallback] 所有下载源第一轮均失败，断点已保留，开始第二轮扫描");
-        }
-        for murl in &sources {
-            log_download(&format!("[fallback] 尝试下载源: {}", murl));
-            for attempt in 0..=MAX_RETRY_PER_SOURCE {
-                if attempt > 0 {
-                    // 短暂让出，给网络/服务器一点恢复时间，再以断点续传重试同一源
-                    tokio::time::sleep(Duration::from_millis(600)).await;
-                }
-                log_download(&format!("[fallback]  源内第 {} 次尝试", attempt + 1));
-                match stream_download(app, murl, target, expected_size).await {
-                    Ok(()) => {
-                        if verify_file(&part, expected_size, expected_sha) {
-                            log_download(&format!("[fallback] 校验通过 size={}B，下载完成", expected_size));
-                            let _ = fs::remove_file(target);
-                            fs::rename(&part, target)
-                                .map_err(|e| format!("下载完成但保存失败: {}", e))?;
-                            return Ok(());
-                        }
-                        // 校验失败：区分"被截断"（保留断点续传）与"数据损坏"（清空重下）
-                        let part_size = fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
-                        if expected_size > 0 && part_size == expected_size {
-                            log_download(&format!(
-                                "[fallback] 文件完整但校验不符 size={}B (可能是损坏)，清空断点从下一镜像重下",
-                                part_size
-                            ));
-                            let _ = fs::remove_file(&part);
-                        } else {
-                            log_download(&format!(
-                                "[fallback] 文件不完整 size={}B != expected={}B，保留断点，下一镜像续传",
-                                part_size, expected_size
-                            ));
-                        }
-                        last_err = "文件校验失败，已从下一镜像重试".to_string();
-                        let _ = fs::remove_file(target);
-                        break;
-                    }
-                    Err(e) => {
-                        // 该源临时失败：保留 .part，稍后沿用续传继续尝试同一源
-                        last_err = e;
-                        log_download(&format!("[fallback] 源失败: {}", last_err));
-                        // 源不支持 Range 时同源重试无意义（每次都全量重下导致进度回跳），
-                        // 直接切换下一镜像，断点留给支持 Range 的镜像续传
-                        if last_err.starts_with("NO_RANGE_SOURCE:") {
-                            last_err = "下载源均不支持断点续传，下载中断，请稍后重试".to_string();
-                            break;
-                        }
-                        // 死源快速换源：连接/TTFB 失败仅重试 2 次即换下一源；断流类失败（源能出数据）仍按原次数重试
-                        if is_dead_source_error(&last_err) && attempt >= MAX_RETRY_DEAD_SOURCE {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    if last_err.is_empty() {
-        Err("所有下载源均失败，请稍后重试或手动下载".into())
-    } else {
-        Err(last_err)
-    }
-}
-
-#[tauri::command]
-pub async fn updater_download_update(app: AppHandle) -> Result<Value, String> {
-    let release = {
-        let guard = UPDATE_STATE.lock().unwrap();
-        guard.as_ref().map(|s| s.release.clone())
-    };
-    let release = release.ok_or("没有可用的更新信息，请先检查更新")?;
-    match download_update_inner(&app, &release).await {
-        Ok(()) => Ok(json!({ "success": true })),
-        Err(e) => Ok(json!({ "success": false, "error": e })),
-    }
 }
 
 /// 下载更新包本体（幂等：目标文件已存在且校验通过则跳过，前端会收到进度事件）。
@@ -687,6 +365,9 @@ async fn download_update_inner(app: &AppHandle, release: &UpdateRelease) -> Resu
     };
     let target = tmp_dir.join(file_name);
 
+    // 清理超过 7 天的旧安装包/断点文件，避免更新缓存长期占用磁盘（当前目标与断点保留）
+    clean_stale_updates(&tmp_dir, &target);
+
     let result = download_with_fallback(app, &asset.url, &target, asset.size, asset.sha256.as_deref()).await;
 
     UPDATE_DOWNLOADING.store(false, Ordering::SeqCst);
@@ -716,127 +397,35 @@ async fn download_update_inner(app: &AppHandle, release: &UpdateRelease) -> Resu
 
 // ============== 安装更新（全量自动替换） ==============
 
-fn install_and_restart(app: &AppHandle, new_pkg: &Path) -> Result<(), String> {
-    let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let dir = current_exe
-        .parent()
-        .ok_or("无法定位安装目录")?
-        .to_path_buf();
-    let exe_name = current_exe
-        .file_name()
-        .map(|n| n.to_string_lossy().to_string())
-        .unwrap_or_default();
+// ============== 跳过版本 / 打开发布页 ==============
 
-    #[cfg(target_os = "windows")]
+#[tauri::command]
+pub fn updater_skip_version(version: String) -> Result<Value, String> {
+    save_skipped_version(&version);
     {
-        let script = dir.join("_versepc_update.bat");
-        let n = new_pkg.to_string_lossy().replace('/', "\\");
-        let c = current_exe.to_string_lossy().replace('/', "\\");
-        // 等待当前实例退出（约8秒）→ 若后台残留则强制结束 → 替换 exe → 启动 exe → 删除脚本
-        // 说明：关窗后进程可能仍在后台占用 exe（导致 move 改名失败），必须兜底 taskkill 强制结束再替换。
-        // 加固：替换后先校验 exe 是否真的存在（替换可能被安全软件拦截删除），
-        // 存在才启动；若主 exe 丢失则回退启动更新包原件，避免「Windows 找不到文件」原生报错。
-        let content = format!(
-            "@echo off\r\n\
-             chcp 65001 >nul\r\n\
-             set \"NEW={new}\"\r\n\
-             set \"CUR={cur}\"\r\n\
-             set /a tries=0\r\n\
-             :wait\r\n\
-             tasklist /fi \"imagename eq {exe}\" 2>nul | find /i \"{exe}\" >nul\r\n\
-             if errorlevel 1 goto replace\r\n\
-             set /a tries+=1\r\n\
-             if %tries% geq 8 goto kill\r\n\
-             timeout /t 1 /nobreak >nul\r\n\
-             goto wait\r\n\
-             :kill\r\n\
-             taskkill /f /im \"{exe}\" >nul 2>nul\r\n\
-             timeout /t 2 /nobreak >nul\r\n\
-             :replace\r\n\
-             move /y \"%NEW%\" \"%CUR%\" >nul 2>nul\r\n\
-             if not exist \"%CUR%\" (\r\n\
-               taskkill /f /im \"{exe}\" >nul 2>nul\r\n\
-               timeout /t 2 /nobreak >nul\r\n\
-               move /y \"%NEW%\" \"%CUR%\" >nul 2>nul\r\n\
-             )\r\n\
-             if not exist \"%CUR%\" copy /y \"%NEW%\" \"%CUR%\" >nul 2>nul\r\n\
-             if exist \"%CUR%\" (\r\n\
-               start \"\" \"%CUR%\"\r\n\
-             ) else (\r\n\
-               if exist \"%NEW%\" start \"\" \"%NEW%\"\r\n\
-               if not exist \"%NEW%\" echo [VersePC] update failed: exe missing > \"%~dp0_versepc_update_error.txt\"\r\n\
-             )\r\n\
-             :done\r\n\
-             del /q \"%~f0\"\r\n",
-            exe = exe_name, new = n, cur = c
-        );
-        fs::write(&script, content).map_err(|e| format!("无法写入更新脚本: {}", e))?;
-        let script_str = script.to_string_lossy().replace('/', "\\");
-        Command::new("cmd")
-            .args(["/c", "start", "", "/min", &script_str])
-            .spawn()
-            .map_err(|e| format!("无法启动更新脚本: {}", e))?;
-        app.exit(0);
-        Ok(())
+        let mut guard = UPDATE_STATE.lock().unwrap();
+        *guard = None;
     }
+    Ok(json!({ "success": true }))
+}
 
-    #[cfg(target_os = "linux")]
-    {
-        // new_pkg 是单个可执行文件：替换当前二进制后重启
-        let script = dir.join("_versepc_update.sh");
-        let n = new_pkg.to_string_lossy();
-        let c = current_exe.to_string_lossy();
-        let content = format!(
-            "#!/bin/sh\n\
-             while pgrep -f \"{c}\" >/dev/null 2>&1; do sleep 1; done\n\
-             cp \"{n}\" \"{c}\" && chmod +x \"{c}\"\n\
-             nohup \"{c}\" >/dev/null 2>&1 &\n\
-             rm -f \"$0\"\n"
-        );
-        fs::write(&script, content).map_err(|e| format!("无法写入更新脚本: {}", e))?;
-        Command::new("/bin/sh").arg(&script).spawn().map_err(|e| format!("无法启动更新脚本: {}", e))?;
-        app.exit(0);
-        return Ok(());
-    }
+#[tauri::command]
+pub fn updater_open_release_page(app: AppHandle) -> Result<Value, String> {
+    let _ = app;
+    let _ = open::that(RELEASE_PAGE);
+    Ok(json!({ "success": true }))
+}
 
-    #[cfg(target_os = "macos")]
-    {
-        // new_pkg 是含 VersePC2.app 的 zip：解压后整包替换旧 .app，再 open 新 app
-        let app_bundle = current_exe
-            .ancestors()
-            .find(|p| p.file_name().map(|f| f == "VersePC2.app").unwrap_or(false))
-            .map(|p| p.to_path_buf())
-            .unwrap_or(dir.clone());
-        let parent = app_bundle
-            .parent()
-            .map(|p| p.to_path_buf())
-            .unwrap_or_else(|| dir.clone());
-        let script = parent.join("_versepc_update.sh");
-        let zip = new_pkg.to_string_lossy();
-        let ab = app_bundle.to_string_lossy();
-        let content = format!(
-            "#!/bin/sh\n\
-             while pgrep -f \"{ab}/Contents/MacOS/VersePC2\" >/dev/null 2>&1; do sleep 1; done\n\
-             TMP=\"$(mktemp -d)\"\n\
-             cd \"$TMP\" && unzip -o -q \"{zip}\" || exit 1\n\
-             rm -rf \"{ab}\"\n\
-             mv \"$TMP/VersePC2.app\" \"{ab}\"\n\
-             chmod +x \"{ab}/Contents/MacOS/VersePC2\"\n\
-             open \"{ab}\"\n\
-             rm -rf \"$TMP\"\n\
-             rm -f \"$0\"\n"
-        );
-        fs::write(&script, content).map_err(|e| format!("无法写入更新脚本: {}", e))?;
-        Command::new("/bin/sh").arg(&script).spawn().map_err(|e| format!("无法启动更新脚本: {}", e))?;
-        app.exit(0);
-        return Ok(());
+#[tauri::command]
+pub fn updater_get_pending_notice() -> Result<Value, String> {
+    let path = pending_notice_path();
+    if !path.exists() {
+        return Ok(Value::Null);
     }
-
-    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-    {
-        let _ = (exe_name, dir);
-        Err("当前平台暂不支持自动更新".to_string())
-    }
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&path);
+    let v: Value = serde_json::from_str(&content).unwrap_or_else(|_| json!({}));
+    Ok(v)
 }
 
 /// 是否存在已下载完成、等待替换生效的更新包
@@ -885,21 +474,15 @@ pub async fn updater_install_update(app: AppHandle) -> Result<Value, String> {
     Ok(json!({ "success": true }))
 }
 
-// ============== 跳过版本 / 打开发布页 ==============
-
 #[tauri::command]
-pub fn updater_skip_version(version: String) -> Result<Value, String> {
-    save_skipped_version(&version);
-    {
-        let mut guard = UPDATE_STATE.lock().unwrap();
-        *guard = None;
+pub async fn updater_download_update(app: AppHandle) -> Result<Value, String> {
+    let release = {
+        let guard = UPDATE_STATE.lock().unwrap();
+        guard.as_ref().map(|s| s.release.clone())
+    };
+    let release = release.ok_or("没有可用的更新信息，请先检查更新")?;
+    match download_update_inner(&app, &release).await {
+        Ok(()) => Ok(json!({ "success": true })),
+        Err(e) => Ok(json!({ "success": false, "error": e })),
     }
-    Ok(json!({ "success": true }))
-}
-
-#[tauri::command]
-pub fn updater_open_release_page(app: AppHandle) -> Result<Value, String> {
-    let _ = app;
-    let _ = open::that(RELEASE_PAGE);
-    Ok(json!({ "success": true }))
 }

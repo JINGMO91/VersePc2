@@ -13,6 +13,31 @@ const api = bridge;
     let _latestVersion = null;
     // 下载进度防回跳：同一轮下载中百分比只增不减，避免断点/换源导致进度条乱跳
     let _lastDownloadPct = -1;
+    // 进度 DOM 缓存：下载期间只更新文本与宽度，避免每次进度事件重建整段 innerHTML
+    let _progressEls = null;
+
+    function renderDownloadProgress(pct, speed, transferred, total) {
+        const area = document.getElementById('updater-status-area');
+        if (!area) return;
+        if (!_progressEls || !area.contains(_progressEls.root)) {
+            area.innerHTML =
+                '<div class="update-progress">' +
+                '<div class="update-progress__header"><span class="update-progress__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>正在下载更新...</span><span class="update-progress__percent"></span></div>' +
+                '<div class="update-progress__track"><div class="update-progress__fill"></div></div>' +
+                '<div class="update-progress__info"><span class="update-progress__speed"></span><span class="update-progress__size"></span></div></div>';
+            _progressEls = {
+                root: area.querySelector('.update-progress'),
+                percent: area.querySelector('.update-progress__percent'),
+                fill: area.querySelector('.update-progress__fill'),
+                speed: area.querySelector('.update-progress__speed'),
+                size: area.querySelector('.update-progress__size'),
+            };
+        }
+        _progressEls.percent.textContent = pct + '%';
+        _progressEls.fill.style.width = pct + '%';
+        _progressEls.speed.textContent = speed + '/s';
+        _progressEls.size.textContent = transferred + ' / ' + total;
+    }
 
     async function initUpdaterUI() {
         try {
@@ -213,6 +238,7 @@ const api = bridge;
 
             case 'update-error': {
                 _lastDownloadPct = -1;
+                _progressEls = null;
                 const hint = data.hint || '';
                 let hintHtml = '';
                 if (hint) hintHtml = '<div class="update-status__hint">' + hint + '</div>';
@@ -233,6 +259,7 @@ const api = bridge;
 
             case 'start-download':
                 _lastDownloadPct = -1;
+                _progressEls = null;
                 statusArea.innerHTML = '<div class="update-status update-status--loading"><span class="update-status__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg></span><span class="update-status__body">正在下载更新...</span></div>';
                 downloadBtn.disabled = true;
                 downloadBtn.textContent = '下载中...';
@@ -248,17 +275,14 @@ const api = bridge;
                 const speed = formatBytes(data.bytesPerSecond);
                 const transferred = formatBytes(data.transferred);
                 const total = formatBytes(data.total);
-                statusArea.innerHTML =
-                    '<div class="update-progress">' +
-                    '<div class="update-progress__header"><span class="update-progress__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>正在下载更新...</span><span class="update-progress__percent">' + pct + '%</span></div>' +
-                    '<div class="update-progress__track"><div class="update-progress__fill" style="width:' + pct + '%;"></div></div>' +
-                    '<div class="update-progress__info"><span>' + speed + '/s</span><span>' + transferred + ' / ' + total + '</span></div></div>';
+                renderDownloadProgress(pct, speed, transferred, total);
                 showUpdatePill('正在下载更新 ' + pct + '%', { spinner: true });
                 break;
             }
 
             case 'update-downloaded':
                 _lastDownloadPct = -1;
+                _progressEls = null;
                 currentUpdateVersion = null;
                 statusArea.innerHTML = '<div class="update-status update-status--success"><span class="update-status__icon"></span><div class="update-status__body"><div class="update-status__title">更新已下载完成 (v' + data.version + ')</div><div class="update-status__desc">点击安装并重启以完成更新</div></div></div>';
                 skipBtn.style.display = 'none';
