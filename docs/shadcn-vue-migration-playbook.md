@@ -110,7 +110,7 @@ docs/templates/page-template.js  # 新增页面模板，复制后按注释步骤
 
 ## 8. 已知未完成项
 
-- **`vue-sonner` 的 Toaster 未接入**：试过全局挂载，实测 `Sonner.vue` 会通过 `v-bind` 显式传 `position: undefined`，导致连容器都不渲染（显式给 `position` 可解）；补上 `position` 后容器正常，但 `toast.success()` 仍送不到该 Toaster，疑为 shadcn 封装层与 `vue-sonner@2.0.9` 的版本差异。因无页面使用 sonner，已回退挂载。`tailwind.css` 里已备好 `--popover` / `--popover-foreground` 别名。
+- **`vue-sonner` 已从基座移除**：实测容器能渲染、toast 也能进 DOM，但不传/传 `duration` 都在约 1 秒内自行 dismiss（500ms 采样时 opacity 已为 0）。已排除预打包双实例（`optimizeDeps.exclude` 无效）、跨 app 挂载、`position` 缺省三种可能，且 2.0.9 已是最新版本。通知统一用现有 `#toast-container` + `showToast()`。`tailwind.css` 保留 `--popover` / `--popover-foreground` 别名供 Dialog / Popover 使用。
 - shadcn 的 `--color-destructive` 只映射了 `var(--red)`，没有配套的 `-foreground`，用到危险色文字时注意对比度
 - **自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`**：显示状态与选项由 features 层命令式驱动（`style.display`、`customSelectInstances`）。换成组件会改变焦点管理与动画行为，与计划自身「交互行为不变」的约束冲突；且当前环境跑不了真实 Tauri 应用，这类改造无法验证。建议单独立项、在能跑真机的环境里做。
 - 全站 31 个 CSS 尚未收敛，`.btn` / `.card` / `.text-input` 等全局类仍被未迁移结构（JS 动态生成的标记、自研模态框）使用，需要等这些结构迁移完才能删

@@ -3,6 +3,7 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
+import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -18,7 +19,15 @@ export default defineConfig({
     vue(),
     // Tailwind CSS v4（样式入口见 frontend/src/styles/tailwind.css）
     tailwindcss(),
-  ],
+    // 包体分析：仅在 ANALYZE=1 时生成，产物写入 gitignored 的 .trae 目录
+    process.env.ANALYZE
+      ? visualizer({
+          filename: resolve(rootDir, '.trae', 'bundle-stats.json'),
+          template: 'raw-data',
+          gzipSize: true,
+        })
+      : null,
+  ].filter(Boolean),
   server: {
     port: 1420,
     strictPort: true,
@@ -39,6 +48,7 @@ export default defineConfig({
         main: resolve(frontendDir, 'index.html'),
       },
     },
+
   },
   test: {
     environment: 'node',

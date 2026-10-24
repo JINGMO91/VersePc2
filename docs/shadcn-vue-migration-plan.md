@@ -201,7 +201,7 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 | 阶段 | 状态 | 完成日期 | 备注 |
 | --- | --- | --- | --- |
 | P0 基建 | 已完成 | 2026-10-24 | 只引 theme + utilities，跳过 preflight；token 经 `@theme inline` 映射到现有变量 |
-| P1 组件基座 | 已完成 | 2026-10-24 | 已生成 15 个组件；预览页 `frontend/dev-components.html` |
+| P1 组件基座 | 已完成 | 2026-10-24 | 已生成 14 个组件（含 textarea，不含已移除的 sonner）；预览页 `frontend/dev-components.html` |
 | P2 试点页 | 已完成 | 2026-10-24 | 试点页「问题反馈」，产出迁移 playbook |
 | P3 批量迁移 | 已完成 | 2026-10-24 | 4 批共 19 个页面；100+ 通用控件迁移完成 |
 | P4 收尾 | 已完成 | 2026-10-24 | 护栏两项 + 死 CSS 核减 + 组件层文档与页面模板 |
@@ -217,7 +217,7 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 - P3：又修复多处失效的内联事件绑定（settings-other 的 `onkeydown`、mods 的 `oninput`、cloud 的 `@input`、accounts 的 `@change` 等）。**存量失效项已全部清零**：赞助者搜索框、速度限制滑块、内存模式单选、内存容量滑块、模组/收藏夹全选勾选框、收藏夹二级目录下拉共 8 处一并改为 Vue 绑定并实测生效。
 - P4：`check-architecture.mjs` 增加两项护栏。一是**存量样式快照**：`frontend/public` 下未登记的 CSS 文件直接报错，阻止继续新增手写 CSS。二是**内联样式棘轮**：页面模板中 ≥120 字符的 `style="..."` 只允许减少（基线 29 处），增加即报错。
 - P4：死 CSS 按引用逐个核实后核减 132 行，涉及 `components/base-ui.css` 与 `modal.css`。整站 31 个 CSS 的全局类（`.btn` / `.card` / `.text-input`）仍被 JS 动态生成的标记与自研模态框使用，需等这些结构迁移完才能删；`components/theme.css`、`components/version-ui.css`、`dialogs.css` 本轮未发现可安全删除的整块规则，留待结构迁移后一并处理。
-- 待办：`vue-sonner` 的 Toaster **未接入**。尝试过在 `mount.js` 里全局挂载一次，实测两个问题：一是 `Sonner.vue` 会通过 `v-bind` 显式传 `position: undefined`，导致内部算不出位置列表、连容器都不渲染（显式给 `position` 可解）；二是给上 `position` 后容器正常渲染，但 `toast.success()` 仍然送达不到该 Toaster。shadcn-vue 生成的 `Sonner.vue` 面向的 API 比当前安装的 `vue-sonner@2.0.9` 新，疑为版本差异。由于目前没有任何页面使用 sonner，且应用现有 `#toast-container` + `showToast()` 已完整覆盖通知需求，已把这段挂载回退，不把未验证的通知系统塞进启动流程。后续要接入时需先解决版本对齐。已提前在 `tailwind.css` 补好 `--popover` / `--popover-foreground` 别名（`Sonner.vue` 的行内样式直接引用原始变量名，只映射 `--color-*` 不够）。
+- 决定：`vue-sonner` **从组件基座中移除**（含 `components/ui/sonner`、依赖与 `--popover` 之外的相关接线）。排查过程与证据：绕开 shadcn 封装直接挂原始 `Toaster`，容器 `[data-sonner-toaster]` 能正常渲染，`toast.success()` 也能让 `[data-sonner-toast]` 出现在 DOM，但**无论是否传 `duration`（试过 4000），toast 都在约 1 秒内被自行 dismiss**（点击后 500ms 采样时 opacity 已为 0 且在退出动画中，1500ms 后元素数为 0）。已排除：预打包双实例（`optimizeDeps.exclude` 无效）、跨 app 挂载（同 app / 跨 app 表现一致，都渲染）、`position` 未传（显式传入无效）。该版本 2.0.9 已是最新，判定为库在当前环境不可用。由于没有任何页面依赖 sonner，且应用现有 `#toast-container` + `showToast()` 已完整覆盖通知需求，移除比保留一个坏掉的控件更安全。`tailwind.css` 里的 `--popover` / `--popover-foreground` 别名保留，供后续 Dialog / Popover 类组件使用。
 - 待办：自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`。它们的显示状态与选项由 features 层命令式驱动（`style.display`、`customSelectInstances`），替换需要同步改写交互代码；而当前环境无法运行真实 Tauri 应用（本机未安装 cargo），这类交互改造无法用桩数据预览页验证，风险不可控，因此建议单独立项并在能跑真机的环境里做。
 
 ### 计划本身的修正
