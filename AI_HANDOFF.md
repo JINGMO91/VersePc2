@@ -14,7 +14,7 @@ VersePC2 是一个基于 **Tauri 2 + Rust + Vue 3（原生 JS 模板 + Vite 构�
 - Gitee：`doujie081231/verse-pc2`
 - 当前主分支：`main`
 - 发布状态：1.7.2 已发布；1.7.3 尚未发布
-- 2026-10-24 已完成架构重构 Phase 1–6：前端全量 ES Modules、移除全局暴露、Rust 大文件拆分、编译告警与 Clippy 清零
+- 2026-10-24 已完成架构重构 Phase 1–15：前端全量 ES Modules、移除全局暴露、前后端大文件拆分、CSS 分模块、前端单测补齐、编译告警与 Clippy 清零
 
 ## 2. 关键目录与模块
 
@@ -197,7 +197,11 @@ Gitee 附件总配额约 1GB，曾因超限删除 v1.1.x～v1.6.0 共 12 个旧 
 - `core/vue-ready.js` 提供挂载完成等待（支持多个等待方）。
 - `core/plugin-compat.js` 是唯一允许向 window 暴露插件接口的兼容层，供已安装插件继续调用 `initServerHostPage` / `showToast` 等既有函数。
 - 插件组件仍通过 `window.VersePC['Plugin_<id>_<page>']` 注册，由 `plugin-runtime.js` 同步到内部组件表后挂载。
-- 样式仍以 `<link>` 方式引用 `public/css`。
+- 样式仍以 `<link>` 方式引用 `public/css`；`components.css` 已拆到 `public/css/components/` 下 13 个域文件，按原行序引入。
+- 大文件拆分采用“门面 + 子模块 + 状态模块”：原文件保留 re-export，子模块只读写 `<域>-state.js` 中的共享状态，跨域共享常量下沉到 `core/constants.js`。
+- Rust 大文件拆为目录模块，`#[tauri::command]` 函数保留在 `mod.rs`，子模块通过 `pub(crate) use` 回传，调用路径不变。
+- 前端测试：`src/**/*.test.js` 共 8 个文件 40 个用例；需要 DOM 的文件用 `// @vitest-environment jsdom`。
+- 架构阈值：前端单文件 ≤800 行、Rust 单文件 ≤1500 行，`check-architecture.mjs` 零提示。
 
 ### 6.4 已知小问题（未修，优先级低）
 
@@ -271,6 +275,13 @@ Gitee 附件总配额约 1GB，曾因超限删除 v1.1.x～v1.6.0 共 12 个旧 
   - `cargo clippy -- -D warnings`：零告警
   - 便携版构建成功，启动实测通过：主页、版本列表、版本设置、模组搜索/详情、账户切换、设置各标签、联机页、插件页（开服/内网穿透/种子地图）
   - 下载链路实测：通过 `/api/mods/download-version` 下载 Sodium 至临时目录，进度 100%、文件大小 1912496 字节，校验通过
+- 2026-10-24 遗留结构债务治理（Phase 9–15）后：
+  - `npm run verify`（ESLint + Vitest 40 项 + Vite 构建 + 架构检查 --strict）：通过
+  - `cargo clippy -- -D warnings`：零告警；`cargo test`：25 项通过
+  - 架构检查零提示：前端单文件均 ≤800 行、Rust 单文件均 ≤1500 行
+  - 便携版构建成功，实测通过：版本列表/详情/版本设置五个标签、账户轮播与详情、模组搜索/详情/版本/依赖、个性化壁纸切换、陶瓦联机、私服大厅、Java 管理、本地开服、启动依赖检查与下载
+  - `components.css` 拆为 `public/css/components/` 下 13 个域文件，拼接校验与原文件一致
+  - 首次启动依赖补全时，Forge 客户端 JAR 源返回 HTTP 403，界面正确提示缺失文件（外部源问题）
 - CI run `39972225672`（commit `2729331`）：Linux x86_64 / macOS arm64 / macOS x86_64 全部 success
 - CI run `39977012044`（commit `d470688`）：三平台全部 success
 - CI run `39977760242`（commit `8f07e29`）：三平台全部 success
@@ -286,7 +297,7 @@ Gitee 附件总配额约 1GB，曾因超限删除 v1.1.x～v1.6.0 共 12 个旧 
 ## 10. 建议的下一步
 
 1. 若发版：版本升到 `1.8.0`，同步 Cargo.toml / tauri.conf.json / Info.plist，重新构建 Windows 包，按第 4 节流程发布
-2. 可选：继续拆分仍超过 1500 行的 Rust 文件（`java.rs`、`args_builder.rs`、`dep_check.rs`、`curseforge.rs`、`server_host.rs`）
-3. 可选：把前端 800 行以上的模块继续按域拆分
-4. 可选：修文件浏览器驱动器 403、隐藏非 Windows 的内存优化卡片；补 Linux arm64 构建矩阵
+2. 可选：修文件浏览器驱动器 403、隐藏非 Windows 的内存优化卡片；补 Linux arm64 构建矩阵
+3. 可选：处理 `index.html` 中仍残留的少量内联 `onclick`（启动取消、日志导出、修复、支持/更新弹窗、翻译弹窗等），改为 data-action 委托
+4. 可选：给前端纯逻辑模块继续补 Vitest（下载任务状态机、依赖聚合、主题色计算）
 5. 继续处理后台用户反馈时，先查日志和相关源码，不要直接猜

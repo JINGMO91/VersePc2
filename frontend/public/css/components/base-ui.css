@@ -1,0 +1,184 @@
+/* base-ui.css — 进度条、安装信息与世界列表 */
+/**
+ * components.css - 通用组件样式表
+ * ----------------------------------------------------------------------------
+ * 文件职责：定义全应用通用的 UI 组件样式，包括进度条、安装信息、依赖项、
+ * 世界/账户列表、账户详情、皮肤管理、下载任务、爱发电支持弹窗等。
+ *
+ * 样式分区：
+ * 1. 进度条与安装信息 - progress-bar、install-info、依赖项列表
+ * 2. 世界列表 - 存档条目网格
+ * 3. 账户列表 - 账户条目、微软认证步骤
+ * 4. 账户详情 - 3D 皮肤预览、字段展示、皮肤选择
+ * 5. 下载任务 - 下载条目、操作按钮
+ * 6. 爱发电支持弹窗 - 赞助支持模态框
+ */
+
+/* 进度条与安装信息 - progress-bar、install-info、依赖项列表 */
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 9999px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 9999px;
+    transition: width 0.4s ease-out;
+    width: 0%;
+    will-change: width;
+}
+
+.install-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.install-message {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.install-speed {
+    font-size: 12px;
+    color: var(--accent);
+}
+
+.install-progress-container {
+    padding: 16px 0;
+}
+
+.install-progress-container .progress-bar {
+    height: 6px;
+    margin-bottom: 16px;
+}
+
+.install-progress-container .install-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.install-progress-container .install-message {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.install-progress-container .install-speed {
+    font-size: 12px;
+    color: var(--accent);
+}
+
+.dep-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.dep-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+}
+
+.dep-item.dep-ok {
+    background: rgba(76, 175, 80, 0.1);
+    color: var(--green);
+}
+
+.dep-item.dep-warn {
+    background: rgba(255, 152, 0, 0.1);
+    color: var(--orange);
+}
+
+.dep-item.dep-error {
+    background: rgba(239, 83, 80, 0.1);
+    color: var(--red);
+}
+
+.dep-icon {
+    font-weight: bold;
+    font-size: 14px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.progress-bar-container .progress-bar {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 9999px;
+    transition: width 0.3s ease-out;
+    width: 0%;
+    margin-bottom: 0;
+}
+
+
+
+.page-info {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* 世界列表 - 存档条目网格 */
+.world-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.world-item {
+    background: var(--bg-card-glass);
+    backdrop-filter: blur(4px) saturate(1.2);
+    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    border: 1px solid var(--border);
+    transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
+}
+
+.world-item:hover {
+    border-color: var(--accent);
+}
+
+.world-name {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.world-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+#page-accounts {
+    position: relative;
+}
+
+/* 账户列表 - 账户条目、微软认证步骤 */

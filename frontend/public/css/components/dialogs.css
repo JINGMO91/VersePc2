@@ -1,0 +1,136 @@
+/* dialogs.css — 支持弹窗与更新公告 */
+.support-modal-subtitle {
+    font-size: 15px;
+    color: #475569;
+    margin-bottom: 12px;
+}
+.support-modal-desc {
+    font-size: 14px;
+    color: #94a3b8;
+    margin-bottom: 24px;
+}
+.support-modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+.support-modal-actions .btn {
+    padding: 8px 20px;
+    font-size: 14px;
+}
+
+/* 更新公告弹窗 */
+.announcement-modal-content {
+    max-width: 480px;
+    border-radius: 12px;
+}
+
+.announcement-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.announcement-version {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: var(--accent-glow);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    width: fit-content;
+}
+
+.announcement-content {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+}
+
+.announcement-content h1,
+.announcement-content h2,
+.announcement-content h3 {
+    color: var(--text-primary);
+    margin: 0 0 8px;
+}
+
+.announcement-content h1 { font-size: 18px; }
+.announcement-content h2 { font-size: 16px; }
+.announcement-content h3 { font-size: 14px; }
+
+.announcement-content p {
+    margin: 0 0 8px;
+}
+
+.announcement-content ul,
+.announcement-content ol {
+    margin: 0 0 8px;
+    padding-left: 20px;
+}
+
+.announcement-content li {
+    margin-bottom: 4px;
+}
+
+.announcement-content strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.announcement-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.announcement-checkbox {
+    flex-shrink: 0;
+}
+
+.announcement-checkbox span {
+    font-size: 13px;
+    color: var(--text-secondary);
+    user-select: none;
+}
+
+.announcement-content h4 {
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 600;
+    margin: 16px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+
+.announcement-content h5 {
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    margin: 12px 0 6px;
+}
+
+.announcement-section {
+    margin-bottom: 16px;
+}
+
+.announcement-section:last-of-type {
+    margin-bottom: 0;
+}
+
+.announcement-footer {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.announcement-footer p {
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* 收藏夹下拉选择菜单 */

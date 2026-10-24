@@ -1,0 +1,165 @@
+/* version-ui.css — 加载器卡片与版本详情 */
+.loader-card-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.loader-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.loader-card-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.loader-card-check {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.loader-card:not(.selected) .loader-card-check {
+    display: none;
+}
+
+.verdetail-footer {
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    background: var(--bg-secondary);
+    position: sticky;
+    bottom: 0;
+}
+
+.verdetail-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.verdetail-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.verdetail-meta {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.loader-version-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.lver-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    background: var(--bg-card-glass);
+    backdrop-filter: blur(4px) saturate(1.2);
+    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+
+.lver-item:hover {
+    background: var(--bg-hover);
+    border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+.lver-item.selected {
+    background: rgba(var(--accent-rgb), 0.08);
+    border-color: var(--accent);
+}
+
+.lver-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.lver-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.lver-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.lver-meta {
+    margin-top: 2px;
+}
+
+.lver-badge {
+    font-size: 11px;
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.12);
+    padding: 1px 7px;
+    border-radius: 4px;
+}
+
+.lver-check {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.lver-item:not(.selected) .lver-check {
+    display: none;
+}
+
+@keyframes cursorBlink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+.toolbox-section {
+    margin-bottom: 32px;
+}
+
+.toolbox-category {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+}
+
+.toolbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+    padding: 2px 8px 10px;
+}
+
+/* 工具箱卡片：新版卡片样式（大图标封面 + 底部信息，与版本卡片一致） */

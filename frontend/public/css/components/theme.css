@@ -1,0 +1,1004 @@
+/* theme.css — 自定义主题色、壁纸与液态玻璃覆盖 */
+.custom-theme-color-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+#custom-theme-color-input {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.2s var(--ease-out-expo), transform 0.2s var(--ease-out-expo);
+}
+
+#custom-theme-color-input:hover {
+    border-color: var(--accent);
+    transform: scale(1.08);
+}
+
+#custom-theme-color-input::-webkit-color-swatch-wrapper {
+    padding: 3px;
+}
+
+#custom-theme-color-input::-webkit-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+#custom-theme-color-input::-moz-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+.custom-theme-color-value {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-left: 6px;
+    text-transform: uppercase;
+}
+
+.custom-theme-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.custom-theme-preset {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s var(--ease-out-expo), border-color 0.15s var(--ease-out-expo), box-shadow 0.15s var(--ease-out-expo);
+}
+
+.custom-theme-preset:hover {
+    transform: scale(1.15);
+}
+
+.custom-theme-preset.active {
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 2px var(--bg-primary), 0 0 8px rgba(0, 0, 0, 0.4);
+}
+
+.wallpaper-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.wallpaper-picker-text-only {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.wallpaper-picker-text-only .wallpaper-option {
+    padding: 10px 12px;
+    justify-content: center;
+}
+
+.wallpaper-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 6px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    transition: border-color 0.2s var(--ease-out-expo), background-color 0.2s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo), transform 0.2s var(--ease-out-expo);
+}
+
+.wallpaper-option:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+    transform: translateY(-2px);
+}
+
+.wallpaper-option.active {
+    border-color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.08);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.wallpaper-preview {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+
+#wp-preview-panorama {
+    background: linear-gradient(180deg, #5090dc 0%, #64a0e6 30%, #96c87a 55%, #5a9e32 60%, #6e6e6e 80%);
+}
+
+#wp-preview-none {
+    background: var(--bg-primary, #0a0a0a);
+    border: 1px dashed var(--border, rgba(255,255,255,0.08));
+}
+
+.wp-preview-icon {
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.wallpaper-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.wallpaper-option.active .wallpaper-name {
+    color: var(--accent);
+}
+
+.panorama-theme-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    transition: border-color 0.2s var(--ease-out-expo), background-color 0.2s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo), transform 0.2s var(--ease-out-expo);
+}
+
+.panorama-theme-option:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.panorama-theme-option.active {
+    border-color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.08);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.panorama-theme-option.active .wallpaper-name {
+    color: var(--accent);
+}
+
+#wp-preview-custom-image {
+    background: linear-gradient(135deg, #2a2a2a 0%, #3a3a3a 50%, #2a2a2a 100%);
+}
+
+#wp-preview-custom-video {
+    background: linear-gradient(135deg, #1a1a2a 0%, #2a1a2a 50%, #1a1a2a 100%);
+}
+
+.custom-wallpaper-file-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.custom-wallpaper-file-name {
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+.wallpaper-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.wallpaper-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.wallpaper-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.custom-wallpaper-drop-zone {
+    margin-top: 8px;
+    padding: 16px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    transition: border-color 0.2s var(--ease-out-expo), background-color 0.2s var(--ease-out-expo), color 0.2s var(--ease-out-expo);
+    cursor: pointer;
+}
+
+.custom-wallpaper-drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.08);
+    color: var(--accent);
+}
+
+.wp-preview-thumb {
+    border-radius: 4px;
+}
+
+#app.wp-light .sidebar {
+    background: rgba(20, 20, 20, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-light .card {
+    background: rgba(20, 20, 20, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-light .title-bar {
+    background: rgba(20, 20, 20, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-light .nav-item {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+#app.wp-light .nav-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#app.wp-light .nav-item.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+#app.wp-light .card h3,
+#app.wp-light .card label,
+#app.wp-light .card .form-group label {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+#app.wp-light .text-secondary,
+#app.wp-light .text-muted {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+#app.wp-light .btn {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+#app.wp-light input,
+#app.wp-light select,
+#app.wp-light textarea,
+#app.wp-light .text-input,
+#app.wp-light .select-input,
+#app.wp-light .search-input {
+    background: rgba(30, 30, 30, 0.85);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+#app.wp-light input::placeholder,
+#app.wp-light .text-input::placeholder,
+#app.wp-light .search-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+#app.wp-light .custom-select-trigger {
+    background: rgba(30, 30, 30, 0.85);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+#app.wp-light .custom-select.open .custom-select-trigger {
+    border-color: var(--accent);
+}
+
+#app.wp-light .custom-select-option {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+#app.wp-light .custom-select-option:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#app.wp-light .custom-select-option.selected {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+#app.wp-light .stat-card {
+    background: rgba(20, 20, 20, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-light .home-hero {
+    background: linear-gradient(135deg, rgba(20, 20, 20, 0.75), rgba(30, 30, 30, 0.6));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-light .toast {
+    background: rgba(20, 20, 20, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-light .mod-item,
+#app.wp-light .modmgr-item,
+#app.wp-light .mod-featured-card,
+#app.wp-light .mdv-group,
+#app.wp-light .version-item,
+#app.wp-light .version-grid-item,
+#app.wp-light .mod-version-item,
+#app.wp-light .loader-card,
+#app.wp-light .lver-item,
+#app.wp-light .ds-item,
+#app.wp-light .dl-task,
+#app.wp-light .download-item,
+#app.wp-light .world-item,
+#app.wp-light .md-dep-item,
+#app.wp-light .java-item,
+#app.wp-light .java-download-item {
+    background: rgba(20, 20, 20, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-dark .sidebar {
+    background: rgba(10, 10, 10, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-dark .card {
+    background: rgba(10, 10, 10, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-dark .title-bar {
+    background: rgba(10, 10, 10, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-dark input,
+#app.wp-dark select,
+#app.wp-dark textarea,
+#app.wp-dark .text-input,
+#app.wp-dark .select-input,
+#app.wp-dark .search-input {
+    background: rgba(20, 20, 20, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f0f0f0;
+}
+
+#app.wp-dark input::placeholder,
+#app.wp-dark .text-input::placeholder,
+#app.wp-dark .search-input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+#app.wp-dark .custom-select-trigger {
+    background: rgba(20, 20, 20, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f0f0f0;
+}
+
+#app.wp-dark .custom-select.open .custom-select-trigger {
+    border-color: var(--accent);
+}
+
+#app.wp-dark .stat-card {
+    background: rgba(10, 10, 10, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-dark .home-hero {
+    background: linear-gradient(135deg, rgba(10, 10, 10, 0.75), rgba(20, 20, 20, 0.6));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-dark .toast {
+    background: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+#app.wp-dark .mod-item,
+#app.wp-dark .modmgr-item,
+#app.wp-dark .mod-featured-card,
+#app.wp-dark .mdv-group,
+#app.wp-dark .version-item,
+#app.wp-dark .version-grid-item,
+#app.wp-dark .mod-version-item,
+#app.wp-dark .loader-card,
+#app.wp-dark .lver-item,
+#app.wp-dark .ds-item,
+#app.wp-dark .dl-task,
+#app.wp-dark .download-item,
+#app.wp-dark .world-item,
+#app.wp-dark .md-dep-item,
+#app.wp-dark .java-item,
+#app.wp-dark .java-download-item {
+    background: rgba(10, 10, 10, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    contain: paint;
+}
+
+/* 全景模式下自定义下拉框适配 */
+#app.wp-light .custom-select-dropdown,
+#app.wp-dark .custom-select-dropdown {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+#app.wp-light .custom-select-dropdown {
+    background: rgba(30, 30, 30, 0.92);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+#app.wp-dark .custom-select-dropdown {
+    background: rgba(14, 14, 14, 0.92);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+#app.wp-light .form-group,
+#app.wp-dark .form-group {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+#app .card,
+#app .title-bar {
+    transition: background 0.4s ease;
+}
+
+[data-no-glass] .title-bar {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--bg-primary) !important;
+}
+
+/* 关闭毛玻璃：仅当液态玻璃也未开启时才将侧边栏退化为纯色，
+   液态玻璃（data-liquid-glass）是独立开关，二者同时开启时侧边栏保留玻璃效果 */
+html[data-no-glass]:not([data-liquid-glass]) .sidebar {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--bg-primary) !important;
+}
+
+[data-no-glass] .card,
+[data-no-glass] .stat-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--bg-card) !important;
+}
+
+[data-no-glass] .home-hero {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary)) !important;
+}
+
+[data-no-glass] .toast {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--bg-card) !important;
+}
+
+[data-no-glass] .mod-item,
+[data-no-glass] .modmgr-item,
+[data-no-glass] .mod-featured-card,
+[data-no-glass] .mdv-group,
+[data-no-glass] .version-item,
+[data-no-glass] .version-grid-item,
+[data-no-glass] .mod-version-item,
+[data-no-glass] .loader-card,
+[data-no-glass] .lver-item,
+[data-no-glass] .ds-item,
+[data-no-glass] .dl-task,
+[data-no-glass] .download-item,
+[data-no-glass] .world-item,
+[data-no-glass] .md-dep-item,
+[data-no-glass] .java-item,
+[data-no-glass] .java-download-item {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--bg-card) !important;
+}
+
+[data-no-glass] #app.wp-light .sidebar,
+[data-no-glass] #app.wp-dark .sidebar,
+[data-no-glass] #app.wp-light .card,
+[data-no-glass] #app.wp-dark .card,
+[data-no-glass] #app.wp-light .title-bar,
+[data-no-glass] #app.wp-dark .title-bar,
+[data-no-glass] #app.wp-light .stat-card,
+[data-no-glass] #app.wp-dark .stat-card,
+[data-no-glass] #app.wp-light .home-hero,
+[data-no-glass] #app.wp-dark .home-hero,
+[data-no-glass] #app.wp-light .toast,
+[data-no-glass] #app.wp-dark .toast,
+[data-no-glass] #app.wp-light .mod-item,
+[data-no-glass] #app.wp-dark .mod-item,
+[data-no-glass] #app.wp-light .modmgr-item,
+[data-no-glass] #app.wp-dark .modmgr-item,
+[data-no-glass] #app.wp-light .mod-featured-card,
+[data-no-glass] #app.wp-dark .mod-featured-card,
+[data-no-glass] #app.wp-light .mdv-group,
+[data-no-glass] #app.wp-dark .mdv-group,
+[data-no-glass] #app.wp-light .version-item,
+[data-no-glass] #app.wp-dark .version-item,
+[data-no-glass] #app.wp-light .version-grid-item,
+[data-no-glass] #app.wp-dark .version-grid-item,
+[data-no-glass] #app.wp-light .mod-version-item,
+[data-no-glass] #app.wp-dark .mod-version-item,
+[data-no-glass] #app.wp-light .loader-card,
+[data-no-glass] #app.wp-dark .loader-card,
+[data-no-glass] #app.wp-light .lver-item,
+[data-no-glass] #app.wp-dark .lver-item,
+[data-no-glass] #app.wp-light .ds-item,
+[data-no-glass] #app.wp-dark .ds-item,
+[data-no-glass] #app.wp-light .dl-task,
+[data-no-glass] #app.wp-dark .dl-task,
+[data-no-glass] #app.wp-light .download-item,
+[data-no-glass] #app.wp-dark .download-item,
+[data-no-glass] #app.wp-light .world-item,
+[data-no-glass] #app.wp-dark .world-item,
+[data-no-glass] #app.wp-light .md-dep-item,
+[data-no-glass] #app.wp-dark .md-dep-item,
+[data-no-glass] #app.wp-light .java-item,
+[data-no-glass] #app.wp-dark .java-item,
+[data-no-glass] #app.wp-light .java-download-item,
+[data-no-glass] #app.wp-dark .java-download-item {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-no-glass] #app.wp-light input,
+[data-no-glass] #app.wp-light select,
+[data-no-glass] #app.wp-light textarea,
+[data-no-glass] #app.wp-light .text-input,
+[data-no-glass] #app.wp-light .select-input,
+[data-no-glass] #app.wp-light .search-input,
+[data-no-glass] #app.wp-light .custom-select-trigger {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-no-glass] #app.wp-dark input,
+[data-no-glass] #app.wp-dark select,
+[data-no-glass] #app.wp-dark textarea,
+[data-no-glass] #app.wp-dark .text-input,
+[data-no-glass] #app.wp-dark .select-input,
+[data-no-glass] #app.wp-dark .search-input,
+[data-no-glass] #app.wp-dark .custom-select-trigger {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-no-glass] #app.wp-light .custom-select-dropdown,
+[data-no-glass] #app.wp-dark .custom-select-dropdown {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* ============================================================================
+ * 液态玻璃效果（Liquid Glass）
+ * ----------------------------------------------------------------------------
+ * 与"毛玻璃效果"（data-no-glass）相互独立，可同时开启。
+ * 作用范围：仅限重要界面的大块元素（标题栏 / 侧边栏 / 卡片 / 首页 / 弹窗 / 提示）。
+ * 特征：更通透鲜艳（高饱和 + 明亮）、细腻白光高光描边（模拟水晶折射）、柔和内高光。
+ * 性能：只覆盖少量大元素，避免大量小元素叠加合成层；开启该模式时关闭动画循环。
+ * ========================================================================== */
+/* 卡片 / 弹窗 / 提示的液态玻璃：通透底（低透明度让背景透出）+
+   背景模糊 + 细腻高光边缘，模拟苹果 Liquid Glass：玻璃本身几乎透明，
+   靠折射与描边体现质感。侧边栏与圆形开关按钮的"真折射"由
+   js/app/liquid-glass.js 以 SDF 位移贴图动态注入 backdrop-filter。 */
+[data-liquid-glass] .title-bar,
+[data-liquid-glass] .card,
+[data-liquid-glass] .stat-card,
+[data-liquid-glass] .home-hero,
+[data-liquid-glass] .modal-content,
+[data-liquid-glass] .toast {
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.16) 0%,
+        rgba(240, 243, 249, 0.10) 100%
+    );
+    backdrop-filter: blur(10px) saturate(1.6) brightness(1.05);
+    -webkit-backdrop-filter: blur(10px) saturate(1.6) brightness(1.05);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+        inset 1.8px 3px 0 -2px rgba(255, 255, 255, 0.85),
+        inset -2px -2px 0 -2px rgba(255, 255, 255, 0.6),
+        inset 0 -3px 4px 0 rgba(0, 0, 0, 0.06),
+        0 8px 24px rgba(0, 0, 0, 0.12);
+    contain: paint;
+}
+
+/* 侧边栏专属液态玻璃：通透半透明底（背景透出）+ 亮白边缘高光，
+   顶部斜向镜面反光由 ::before 叠加。胶囊的定位/形状由 layout.css 统一控制，
+   此处只调整玻璃质感，不得覆盖 position / 圆角 */
+[data-liquid-glass] .sidebar {
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.20) 0%,
+        rgba(240, 243, 249, 0.12) 100%
+    );
+    backdrop-filter: blur(28px) saturate(1.9) brightness(1.03);
+    -webkit-backdrop-filter: blur(28px) saturate(1.9) brightness(1.03);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.25),
+        inset 1px 0 0 rgba(255, 255, 255, 0.35),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12),
+        0 18px 40px rgba(0, 0, 0, 0.14),
+        0 6px 16px rgba(0, 0, 0, 0.08);
+}
+/* 玻璃表面镜面高光：斜向白光渐变，模拟苹果玻璃的高光质感（在冷灰蓝底上清晰可见）
+   折射层形状与定位由 layout.css 统一控制，此处只增强高光强度 */
+[data-liquid-glass] .sidebar::before {
+    background: linear-gradient(
+        155deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(255, 255, 255, 0.3) 28%,
+        rgba(255, 255, 255, 0) 55%
+    );
+}
+
+/* 深色 / 壁纸深色基底下的液态玻璃：半透明深色底（背景透出）+ 背景折射弯曲，
+   深色下比浅色略实以保证文字可读性 */
+[data-liquid-glass] #app.wp-light .sidebar,
+[data-liquid-glass] #app.wp-light .home-hero,
+[data-liquid-glass] #app.wp-light .title-bar {
+    background: linear-gradient(
+        135deg,
+        rgba(24, 24, 28, 0.42),
+        rgba(24, 24, 28, 0.30)
+    );
+    backdrop-filter: blur(12px) saturate(1.6) brightness(1.02);
+    -webkit-backdrop-filter: blur(12px) saturate(1.6) brightness(1.02);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        0 8px 32px rgba(0, 0, 0, 0.28);
+}
+[data-liquid-glass] #app.wp-light .card,
+[data-liquid-glass] #app.wp-light .stat-card,
+[data-liquid-glass] #app.wp-light .toast,
+[data-liquid-glass] #app.wp-light .modal-content {
+    background: linear-gradient(
+        180deg,
+        rgba(30, 31, 36, 0.55) 0%,
+        rgba(24, 25, 30, 0.42) 100%
+    );
+    backdrop-filter: blur(12px) saturate(1.5) brightness(1.02);
+    -webkit-backdrop-filter: blur(12px) saturate(1.5) brightness(1.02);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        0 8px 32px rgba(0, 0, 0, 0.28);
+}
+
+/* 深色主题下：侧边栏半透明深色玻璃，卡片/弹窗/提示同样通透但保底可读 */
+html[data-theme="dark"][data-liquid-glass] .sidebar,
+html[data-theme="dark"][data-liquid-glass] .home-hero,
+html[data-theme="dark"][data-liquid-glass] .title-bar {
+    background: linear-gradient(
+        135deg,
+        rgba(18, 18, 22, 0.45),
+        rgba(18, 18, 22, 0.32)
+    );
+    backdrop-filter: blur(12px) saturate(1.5) brightness(1.02);
+    -webkit-backdrop-filter: blur(12px) saturate(1.5) brightness(1.02);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 8px 32px rgba(0, 0, 0, 0.3);
+}
+html[data-theme="dark"][data-liquid-glass] .card,
+html[data-theme="dark"][data-liquid-glass] .stat-card,
+html[data-theme="dark"][data-liquid-glass] .toast,
+html[data-theme="dark"][data-liquid-glass] .modal-content {
+    background: linear-gradient(
+        180deg,
+        rgba(28, 29, 34, 0.6) 0%,
+        rgba(20, 21, 26, 0.46) 100%
+    );
+    backdrop-filter: blur(12px) saturate(1.5) brightness(1.02);
+    -webkit-backdrop-filter: blur(12px) saturate(1.5) brightness(1.02);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* 游戏运行时：液态玻璃也关闭，避免运行时抢占 GPU 合成资源 */
+body.game-running:not([data-no-glass]) .sidebar {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 液态玻璃下的可点击卡片：给实色底座，避免选中/悬停时靠半透明背景导致内容全透看不清。
+   版本项、模组项、服务器项等可点击行在液态玻璃模式下保持可读 */
+[data-liquid-glass] .version-item,
+[data-liquid-glass] .mod-item,
+[data-liquid-glass] .mod-version-item,
+[data-liquid-glass] .mod-featured-card,
+[data-liquid-glass] .home-current-version-card,
+[data-liquid-glass] .java-source-item,
+[data-liquid-glass] .loader-option,
+[data-liquid-glass] .custom-select-trigger,
+[data-liquid-glass] .ps-card,
+[data-liquid-glass] .wallpaper-option,
+[data-liquid-glass] .panorama-theme-option {
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.62) 0%,
+        rgba(240, 243, 249, 0.52) 100%
+    );
+    backdrop-filter: blur(4px) saturate(1.2);
+    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+}
+[data-liquid-glass] .version-item:hover,
+[data-liquid-glass] .mod-item:hover,
+[data-liquid-glass] .mod-version-item:hover,
+[data-liquid-glass] .mod-featured-card:hover,
+[data-liquid-glass] .home-current-version-card:hover,
+[data-liquid-glass] .java-source-item:hover,
+[data-liquid-glass] .loader-option:hover,
+[data-liquid-glass] .ps-card:hover,
+[data-liquid-glass] .wallpaper-option:hover,
+[data-liquid-glass] .panorama-theme-option:hover {
+    background: var(--bg-hover);
+}
+[data-liquid-glass] .version-item.selected,
+[data-liquid-glass] .mod-item.selected,
+[data-liquid-glass] .loader-option.selected,
+[data-liquid-glass] .wallpaper-option.active,
+[data-liquid-glass] .panorama-theme-option.active,
+[data-liquid-glass] .theme-option.active {
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.78) 0%,
+        rgba(240, 243, 249, 0.66) 100%
+    );
+}
+
+/* 液态玻璃下，按钮/卡片文字用白字+深色投影，保证在任何明暗背景下都清晰可读 */
+[data-liquid-glass] .theme-option .theme-name,
+[data-liquid-glass] .wallpaper-option .wallpaper-name,
+[data-liquid-glass] .panorama-theme-option .wallpaper-name {
+    color: #ffffff;
+    text-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.6),
+        0 0 6px rgba(0, 0, 0, 0.4);
+}
+[data-liquid-glass] .theme-option.active .theme-name,
+[data-liquid-glass] .wallpaper-option.active .wallpaper-name,
+[data-liquid-glass] .panorama-theme-option.active .wallpaper-name {
+    color: #ffffff;
+    text-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.7),
+        0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+/* 深色主题 / 深色壁纸下的可点击卡片：实深色底座保底可读 */
+html[data-theme="dark"][data-liquid-glass] .version-item,
+html[data-theme="dark"][data-liquid-glass] .mod-item,
+html[data-theme="dark"][data-liquid-glass] .mod-version-item,
+html[data-theme="dark"][data-liquid-glass] .mod-featured-card,
+html[data-theme="dark"][data-liquid-glass] .home-current-version-card,
+html[data-theme="dark"][data-liquid-glass] .java-source-item,
+html[data-theme="dark"][data-liquid-glass] .loader-option,
+html[data-theme="dark"][data-liquid-glass] .ps-card,
+html[data-theme="dark"][data-liquid-glass] .wallpaper-option,
+html[data-theme="dark"][data-liquid-glass] .panorama-theme-option {
+    background: linear-gradient(
+        180deg,
+        rgba(30, 31, 36, 0.72) 0%,
+        rgba(24, 25, 30, 0.6) 100%
+    );
+}
+html[data-theme="dark"][data-liquid-glass] .version-item:hover,
+html[data-theme="dark"][data-liquid-glass] .mod-item:hover,
+html[data-theme="dark"][data-liquid-glass] .mod-version-item:hover,
+html[data-theme="dark"][data-liquid-glass] .mod-featured-card:hover,
+html[data-theme="dark"][data-liquid-glass] .home-current-version-card:hover,
+html[data-theme="dark"][data-liquid-glass] .java-source-item:hover,
+html[data-theme="dark"][data-liquid-glass] .loader-option:hover,
+html[data-theme="dark"][data-liquid-glass] .ps-card:hover,
+html[data-theme="dark"][data-liquid-glass] .wallpaper-option:hover,
+html[data-theme="dark"][data-liquid-glass] .panorama-theme-option:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+html[data-theme="dark"][data-liquid-glass] .version-item.selected,
+html[data-theme="dark"][data-liquid-glass] .mod-item.selected,
+html[data-theme="dark"][data-liquid-glass] .loader-option.selected,
+html[data-theme="dark"][data-liquid-glass] .wallpaper-option.active,
+html[data-theme="dark"][data-liquid-glass] .panorama-theme-option.active,
+html[data-theme="dark"][data-liquid-glass] .theme-option.active {
+    background: linear-gradient(
+        180deg,
+        rgba(40, 42, 48, 0.82) 0%,
+        rgba(28, 29, 34, 0.7) 100%
+    );
+}
+
+.color-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.color-input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.color-preview-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-preview-dot {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+}
+
+
+.download-source-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ds-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-card-glass);
+    backdrop-filter: blur(4px) saturate(1.2);
+    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+
+.ds-item:hover {
+    background: var(--bg-hover);
+    border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+.ds-item input[type="radio"] {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+    flex-shrink: 0;
+}
+
+.ds-item input[type="radio"]:checked {
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: inset 0 0 0 3px var(--bg-card);
+}
+
+.ds-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ds-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.loader-dropdown {
+    position: relative;
+}
+
+.loader-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.loader-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-card-glass);
+    backdrop-filter: blur(4px) saturate(1.2);
+    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
+}
+
+.loader-card:hover {
+    background: var(--bg-hover);
+    border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+.loader-card.selected {
+    background: rgba(var(--accent-rgb), 0.08);
+    border-color: var(--accent);
+}
+
+.loader-card-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+

@@ -1,0 +1,424 @@
+/* mod-detail.css — 模组详情、依赖与版本文件 */
+.moddetail-icon-wrap {
+    width: 64px;
+    height: 64px;
+    border-radius: 12px;
+    background: var(--bg-tertiary);
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.moddetail-icon-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.icon-fallback {
+    font-size: 32px;
+}
+
+.moddetail-icon-wrap .icon-fallback {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--bg-secondary);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+
+.moddetail-text-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.moddetail-text-info h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 4px 0;
+}
+
+.md-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 4px 0 8px 0;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.md-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.md-stat {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.md-source-tag {
+    font-size: 11px;
+    color: #a855f7;
+    background: rgba(168, 85, 247, 0.12);
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: auto;
+}
+
+.md-action-bar {
+    padding: 10px 24px;
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+
+.md-action-btn {
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.md-deps-section {
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+
+.md-deps-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.md-deps-header:hover {
+    opacity: 0.8;
+}
+
+.md-deps-download-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s var(--ease-out-expo), color 0.2s var(--ease-out-expo);
+    white-space: nowrap;
+}
+
+.md-deps-download-all:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+.md-deps-list {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 12px;
+}
+
+.md-deps-list.expanded {
+    display: flex;
+}
+
+.md-dep-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--bg-card-glass);
+    backdrop-filter: blur(4px) saturate(1.2);
+    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.md-dep-item:hover {
+    background: var(--bg-hover);
+}
+
+.md-dep-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    flex-shrink: 0;
+}
+
+.md-dep-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    image-rendering: pixelated;
+}
+
+.md-dep-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.md-dep-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.md-dep-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.md-dep-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.md-dep-badge.required {
+    background: rgba(239, 83, 80, 0.15);
+    color: #ef5350;
+}
+
+.md-dep-badge.optional {
+    background: rgba(158, 158, 158, 0.15);
+    color: #9e9e9e;
+}
+
+.md-dep-badge.incompatible {
+    background: rgba(244, 67, 54, 0.15);
+    color: #f44336;
+}
+
+.md-dep-status {
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.md-dep-status.installed {
+    color: var(--green);
+}
+
+.md-dep-status.not-installed {
+    color: var(--warning);
+}
+
+.md-dep-status.compatible {
+    color: var(--accent);
+}
+
+.md-dep-status.incompatible-version {
+    color: #ef4444;
+}
+
+.md-body {
+    padding: 16px 24px;
+}
+
+.md-version-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.md-vtab {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.md-vtab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.md-vtab.active {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+}
+
+.md-version-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mdv-group {
+    background: var(--bg-card-glass);
+    backdrop-filter: blur(4px) saturate(1.2);
+    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color var(--transition);
+}
+
+.mdv-group.expanded {
+    border-color: var(--accent);
+}
+
+.mdv-group.single-file .mdv-group-header {
+    cursor: default;
+}
+
+.mdv-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 14px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    user-select: none;
+}
+
+.mdv-group-header:hover {
+    background: var(--bg-hover);
+}
+
+.mdv-group-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.mdv-expand-arrow {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+
+.mdv-group.expanded .mdv-expand-arrow {
+    transform: rotate(180deg);
+}
+
+.mdv-files {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid var(--border);
+}
+
+.mdv-group.expanded .mdv-files {
+    display: flex;
+}
+
+.mdv-file-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px 9px 42px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    border-top: 1px solid var(--border);
+}
+
+.mdv-file-item:first-child {
+    border-top: none;
+}
+
+.mdv-file-item:hover {
+    background: var(--bg-hover);
+}
+
+.mdv-file-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+
+.mdv-file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.mdv-file-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mdv-file-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.mdv-install-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+}
+
+.loader-badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.vset-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    /* 顶部 56px：避开全局窗口拖拽带(0-48px)与左上角悬浮球，否则返回键被遮无法点击 */
+    padding: 56px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px) saturate(1.3);
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+}
+
