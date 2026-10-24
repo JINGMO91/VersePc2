@@ -16,7 +16,7 @@ const PageModDetail = {
   },
   template: `
     <div class="moddetail-page-header">
-      <button class="btn btn-icon" @click="goBackFromDetail()">
+      <button class="btn btn-icon moddetail-back" @click="goBackFromDetail()" title="返回">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <div class="moddetail-top-info">
@@ -25,36 +25,38 @@ const PageModDetail = {
           <span id="md-icon-fallback" class="icon-fallback" style="display:none"></span>
         </div>
         <div class="moddetail-text-info">
-          <h2 id="md-name"></h2>
+          <div class="moddetail-title-row">
+            <h2 id="md-name"></h2>
+            <span id="md-source-badge" class="md-source-tag">Modrinth</span>
+          </div>
           <p id="md-desc" class="md-desc"></p>
           <div class="md-stats-row">
             <span id="md-downloads" class="md-stat">\u2B07 0</span>
             <span id="md-followers" class="md-stat">\u2764 0</span>
             <span id="md-updated" class="md-stat"></span>
-            <span id="md-source-badge" class="md-source-tag">Modrinth</span>
           </div>
         </div>
       </div>
-    </div>
-    <div class="md-action-bar">
-      <VButton variant="accent" id="md-install-btn" class="md-action-btn" @click="installCurrentDetailVersion()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        安装
-      </VButton>
-      <!-- 收藏按钮的激活态由 features/mods/mod-detail-header.js 用 classList 切换
-           .btn-primary/.btn-secondary 并重写 innerHTML，保留原生按钮与旧类 -->
-      <button class="btn btn-secondary md-action-btn" id="md-fav-btn" @click="showFavSelectDropdown(appState.currentModDetailId, $event.currentTarget)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-        收藏
-      </button>
-      <VButton variant="secondary" class="md-action-btn" @click="openModSourceUrl()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        打开源
-      </VButton>
-      <VButton variant="secondary" class="md-action-btn" @click="copyModName()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-        复制名称
-      </VButton>
+      <div class="md-action-bar">
+        <VButton variant="accent" id="md-install-btn" class="md-action-btn" @click="installCurrentDetailVersion()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          安装
+        </VButton>
+        <!-- 收藏按钮的激活态由 features/mods/mod-detail-header.js 用 classList 切换
+             .btn-primary/.btn-secondary 并重写 innerHTML，保留原生按钮与旧类 -->
+        <button class="btn btn-secondary md-action-btn" id="md-fav-btn" @click="showFavSelectDropdown(appState.currentModDetailId, $event.currentTarget)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          收藏
+        </button>
+        <VButton variant="secondary" class="md-action-btn" @click="openModSourceUrl()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          打开源
+        </VButton>
+        <VButton variant="secondary" class="md-action-btn" @click="copyModName()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          复制名称
+        </VButton>
+      </div>
     </div>
     <div id="md-deps-section" class="md-deps-section" style="display:none">
       <div class="md-deps-header">

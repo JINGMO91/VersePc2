@@ -14,13 +14,11 @@
 }
 
 .vset-sidebar {
-    width: 160px;
-    min-width: 160px;
-    background: var(--bg-card-glass);
-    backdrop-filter: blur(10px) saturate(1.2);
-    -webkit-backdrop-filter: blur(10px) saturate(1.2);
+    width: 200px;
+    min-width: 200px;
+    background: transparent;
     border-right: 1px solid var(--border);
-    padding: 10px 8px;
+    padding: 16px 12px;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -31,11 +29,11 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 11px 14px;
+    padding: 9px 12px;
     border: none;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     border-radius: var(--radius);

@@ -59,12 +59,31 @@
 
 .moddetail-page-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
     gap: 16px;
     min-height: 52px;
-    padding: 0 0 12px 0;
+    padding: 0 0 16px 0;
     margin-bottom: 20px;
     border-bottom: 1px solid var(--border);
+}
+
+/* 详情页返回键：32px 圆形 ghost 按钮，与 64px 图标垂直居中 */
+.moddetail-page-header .moddetail-back {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin-top: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--text-secondary);
+}
+
+.moddetail-page-header .moddetail-back:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 
 .moddetail-page-header h2 {
@@ -77,8 +96,9 @@
 
 .moddetail-top-info {
     display: flex;
+    align-items: flex-start;
     gap: 16px;
-    flex: 1;
+    flex: 1 1 380px;
     min-width: 0;
 }
 

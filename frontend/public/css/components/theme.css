@@ -912,18 +912,15 @@ html[data-theme="dark"][data-liquid-glass] .theme-option.active {
     align-items: center;
     gap: 12px;
     padding: 12px 16px;
-    background: var(--bg-card-glass);
-    backdrop-filter: blur(4px) saturate(1.2);
-    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     cursor: pointer;
     transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
 }
 
 .ds-item:hover {
     background: var(--bg-hover);
-    border-color: rgba(var(--accent-rgb), 0.3);
 }
 
 .ds-item input[type="radio"] {
@@ -970,24 +967,21 @@ html[data-theme="dark"][data-liquid-glass] .theme-option.active {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 14px 16px;
-    background: var(--bg-card-glass);
-    backdrop-filter: blur(4px) saturate(1.2);
-    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    padding: 12px 16px;
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     cursor: pointer;
     transition: border-color var(--transition), background-color var(--transition), box-shadow var(--transition);
 }
 
 .loader-card:hover {
     background: var(--bg-hover);
-    border-color: rgba(var(--accent-rgb), 0.3);
 }
 
 .loader-card.selected {
-    background: rgba(var(--accent-rgb), 0.08);
-    border-color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.06);
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 
 .loader-card-icon {
@@ -998,7 +992,7 @@ html[data-theme="dark"][data-liquid-glass] .theme-option.active {
     justify-content: center;
     font-size: 24px;
     background: var(--bg-secondary);
-    border-radius: 8px;
+    border-radius: 10px;
     flex-shrink: 0;
 }
 

@@ -2,7 +2,7 @@
 .moddetail-icon-wrap {
     width: 64px;
     height: 64px;
-    border-radius: 12px;
+    border-radius: 14px;
     background: var(--bg-tertiary);
     overflow: hidden;
     flex-shrink: 0;
@@ -31,7 +31,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 12px;
+    border-radius: 14px;
 }
 
 .moddetail-text-info {
@@ -39,17 +39,30 @@
     min-width: 0;
 }
 
-.moddetail-text-info h2 {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
+.moddetail-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
     margin: 0 0 4px 0;
+}
+
+.moddetail-text-info h2 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    color: var(--text-primary);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .md-desc {
     font-size: 13px;
     color: var(--text-secondary);
-    margin: 4px 0 8px 0;
+    margin: 0 0 8px 0;
     line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -60,48 +73,60 @@
 .md-stats-row {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     flex-wrap: wrap;
 }
 
 .md-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 12px;
     color: var(--text-muted);
 }
 
 .md-source-tag {
+    flex-shrink: 0;
     font-size: 11px;
+    font-weight: 600;
+    line-height: 1.6;
+    padding: 2px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
     color: #a855f7;
     background: rgba(168, 85, 247, 0.12);
-    padding: 2px 8px;
-    border-radius: 4px;
-    margin-left: auto;
 }
 
 .md-action-bar {
-    padding: 10px 24px;
     display: flex;
+    align-items: center;
     gap: 8px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-top: 6px;
 }
 
 .md-action-btn {
     font-size: 13px;
+    height: 32px;
+    padding: 0 12px;
     white-space: nowrap;
 }
 
 .md-deps-section {
-    padding: 0 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
+    margin: 0 0 20px 0;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius-lg) + 2px);
+    background: var(--bg-card);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .md-deps-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 0;
+    padding: 0;
     cursor: pointer;
     user-select: none;
 }
@@ -135,7 +160,7 @@
     display: none;
     flex-direction: column;
     gap: 8px;
-    padding-bottom: 12px;
+    padding-top: 12px;
 }
 
 .md-deps-list.expanded {
@@ -146,11 +171,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    background: var(--bg-card-glass);
-    backdrop-filter: blur(4px) saturate(1.2);
-    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    padding: 10px 12px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
     border: 1px solid var(--border);
     cursor: pointer;
     transition: background 0.15s;
@@ -247,24 +270,24 @@
 }
 
 .md-body {
-    padding: 16px 24px;
+    padding: 0 0 24px 0;
 }
 
 .md-version-tabs {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
 }
 
 .md-vtab {
-    padding: 6px 14px;
-    font-size: 13px;
-    font-weight: 500;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
     color: var(--text-secondary);
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 999px;
     cursor: pointer;
     transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
 }
@@ -275,29 +298,28 @@
 }
 
 .md-vtab.active {
-    background: var(--accent);
-    color: var(--accent-text);
-    border-color: var(--accent);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
 }
 
 .md-version-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .mdv-group {
-    background: var(--bg-card-glass);
-    backdrop-filter: blur(4px) saturate(1.2);
-    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     overflow: hidden;
     transition: border-color var(--transition);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .mdv-group.expanded {
-    border-color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
 .mdv-group.single-file .mdv-group-header {
@@ -349,7 +371,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 14px 9px 42px;
+    padding: 10px 16px 10px 46px;
     cursor: pointer;
     transition: background var(--transition-fast);
     border-top: 1px solid var(--border);
@@ -412,13 +434,29 @@
 .vset-header {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     /* 顶部 56px：避开全局窗口拖拽带(0-48px)与左上角悬浮球，否则返回键被遮无法点击 */
-    padding: 56px 24px 16px;
+    padding: 56px 32px 12px;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-    background: var(--bg-glass);
-    backdrop-filter: blur(12px) saturate(1.3);
-    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+    background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.vset-header .btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--text-secondary);
+}
+
+.vset-header .btn-icon:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
 }
 

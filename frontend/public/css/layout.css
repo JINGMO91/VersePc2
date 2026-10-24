@@ -499,6 +499,22 @@ body.show-nav-labels .nav-submenu-toggle .submenu-arrow {
     gap: 12px;
 }
 
+.page-header.detail-header .btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--text-secondary);
+}
+
+.page-header.detail-header .btn-icon:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
 .page-actions {
     display: flex;
     align-items: center;

@@ -1,18 +1,26 @@
 /* resource-detail.css — 资源详情、画廊与侧栏 */
+/* 详情页签条：随页面滚动吸顶，作为正文区的工具条 */
 .md-tab-row {
+    position: sticky;
+    top: -4px;
+    z-index: 5;
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    margin-bottom: 16px;
+    margin: -4px 0 14px;
+    padding: 10px 0;
+    background: color-mix(in srgb, var(--bg-primary) 96%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
 }
 .md-tabs {
     display: inline-flex;
     gap: 2px;
-    padding: 3px;
+    padding: 2px;
     background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    border-radius: calc(var(--radius) + 2px);
     margin-bottom: 0;
 }
 /* 版本标签右侧的加载器筛选：点击“版本”后向右展开 */
@@ -42,13 +50,13 @@
 }
 .md-loader-chip {
     flex: 0 0 auto;
-    padding: 5px 11px;
-    border-radius: 20px;
+    padding: 4px 10px;
+    border-radius: 999px;
     border: 1px solid var(--border);
     background: var(--bg-tertiary);
     color: var(--text-secondary);
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
     transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
@@ -57,16 +65,16 @@
     color: var(--text-primary);
 }
 .md-loader-chip.active {
-    background: var(--accent);
-    color: var(--accent-text);
-    border-color: var(--accent);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
 }
 .md-tab {
-    padding: 8px 18px;
+    padding: 6px 16px;
     border: none;
     background: transparent;
-    border-radius: 9px;
-    font-size: 13.5px;
+    border-radius: var(--radius);
+    font-size: 13px;
     font-weight: 600;
     color: var(--text-secondary);
     cursor: pointer;
@@ -78,7 +86,7 @@
 .md-tab.active {
     background: var(--bg-card);
     color: var(--text-primary);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 .md-tab-content {
     display: none;
@@ -88,34 +96,39 @@
 }
 .md-layout {
     display: flex;
-    gap: 20px;
+    gap: 24px;
     align-items: flex-start;
 }
 .md-layout-main {
     flex: 1;
     min-width: 0;
 }
+/* 侧栏在正文滚动时保持可见 */
 .md-layout-sidebar {
+    position: sticky;
+    top: 8px;
+    align-self: flex-start;
     width: 280px;
     min-width: 280px;
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
 }
 .md-sidebar-section {
-    background: var(--bg-card-glass);
-    backdrop-filter: blur(4px) saturate(1.2);
-    -webkit-backdrop-filter: blur(4px) saturate(1.2);
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 14px 16px;
+    border-radius: calc(var(--radius-lg) + 2px);
+    padding: 16px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 .md-sidebar-section-title {
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.5px;
     margin-bottom: 10px;
 }
 .md-sidebar-tags {
@@ -383,8 +396,11 @@
         flex-direction: column;
     }
     .md-layout-sidebar {
+        position: static;
         width: 100%;
         min-width: 0;
+        max-height: none;
+        overflow: visible;
     }
     .md-gallery-lightbox-prev {
         left: -12px;
