@@ -10,10 +10,13 @@ import { gameStore } from '../../core/game-store.js';
 import { terracottaHostStep1, terracottaJoinStep1, terracottaJoinCodeInput } from '../../features/misc/lan.js';
 
 import { terracottaDownloadCore, terracottaHostNext, terracottaCopyRoomCode, terracottaCopyAddr, terracottaDisconnect, terracottaJoinNext } from '../../features/misc/lan.js';
+import VButton from '@/components/verse/VButton.vue';
 
 const PageLanTerracotta = {
+  components: { VButton },
   setup() {
-    return { terracottaDownloadCore, terracottaHostNext, terracottaCopyRoomCode, terracottaCopyAddr, terracottaDisconnect, terracottaJoinNext };
+    // terracottaJoinCodeInput 原为内联 oninput 调用的全局函数，改为模板事件后必须暴露到作用域
+    return { terracottaDownloadCore, terracottaHostNext, terracottaCopyRoomCode, terracottaCopyAddr, terracottaDisconnect, terracottaJoinNext, terracottaJoinCodeInput };
   },
   name: 'PageLanTerracotta',
   data() {
@@ -86,14 +89,14 @@ const PageLanTerracotta = {
               </div>
 
               <div class="terracotta-actions">
-                <button class="btn btn-primary btn-lg" @click="host()" :disabled="gameInstances.length === 0" title="创建房间">
+                <VButton variant="accent" size="lg" @click="host()" :disabled="gameInstances.length === 0" title="创建房间">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:32px;height:32px"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="14 3 14 9 20 9"/></svg>
                   创建房间
-                </button>
-                <button class="btn btn-secondary btn-lg" @click="join()" title="加入房间">
+                </VButton>
+                <VButton variant="secondary" size="lg" @click="join()" title="加入房间">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:32px;height:32px"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                   加入房间
-                </button>
+                </VButton>
               </div>
             </div>
 
@@ -137,7 +140,7 @@ const PageLanTerracotta = {
               <div id="terracotta-join-step1" class="terracotta-step">
                 <h3>加入房间</h3>
                 <p class="terracotta-step-desc">请粘贴房主发给你的房间码</p>
-                <textarea id="terracotta-join-code" class="terracotta-join-textarea" placeholder="粘贴房主发来的房间码..." oninput="terracottaJoinCodeInput(this)"></textarea>
+                <textarea id="terracotta-join-code" class="terracotta-join-textarea" placeholder="粘贴房主发来的房间码..." @input="terracottaJoinCodeInput()"></textarea>
                 <button class="terracotta-next-btn" id="terracotta-join-next" @click="terracottaJoinNext()" disabled title="请先输入房间码">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>

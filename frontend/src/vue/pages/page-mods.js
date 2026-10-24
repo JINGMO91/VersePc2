@@ -1,14 +1,20 @@
-/* page-mods - 模组页 Vue 组件 */
+/* page-mods - 模组页 Vue 组件
+ * 通用按钮与搜索框走 components/verse 语义层；
+ * 自研 custom-select、模态框与多选勾选框结构保持原样。
+ */
 import { onFavSubFolderChange, onFavSubSearch, toggleFavSubSelectAll } from '../../features/mods/favorites.js';
 import { toggleSelectAllMods } from '../../features/mods/mod-install.js';
 
 import { toggleModMultiSelect, batchDownloadMods } from '../../features/mods/mod-install.js';
 import { openFolder } from '../../features/launch/java.js';
 import { enterFavSubPage, exitFavSubPage, showFavManageMenu, toggleFavSubMultiSelect, showFavImportModal, exportCurrentFav, batchRemoveFavSub, batchDownloadFavSub } from '../../features/mods/favorites.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
 
 const PageMods = {
+  components: { VButton, VInput },
   setup() {
-    return { toggleModMultiSelect, openFolder, batchDownloadMods, enterFavSubPage, exitFavSubPage, showFavManageMenu, toggleFavSubMultiSelect, showFavImportModal, exportCurrentFav, batchRemoveFavSub, batchDownloadFavSub };
+    return { toggleModMultiSelect, openFolder, batchDownloadMods, enterFavSubPage, exitFavSubPage, showFavManageMenu, toggleFavSubMultiSelect, showFavImportModal, exportCurrentFav, batchRemoveFavSub, batchDownloadFavSub, onFavSubSearch };
   },
   template: `
           <div class="page-header">
@@ -16,14 +22,16 @@ const PageMods = {
               <button class="tab-btn active" data-tab="browse-mods">浏览模组</button>
             </div>
             <div class="page-actions">
+              <!-- 多选按钮的激活态由 features 层用 classList 切换 .btn-primary/.btn-secondary，
+                   因此保留原生按钮与旧类，不换成 VButton（换掉后切换将不再有视觉反馈） -->
               <button class="btn btn-secondary btn-sm" id="mod-multiselect-toggle" @click="toggleModMultiSelect()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
                 多选
               </button>
-              <button class="btn btn-secondary" @click="openFolder('mods')">
+              <VButton variant="secondary" @click="openFolder('mods')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                 打开文件夹
-              </button>
+              </VButton>
             </div>
           </div>
           <div id="mod-multiselect-bar" class="mod-multiselect-bar" style="display:none">
@@ -33,17 +41,17 @@ const PageMods = {
             </label>
             <span class="mod-selected-count" id="mod-selected-count">已选 0 个</span>
             <span class="mod-filter-hint" id="mod-filter-hint"></span>
-            <button class="btn btn-primary btn-sm" id="mod-batch-download-btn" @click="batchDownloadMods()" disabled>
+            <VButton variant="accent" size="sm" id="mod-batch-download-btn" @click="batchDownloadMods()" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               批量下载
-            </button>
-            <button class="btn btn-secondary btn-sm" @click="toggleModMultiSelect()">取消多选</button>
+            </VButton>
+            <VButton variant="secondary" size="sm" @click="toggleModMultiSelect()">取消多选</VButton>
           </div>
           <div id="browse-mods-panel" class="mod-panel">
             <div class="mod-filter-bar">
               <div class="search-bar">
-                <input type="text" id="mod-search-input" placeholder="搜索模组名称..." class="search-input">
-                <button id="mod-search-btn" class="btn btn-primary">搜索</button>
+                <VInput type="text" id="mod-search-input" placeholder="搜索模组名称..." class="flex-1" />
+                <VButton variant="accent" id="mod-search-btn">搜索</VButton>
               </div>
               <div class="filter-row">
                 <div class="filter-group">
@@ -106,10 +114,10 @@ const PageMods = {
                     </div>
                   </div>
                 </div>
-                <button class="btn btn-secondary btn-sm" @click="enterFavSubPage()" style="margin-left:auto;height:32px;display:inline-flex;align-items:center;gap:4px;">
+                <VButton variant="secondary" size="sm" @click="enterFavSubPage()" style="margin-left:auto;height:32px;display:inline-flex;align-items:center;gap:4px;">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
                   收藏
-                </button>
+                </VButton>
 
               </div>
             </div>
@@ -119,9 +127,9 @@ const PageMods = {
                 <div class="loading-spinner"><div class="spinner"></div></div>
               </div>
               <div id="mod-pagination" class="pagination">
-                <button id="mod-prev-btn" class="btn btn-secondary btn-sm">上一页</button>
+                <VButton variant="secondary" size="sm" id="mod-prev-btn">上一页</VButton>
                 <span id="mod-page-info" class="page-info">1/1</span>
-                <button id="mod-next-btn" class="btn btn-secondary btn-sm">下一页</button>
+                <VButton variant="secondary" size="sm" id="mod-next-btn">下一页</VButton>
               </div>
             </div>
             <div id="mod-fav-section" class="mod-browse-section" style="display:none">
@@ -132,16 +140,16 @@ const PageMods = {
                 <h3 class="section-title" style="margin:0">我的收藏</h3>
                 <select id="fav-sub-folder-select" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:13px;" onchange="onFavSubFolderChange(this.value)"></select>
                 <div style="flex:1"></div>
-                <button class="btn btn-secondary btn-sm" @click="showFavManageMenu()">
+                <VButton variant="secondary" size="sm" @click="showFavManageMenu()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                   管理
-                </button>
-                <button class="btn btn-secondary btn-sm" id="fav-sub-multi-toggle" @click="toggleFavSubMultiSelect()">
+                </VButton>
+                <VButton variant="secondary" size="sm" id="fav-sub-multi-toggle" @click="toggleFavSubMultiSelect()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
                   多选
-                </button>
-                <button class="btn btn-secondary btn-sm" @click="showFavImportModal()">导入</button>
-                <button class="btn btn-secondary btn-sm" @click="exportCurrentFav()">导出</button>
+                </VButton>
+                <VButton variant="secondary" size="sm" @click="showFavImportModal()">导入</VButton>
+                <VButton variant="secondary" size="sm" @click="exportCurrentFav()">导出</VButton>
               </div>
               <div id="fav-sub-multi-bar" class="mod-multiselect-bar" style="display:none">
                 <label class="mod-select-all-label">
@@ -149,15 +157,15 @@ const PageMods = {
                   <span>全选</span>
                 </label>
                 <span class="mod-selected-count" id="fav-sub-selected-count">已选 0 个</span>
-                <button class="btn btn-danger btn-sm" id="fav-sub-batch-remove" @click="batchRemoveFavSub()" disabled>取消收藏</button>
-                <button class="btn btn-primary btn-sm" id="fav-sub-batch-download" @click="batchDownloadFavSub()" disabled>
+                <VButton variant="danger" size="sm" id="fav-sub-batch-remove" @click="batchRemoveFavSub()" disabled>取消收藏</VButton>
+                <VButton variant="accent" size="sm" id="fav-sub-batch-download" @click="batchDownloadFavSub()" disabled>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   批量下载
-                </button>
-                <button class="btn btn-secondary btn-sm" @click="toggleFavSubMultiSelect()">取消多选</button>
+                </VButton>
+                <VButton variant="secondary" size="sm" @click="toggleFavSubMultiSelect()">取消多选</VButton>
               </div>
               <div id="fav-sub-search-bar" style="margin-bottom:16px">
-                <input type="text" id="fav-sub-search-input" placeholder="搜索收藏的模组..." class="search-input" style="max-width:400px" oninput="onFavSubSearch(this.value)">
+                <VInput type="text" id="fav-sub-search-input" placeholder="搜索收藏的模组..." style="max-width:400px" @input="onFavSubSearch($event.target.value)" />
               </div>
               <div id="fav-sub-list" class="mod-list">
                 <div class="loading-spinner"><div class="spinner"></div></div>

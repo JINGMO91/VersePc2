@@ -4,8 +4,12 @@ import { toggleMemoryMode, updateMemoryDisplay } from '../../features/launch/lau
 import { browseDataDir, resetDataDir, toggleAdvancedOptions, optimizeJvmArgs, saveLaunchSettings, resetLaunchSettings } from '../../features/launch/launch-settings.js';
 import { detectJava, generateCdsArchive } from '../../features/launch/launch.js';
 import { browseJavaPath } from '../../features/settings/settings-misc.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
+import VTextarea from '@/components/verse/VTextarea.vue';
 
 const PageSettingsLaunch = {
+  components: { VButton, VInput, VTextarea },
   setup() {
     return { browseDataDir, resetDataDir, detectJava, browseJavaPath, toggleAdvancedOptions, optimizeJvmArgs, generateCdsArchive, saveLaunchSettings, resetLaunchSettings };
   },
@@ -28,18 +32,18 @@ const PageSettingsLaunch = {
                 <label>数据目录</label>
                 <p class="hint" style="margin-bottom:8px;margin-top:0">启动器核心数据（版本、资源、库文件等）的存放位置，修改后需重启生效</p>
                 <div style="display:flex;gap:8px;align-items:center">
-                  <input type="text" id="setting-data-dir" class="text-input" style="flex:1" placeholder="加载中..." readonly>
-                  <button type="button" class="btn btn-secondary btn-sm" @click="browseDataDir()">浏览</button>
-                  <button type="button" class="btn btn-secondary btn-sm" @click="resetDataDir()">重置</button>
+                  <VInput type="text" id="setting-data-dir" class="flex-1" placeholder="加载中..." readonly />
+                  <VButton variant="secondary" size="sm" @click="browseDataDir()">浏览</VButton>
+                  <VButton variant="secondary" size="sm" @click="resetDataDir()">重置</VButton>
                 </div>
               </div>
               <div class="form-group">
                 <label>游戏窗口标题</label>
-                <input type="text" id="launch-window-title" class="text-input" placeholder="默认">
+                <VInput type="text" id="launch-window-title" placeholder="默认" />
               </div>
               <div class="form-group">
                 <label>自定义信息</label>
-                <input type="text" id="launch-custom-info" class="text-input" placeholder="VersePC2">
+                <VInput type="text" id="launch-custom-info" placeholder="VersePC2" />
               </div>
               <div class="form-group">
                 <label>启动器可见性</label>
@@ -100,14 +104,14 @@ const PageSettingsLaunch = {
                   <select id="game-java-select" class="select-input" style="flex: 1;">
                     <option value="auto">自动选择合适的 Java</option>
                   </select>
-                  <button class="btn btn-secondary btn-sm" @click="detectJava()" title="自动搜索">
+                  <VButton variant="secondary" size="sm" @click="detectJava()" title="自动搜索">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     自动搜索
-                  </button>
-                  <button class="btn btn-secondary btn-sm" @click="browseJavaPath()" title="手动导入">
+                  </VButton>
+                  <VButton variant="secondary" size="sm" @click="browseJavaPath()" title="手动导入">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     手动导入
-                  </button>
+                  </VButton>
                 </div>
               </div>
             </div>
@@ -179,18 +183,18 @@ const PageSettingsLaunch = {
                 <div class="form-group">
                   <label>Java 虚拟机参数</label>
                   <div style="display: flex; gap: 8px; align-items: flex-start;">
-                    <textarea id="jvm-args" class="text-input textarea" rows="4" placeholder="-XX:OmitStackTraceInFastThrow -Djdk.lang.Process.allowAmbiguousCommands=True -Dfm.lignoresInvalidMinecraftCertificates=True -Dfm.lignorePatchDiscrepancies=True" style="flex: 1;"></textarea>
-                    <button class="btn btn-secondary btn-sm" @click="optimizeJvmArgs()" style="white-space: nowrap; margin-top: 4px;">智能优化</button>
+                    <VTextarea id="jvm-args" class="flex-1" rows="4" placeholder="-XX:OmitStackTraceInFastThrow -Djdk.lang.Process.allowAmbiguousCommands=True -Dfm.lignoresInvalidMinecraftCertificates=True -Dfm.lignorePatchDiscrepancies=True" />
+                    <VButton variant="secondary" size="sm" @click="optimizeJvmArgs()" style="white-space: nowrap; margin-top: 4px;">智能优化</VButton>
                   </div>
                 </div>
                 <div class="form-group">
                   <label>游戏参数</label>
-                  <input type="text" id="game-args" class="text-input" placeholder="--tweakclass...">
-                </div>
-                <div class="form-group">
-                  <label>启动前执行命令</label>
-                  <input type="text" id="pre-launch-command" class="text-input" placeholder="">
-                </div>
+                <VInput type="text" id="game-args" placeholder="--tweakclass..." />
+              </div>
+              <div class="form-group">
+                <label>启动前执行命令</label>
+                <VInput type="text" id="pre-launch-command" placeholder="" />
+              </div>
                 <div class="form-group">
                   <label>内存管理</label>
                   <select id="memory-management" class="select-input">
@@ -239,7 +243,7 @@ const PageSettingsLaunch = {
                   </label>
                   <span class="form-hint">使用类数据共享归档跳过类解析，加速游戏启动 30-50%</span>
                   <div style="margin-top: 6px;">
-                    <button class="btn btn-secondary btn-sm" @click="generateCdsArchive()">生成 CDS 归档</button>
+                    <VButton variant="secondary" size="sm" @click="generateCdsArchive()">生成 CDS 归档</VButton>
                     <span id="cds-status-text" style="font-size: 11px; color: var(--text-tertiary); margin-left: 8px;"></span>
                   </div>
                 </div>
@@ -250,8 +254,8 @@ const PageSettingsLaunch = {
             </div>
 
             <div class="form-actions">
-              <button class="btn btn-primary" @click="saveLaunchSettings()">保存设置</button>
-              <button class="btn btn-secondary" @click="resetLaunchSettings()">重置默认</button>
+              <VButton variant="accent" @click="saveLaunchSettings()">保存设置</VButton>
+              <VButton variant="secondary" @click="resetLaunchSettings()">重置默认</VButton>
             </div>
           </div>
   `

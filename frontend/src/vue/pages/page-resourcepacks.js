@@ -1,7 +1,12 @@
-/* page-resourcepacks - 资源包页 Vue 组件 */
+/* page-resourcepacks - 资源包页 Vue 组件
+ * 通用按钮与搜索框走 components/verse 语义层；自研 custom-select 保持原样。
+ */
 import { openFolder } from '../../features/launch/java.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
 
 const PageResourcepacks = {
+  components: { VButton, VInput },
   setup() {
     return { openFolder };
   },
@@ -9,16 +14,16 @@ const PageResourcepacks = {
           <div class="page-header">
             <h2>材质包</h2>
             <div class="page-actions">
-              <button class="btn btn-secondary" @click="openFolder('resourcepacks')">
+              <VButton variant="secondary" @click="openFolder('resourcepacks')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                 打开文件夹
-              </button>
+              </VButton>
             </div>
           </div>
           <div class="mod-filter-bar">
             <div class="search-bar">
-              <input type="text" id="resourcepack-search-input" placeholder="搜索材质包..." class="search-input">
-              <button id="resourcepack-search-btn" class="btn btn-primary">搜索</button>
+              <VInput type="text" id="resourcepack-search-input" placeholder="搜索材质包..." class="flex-1" />
+              <VButton variant="accent" id="resourcepack-search-btn">搜索</VButton>
             </div>
             <div class="filter-row">
               <div class="filter-group">
@@ -51,9 +56,9 @@ const PageResourcepacks = {
             <div class="loading-spinner"><div class="spinner"></div></div>
           </div>
           <div class="pagination">
-            <button id="resourcepack-prev-btn" class="btn btn-secondary btn-sm">上一页</button>
+            <VButton variant="secondary" size="sm" id="resourcepack-prev-btn">上一页</VButton>
             <span id="resourcepack-page-info" class="page-info">1/1</span>
-            <button id="resourcepack-next-btn" class="btn btn-secondary btn-sm">下一页</button>
+            <VButton variant="secondary" size="sm" id="resourcepack-next-btn">下一页</VButton>
           </div>
   `
 };

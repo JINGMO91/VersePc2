@@ -1,12 +1,15 @@
 /* page-toolbox - 工具箱页 Vue 组件 */
 import { browseCustomDlPath, startCustomDownload, cancelCustomDownload, openCustomDlFolder } from '../../features/versions/custom-download.js';
 import { bridge } from '../../core/tauri-bridge.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
 
 function openExternal(url) {
   bridge.openExternal(url);
 }
 
 const PageToolbox = {
+  components: { VButton, VInput },
   setup() {
     return { browseCustomDlPath, startCustomDownload, cancelCustomDownload, openCustomDlFolder, openExternal };
   },
@@ -350,18 +353,18 @@ const PageToolbox = {
                 <p class="hint" style="margin-bottom:16px;">使用启动器的高速多线程下载引擎下载任意文件。请注意，部分网站（例如百度网盘）可能会报错（403），无法正常下载。</p>
                 <div class="form-group" style="margin-bottom:12px;">
                   <label style="font-weight:500;margin-bottom:6px;display:block;">下载地址</label>
-                  <input type="text" id="custom-dl-url" class="text-input" style="width:100%;" placeholder="https://example.com/file.zip">
+                  <VInput type="text" id="custom-dl-url" style="width:100%;" placeholder="https://example.com/file.zip" />
                 </div>
                 <div class="form-group" style="margin-bottom:12px;">
                   <label style="font-weight:500;margin-bottom:6px;display:block;">保存到</label>
                   <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="text" id="custom-dl-path" class="text-input" style="flex:1;" placeholder="点击右侧按钮选择" readonly>
-                    <button type="button" class="btn btn-secondary btn-sm" @click="browseCustomDlPath()">选择</button>
+                    <VInput type="text" id="custom-dl-path" style="flex:1;" placeholder="点击右侧按钮选择" readonly />
+                    <VButton type="button" variant="secondary" size="sm" @click="browseCustomDlPath()">选择</VButton>
                   </div>
                 </div>
                 <div class="form-group" style="margin-bottom:16px;">
                   <label style="font-weight:500;margin-bottom:6px;display:block;">文件名</label>
-                  <input type="text" id="custom-dl-filename" class="text-input" style="width:100%;" placeholder="留空则自动获取">
+                  <VInput type="text" id="custom-dl-filename" style="width:100%;" placeholder="留空则自动获取" />
                 </div>
                 <div id="custom-dl-progress" style="display:none;margin-bottom:16px;">
                   <div class="progress-container">
@@ -373,9 +376,9 @@ const PageToolbox = {
                   <p id="custom-dl-status" class="hint" style="margin-top:8px;">准备下载...</p>
                 </div>
                 <div style="display:flex;gap:12px;">
-                  <button type="button" class="btn btn-primary" id="custom-dl-start-btn" @click="startCustomDownload()">开始下载</button>
-                  <button type="button" class="btn btn-secondary" id="custom-dl-cancel-btn" style="display:none;" @click="cancelCustomDownload()">取消下载</button>
-                  <button type="button" class="btn btn-secondary" @click="openCustomDlFolder()">打开文件夹</button>
+                  <VButton type="button" variant="accent" id="custom-dl-start-btn" @click="startCustomDownload()">开始下载</VButton>
+                  <VButton type="button" variant="secondary" id="custom-dl-cancel-btn" style="display:none;" @click="cancelCustomDownload()">取消下载</VButton>
+                  <VButton type="button" variant="secondary" @click="openCustomDlFolder()">打开文件夹</VButton>
                 </div>
               </div>
             </div>

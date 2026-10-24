@@ -4,22 +4,26 @@
 import { cloudUpdateLoginState } from '../../features/misc/cloud.js';
 
 import { cloudBuy, cloudRedeemOpen, cloudRefresh, cloudLogout, cloudOpenSkin, cloudLogin, cloudUploadFlow, cloudDialogClose } from '../../features/misc/cloud.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
 
 const PageCloud = {
+  components: { VButton, VInput },
   setup() {
-    return { cloudBuy, cloudRedeemOpen, cloudRefresh, cloudLogout, cloudOpenSkin, cloudLogin, cloudUploadFlow, cloudDialogClose };
+    // cloudUpdateLoginState 原为内联 oninput 调用的全局函数，改为模板事件后必须暴露到作用域
+    return { cloudBuy, cloudRedeemOpen, cloudRefresh, cloudLogout, cloudOpenSkin, cloudLogin, cloudUploadFlow, cloudDialogClose, cloudUpdateLoginState };
   },
   template: `
           <div class="page-header">
             <h2>Verse云盘</h2>
             <div class="page-actions">
-              <button class="btn btn-secondary btn-sm" @click="cloudBuy()" id="cloud-buy-btn" hidden>
+              <VButton variant="secondary" size="sm" @click="cloudBuy()" id="cloud-buy-btn" hidden>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="fb-inline-icon"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 购买套餐
-              </button>
-              <button class="btn btn-secondary btn-sm" @click="cloudRedeemOpen()" id="cloud-redeem-btn" hidden>兑换</button>
-              <button class="btn btn-secondary btn-sm" @click="cloudRefresh()" id="cloud-refresh-btn" hidden>刷新</button>
-              <button class="btn btn-secondary btn-sm" @click="cloudLogout()" id="cloud-logout-btn" hidden>退出</button>
+              </VButton>
+              <VButton variant="secondary" size="sm" @click="cloudRedeemOpen()" id="cloud-redeem-btn" hidden>兑换</VButton>
+              <VButton variant="secondary" size="sm" @click="cloudRefresh()" id="cloud-refresh-btn" hidden>刷新</VButton>
+              <VButton variant="secondary" size="sm" @click="cloudLogout()" id="cloud-logout-btn" hidden>退出</VButton>
             </div>
           </div>
 
@@ -34,15 +38,15 @@ const PageCloud = {
               </div>
               <div class="form-group">
                 <label>UID <span class="fb-required">*</span></label>
-                <input type="text" id="cloud-uid" class="text-input" placeholder="爱发电数字 UID，例如 546792942489" oninput="cloudUpdateLoginState()">
+                <VInput type="text" id="cloud-uid" placeholder="爱发电数字 UID，例如 546792942489" @input="cloudUpdateLoginState()" />
               </div>
               <div class="form-group">
                 <label>密码 <span class="fb-required">*</span></label>
-                <input type="password" id="cloud-password" class="text-input" placeholder="统一账号密码" onkeydown="if(event.key==='Enter')cloudLogin()" oninput="cloudUpdateLoginState()">
+                <VInput type="password" id="cloud-password" placeholder="统一账号密码" @keydown.enter="cloudLogin()" @input="cloudUpdateLoginState()" />
               </div>
               <div class="fb-submit-bar">
                 <span class="fb-submit-hint" id="cloud-login-hint"></span>
-                <button class="btn btn-primary" id="cloud-login-btn" @click="cloudLogin()" disabled>登录</button>
+                <VButton variant="accent" id="cloud-login-btn" @click="cloudLogin()" disabled>登录</VButton>
               </div>
             </div>
 
@@ -65,7 +69,7 @@ const PageCloud = {
               <!-- 操作区 -->
               <div class="card">
                 <div class="cloud-toolbar">
-                  <button class="btn btn-primary" @click="cloudUploadFlow()" id="cloud-upload-btn">上传存档</button>
+                  <VButton variant="accent" @click="cloudUploadFlow()" id="cloud-upload-btn">上传存档</VButton>
                   <span class="form-hint">从已安装版本打包存档 zip 上传（仅支持 zip）</span>
                 </div>
                 <div class="cloud-progress" id="cloud-progress" hidden>
@@ -89,7 +93,7 @@ const PageCloud = {
               <div class="cloud-dialog-title" id="cloud-dialog-title">选择</div>
               <div class="cloud-dialog-body" id="cloud-dialog-body"></div>
               <div class="cloud-dialog-foot">
-                <button class="btn btn-secondary btn-sm" @click="cloudDialogClose()">取消</button>
+                <VButton variant="secondary" size="sm" @click="cloudDialogClose()">取消</VButton>
               </div>
             </div>
           </div>

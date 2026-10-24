@@ -1,5 +1,7 @@
 import { API } from '../../core/api.js';
-/* page-installed-versions - 已安装版本页 Vue 组件 */
+/* page-installed-versions - 已安装版本页 Vue 组件
+ * 通用按钮走 components/verse 语义层；返回用的 .btn-icon 是紧凑图标按钮，保留原样式。
+ */
 import { vmHolders } from '../../core/vm-holders.js';
 
 import { openFolder } from '../../features/launch/java.js';
@@ -7,8 +9,10 @@ import { showToast, showConfirmDialog } from '../../features/misc/ui-components.
 import { renderInstalledVersionsInto, syncVersionCardSwitches, getSelectedFolder, setSelectedFolder } from '../../features/versions/versions.js';
 
 import { navigateToPage, toggleVersionCardStyle, addExternalFolder, refreshInstalledVersions } from '../../features/versions/versions.js';
+import VButton from '@/components/verse/VButton.vue';
 
 const PageInstalledVersions = {
+  components: { VButton },
   setup() {
     return { navigateToPage, toggleVersionCardStyle, addExternalFolder, refreshInstalledVersions };
   },
@@ -191,14 +195,14 @@ const PageInstalledVersions = {
           <span class="ver-card-style-label">卡片样式</span>
           <span class="toggle-switch" id="ver-card-style-switch" @click="toggleVersionCardStyle()"></span>
         </label>
-        <button class="btn btn-secondary" @click="addExternalFolder()">
+        <VButton variant="secondary" @click="addExternalFolder()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
           添加已有文件夹
-        </button>
-        <button class="btn btn-secondary" @click="refreshInstalledVersions()">
+        </VButton>
+        <VButton variant="secondary" @click="refreshInstalledVersions()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
           刷新
-        </button>
+        </VButton>
       </div>
     </div>
     <div id="installed-versions-list" class="version-list"></div>

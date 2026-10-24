@@ -2,8 +2,11 @@
 import { initServerHostPage, _shDetach, _shClearConsole } from '../../features/misc/server-host.js';
 
 import { serverHostOpenFolder, serverHostCreate, serverHostCancelCreate, serverHostRefreshVersions, serverHostRefreshList, serverHostStart, serverHostStop, serverHostSyncMods, _shClearConsole as serverHostClearConsole, serverHostDelete, serverHostSendCommand } from '../../features/misc/server-host.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
 
 const PageServerHost = {
+  components: { VButton, VInput },
   setup() {
     return { serverHostOpenFolder, serverHostCreate, serverHostCancelCreate, serverHostRefreshVersions, serverHostRefreshList, serverHostStart, serverHostStop, serverHostSyncMods, serverHostClearConsole, serverHostDelete, serverHostSendCommand };
   },
@@ -17,7 +20,7 @@ const PageServerHost = {
         <p class="page-subtitle">基于已安装版本创建 Minecraft 服务端，支持原版 / Forge / Fabric / NeoForge</p>
       </div>
       <div class="page-actions">
-        <button class="btn btn-ghost btn-sm" @click="serverHostOpenFolder()">打开目录</button>
+        <VButton variant="ghost" size="sm" @click="serverHostOpenFolder()">打开目录</VButton>
       </div>
     </div>
 
@@ -47,15 +50,15 @@ const PageServerHost = {
           <div class="sh-form-row">
             <div class="form-group">
               <label class="filter-label">服务器名称</label>
-              <input type="text" id="server-host-name" class="text-input" placeholder="MyServer" value="MyServer" />
+              <VInput type="text" id="server-host-name" placeholder="MyServer" default-value="MyServer" />
             </div>
             <div class="form-group">
               <label class="filter-label">端口</label>
-              <input type="number" id="server-host-port" class="text-input" min="1" max="65535" value="25565" />
+              <VInput type="number" id="server-host-port" min="1" max="65535" default-value="25565" />
             </div>
             <div class="form-group">
               <label class="filter-label">最大内存 (MB)</label>
-              <input type="number" id="server-host-mem" class="text-input" min="512" max="32768" step="256" value="2048" />
+              <VInput type="number" id="server-host-mem" min="512" max="32768" step="256" default-value="2048" />
             </div>
           </div>
 
@@ -72,9 +75,9 @@ const PageServerHost = {
         </div>
 
         <div class="sh-create-actions">
-          <button class="btn btn-primary" id="server-host-create-btn" @click="serverHostCreate()">创建并准备服务端</button>
-          <button class="btn btn-ghost" id="server-host-cancel-btn" @click="serverHostCancelCreate()">取消创建</button>
-          <button class="btn btn-ghost" @click="serverHostRefreshVersions()">刷新版本</button>
+          <VButton variant="accent" id="server-host-create-btn" @click="serverHostCreate()">创建并准备服务端</VButton>
+          <VButton variant="ghost" id="server-host-cancel-btn" @click="serverHostCancelCreate()">取消创建</VButton>
+          <VButton variant="ghost" @click="serverHostRefreshVersions()">刷新版本</VButton>
         </div>
 
         <div class="sh-progress" id="server-host-progress" aria-hidden="true">
@@ -92,7 +95,7 @@ const PageServerHost = {
         <div class="card sh-list-card">
           <div class="sh-list-header">
             <h3>我的服务器</h3>
-            <button class="btn btn-ghost btn-sm" @click="serverHostRefreshList()">刷新</button>
+            <VButton variant="ghost" size="sm" @click="serverHostRefreshList()">刷新</VButton>
           </div>
           <div id="server-host-list" class="sh-list"></div>
         </div>
@@ -110,11 +113,11 @@ const PageServerHost = {
           </div>
 
           <div class="sh-console-toolbar">
-            <button class="btn btn-primary btn-sm" id="server-host-start-btn" @click="serverHostStart()">启动</button>
-            <button class="btn btn-ghost btn-sm" id="server-host-stop-btn" @click="serverHostStop()" disabled>停止</button>
-            <button class="btn btn-ghost btn-sm" id="server-host-sync-btn" @click="serverHostSyncMods()">同步模组</button>
-            <button class="btn btn-ghost btn-sm" @click="serverHostClearConsole()">清屏</button>
-            <button class="btn btn-ghost btn-sm sh-btn-delete" @click="serverHostDelete()">删除</button>
+            <VButton variant="accent" size="sm" id="server-host-start-btn" @click="serverHostStart()">启动</VButton>
+            <VButton variant="ghost" size="sm" id="server-host-stop-btn" @click="serverHostStop()" disabled>停止</VButton>
+            <VButton variant="ghost" size="sm" id="server-host-sync-btn" @click="serverHostSyncMods()">同步模组</VButton>
+            <VButton variant="ghost" size="sm" @click="serverHostClearConsole()">清屏</VButton>
+            <VButton variant="ghost" size="sm" class="sh-btn-delete" @click="serverHostDelete()">删除</VButton>
           </div>
 
           <div id="server-host-console" class="sh-console">
@@ -122,8 +125,8 @@ const PageServerHost = {
           </div>
 
           <div class="sh-cmd-row">
-            <input id="server-host-cmd" class="text-input" placeholder="输入指令，例如 list / op Steve / stop，按回车发送" autocomplete="off" />
-            <button class="btn btn-primary" @click="serverHostSendCommand()">发送</button>
+            <VInput id="server-host-cmd" class="font-mono" placeholder="输入指令，例如 list / op Steve / stop，按回车发送" autocomplete="off" />
+            <VButton variant="accent" @click="serverHostSendCommand()">发送</VButton>
           </div>
         </div>
       </div>

@@ -1,8 +1,11 @@
-/* page-version-detail - 版本详情页 Vue 组件 */
-import { API } from '../../core/api.js';
+/* page-version-detail - 版本详情页 Vue 组件
+ * 通用按钮走 components/verse 语义层；返回用的 .btn-icon 是紧凑图标按钮，保留原样式。
+ */
 import { navigateToPage, selectLoaderCard, openFabricApiDetailPicker, backFromFabricApiDetailPicker, confirmInstallVersion } from '../../features/versions/versions.js';
+import VButton from '@/components/verse/VButton.vue';
 
 const PageVersionDetail = {
+  components: { VButton },
   setup() {
     return { navigateToPage, selectLoaderCard, openFabricApiDetailPicker, backFromFabricApiDetailPicker, confirmInstallVersion };
   },
@@ -109,10 +112,10 @@ const PageVersionDetail = {
         </div>
         <div id="fabric-api-picker-detail" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;padding:24px;z-index:100;background:var(--bg-primary);box-sizing:border-box;display:flex;flex-direction:column">
           <div id="pvd-fabric-header" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-            <button class="btn btn-secondary btn-sm" @click="backFromFabricApiDetailPicker()" style="display:flex;align-items:center;gap:4px">
+            <VButton variant="secondary" size="sm" @click="backFromFabricApiDetailPicker()" style="display:flex;align-items:center;gap:4px">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="15 18 9 12 15 6"></polyline></svg>
               返回
-            </button>
+            </VButton>
             <h4 style="margin:0;font-size:15px;font-weight:600">选择 Fabric API 版本</h4>
           </div>
           <div id="fabric-api-list-detail" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:0">
@@ -120,8 +123,8 @@ const PageVersionDetail = {
           </div>
         </div>
         <div id="pvd-footer" class="verdetail-footer">
-          <button class="btn btn-secondary" @click="navigateToPage('versions')">取消</button>
-          <button class="btn btn-primary btn-lg" @click="confirmInstallVersion()">确认下载</button>
+          <VButton variant="secondary" @click="navigateToPage('versions')">取消</VButton>
+          <VButton variant="accent" size="lg" @click="confirmInstallVersion()">确认下载</VButton>
         </div>
   `
 };

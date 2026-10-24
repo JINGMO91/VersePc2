@@ -11,6 +11,8 @@ import { openFolder, cleanupScan, cleanupRun } from '../../features/launch/java.
 import { handleCheckUpdate, handleSkipVersion, handleDownloadUpdate, handleInstallUpdate } from '../../features/settings/updater-ui.js';
 import { showUpdateAnnouncement } from '../../features/misc/announcement.js';
 import { bridge } from '../../core/tauri-bridge.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
 
 function openExternalUrl(url) {
   if (bridge.openExternal) {
@@ -31,6 +33,7 @@ function openReleasePage() {
 }
 
 const PageSettingsOther = {
+  components: { VButton, VInput },
   setup() {
     return { openSponsorDino, toggleShowMoreSponsors, copyFeedbackEmail, browseFolder, doMemoryOptimize, openFolder, cleanupScan, cleanupRun, handleCheckUpdate, handleSkipVersion, handleDownloadUpdate, handleInstallUpdate, showUpdateAnnouncement, createDesktopShortcut, saveOtherSettings, resetOtherSettings, openExternalUrl, openUrl, openReleasePage };
   },
@@ -50,7 +53,7 @@ const PageSettingsOther = {
               </div>
               <div class="form-group">
                 <p class="form-hint" style="margin-bottom:12px">首次开启 V 岛时显示引导页，也可手动重新播放</p>
-                <button class="btn btn-ghost btn-sm" id="v-island-replay-onboarding">重新播放引导</button>
+                <VButton variant="ghost" size="sm" id="v-island-replay-onboarding">重新播放引导</VButton>
               </div>
             </div>
             <details class="card sponsor-card" id="sponsor-card" style="position:relative;">
@@ -68,8 +71,8 @@ const PageSettingsOther = {
                   </div>
                 </div>
                 <div class="sponsor-dino-row">
-                  <input type="text" id="sponsor-order-input" class="text-input sponsor-dino-input" placeholder="输入赞助订单号..." onkeydown="if(event.key==='Enter')openSponsorDino()">
-                  <button class="btn btn-primary btn-sm sponsor-dino-btn" @click="openSponsorDino()">进入小游戏</button>
+                  <VInput type="text" id="sponsor-order-input" class="sponsor-dino-input" placeholder="输入赞助订单号..." @keydown.enter="openSponsorDino()" />
+                  <VButton variant="accent" size="sm" class="sponsor-dino-btn" @click="openSponsorDino()">进入小游戏</VButton>
                 </div>
               </div>
               <div class="sponsor-divider"></div>
@@ -79,10 +82,10 @@ const PageSettingsOther = {
               </div>
               <div class="sponsor-grid" id="sponsor-list">
               </div>
-              <button class="btn btn-ghost btn-sm sponsor-more-btn" id="sponsor-more-btn" @click="toggleShowMoreSponsors()">
+              <VButton variant="ghost" size="sm" class="sponsor-more-btn" id="sponsor-more-btn" @click="toggleShowMoreSponsors()">
                 展开更多
                 <svg class="chevron-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;margin-left:4px"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
+              </VButton>
             </details>
             <div class="card">
               <h3>反馈</h3>
@@ -90,8 +93,8 @@ const PageSettingsOther = {
               <div class="form-group">
                 <label>反馈邮箱</label>
                 <div class="input-with-btn">
-                  <input type="text" class="text-input" value="verselauncher@verselauncher.cn" readonly>
-                  <button class="btn btn-primary btn-sm" @click="copyFeedbackEmail($event.currentTarget)">复制</button>
+                  <VInput type="text" class="flex-1" model-value="verselauncher@verselauncher.cn" readonly />
+                  <VButton variant="accent" size="sm" @click="copyFeedbackEmail($event.currentTarget)">复制</VButton>
                 </div>
               </div>
             </div>
@@ -139,8 +142,8 @@ const PageSettingsOther = {
               <div class="form-group">
                 <label>目标文件夹</label>
                 <div class="input-with-btn">
-                  <input type="text" id="setting-target-dir" class="text-input" placeholder="默认目录">
-                  <button class="btn btn-secondary btn-sm" @click="browseFolder('target')">浏览...</button>
+                  <VInput type="text" id="setting-target-dir" class="flex-1" placeholder="默认目录" />
+                  <VButton variant="secondary" size="sm" @click="browseFolder('target')">浏览...</VButton>
                 </div>
                 <span class="form-hint">请在「启动 → 版本选择 → 文件夹列表」中更改下载目标文件夹。</span>
               </div>
@@ -217,7 +220,7 @@ const PageSettingsOther = {
                     </div>
                     <div id="memory-detail-text" style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">正在获取...</div>
                   </div>
-                  <button class="btn btn-primary win-only" id="memory-optimize-btn" @click="doMemoryOptimize()">内存优化</button>
+                  <VButton variant="accent" class="win-only" id="memory-optimize-btn" @click="doMemoryOptimize()">内存优化</VButton>
                 </div>
               </div>
               <div class="form-group" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
@@ -232,10 +235,10 @@ const PageSettingsOther = {
             <div class="card">
               <h3>数据管理</h3>
               <div class="btn-group">
-                <button class="btn btn-secondary" @click="openFolder('data')">打开数据目录</button>
-                <button class="btn btn-secondary" @click="openFolder('versions')">打开版本目录</button>
-                <button class="btn btn-secondary" @click="openFolder('assets')">打开资源目录</button>
-                <button class="btn btn-secondary" @click="openFolder('mods')">打开模组目录</button>
+                <VButton variant="secondary" @click="openFolder('data')">打开数据目录</VButton>
+                <VButton variant="secondary" @click="openFolder('versions')">打开版本目录</VButton>
+                <VButton variant="secondary" @click="openFolder('assets')">打开资源目录</VButton>
+                <VButton variant="secondary" @click="openFolder('mods')">打开模组目录</VButton>
               </div>
               <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -247,8 +250,8 @@ const PageSettingsOther = {
                 </div>
                 <div id="cleanup-details" style="display: none; margin-bottom: 10px; font-size: 12px; color: var(--text-secondary);"></div>
                 <div class="btn-group">
-                  <button class="btn btn-secondary" id="cleanup-scan-btn" @click="cleanupScan()">扫描</button>
-                  <button class="btn btn-danger" id="cleanup-run-btn" @click="cleanupRun()" disabled>一键清理</button>
+                  <VButton variant="secondary" id="cleanup-scan-btn" @click="cleanupScan()">扫描</VButton>
+                  <VButton variant="danger" id="cleanup-run-btn" @click="cleanupRun()" disabled>一键清理</VButton>
                 </div>
               </div>
             </div>
@@ -256,10 +259,10 @@ const PageSettingsOther = {
             <div class="card">
               <h3>退出</h3>
               <div class="form-group">
-                <button class="btn btn-danger btn-lg btn-block" id="exit-launcher-btn">
+                <VButton variant="danger" size="lg" class="btn-block" id="exit-launcher-btn">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                   退出启动器
-                </button>
+                </VButton>
               </div>
             </div>
 
@@ -281,33 +284,33 @@ const PageSettingsOther = {
                 </details>
               </div>
               <div class="btn-group" id="updater-btn-group">
-                <button class="btn btn-primary" id="updater-check-btn" @click="handleCheckUpdate()">
+                <VButton variant="accent" id="updater-check-btn" @click="handleCheckUpdate()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
                     <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
                   </svg>
                   检查更新
-                </button>
-                <button class="btn btn-secondary" id="updater-skip-btn" style="display:none" @click="handleSkipVersion()">
+                </VButton>
+                <VButton variant="secondary" id="updater-skip-btn" style="display:none" @click="handleSkipVersion()">
                   跳过此版本
-                </button>
-                <button class="btn btn-outline" id="updater-release-btn" style="display:none" @click="openReleasePage()">
+                </VButton>
+                <VButton variant="secondary" id="updater-release-btn" style="display:none" @click="openReleasePage()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                   查看详情
-                </button>
-                <button class="btn btn-accent" id="updater-download-btn" style="display:none" @click="handleDownloadUpdate()">
+                </VButton>
+                <VButton variant="accent" id="updater-download-btn" style="display:none" @click="handleDownloadUpdate()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
                   下载更新
-                </button>
+                </VButton>
                 <button class="btn btn-success" id="updater-install-btn" style="display:none" @click="handleInstallUpdate()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
                   安装并重启
                 </button>
-                <button class="btn btn-secondary" @click="showUpdateAnnouncement()">查看更新公告</button>
-                <button class="btn btn-secondary" @click="createDesktopShortcut()">创建桌面快捷方式</button>
+                <VButton variant="secondary" @click="showUpdateAnnouncement()">查看更新公告</VButton>
+                <VButton variant="secondary" @click="createDesktopShortcut()">创建桌面快捷方式</VButton>
               </div>
             </div>
 
@@ -337,10 +340,10 @@ const PageSettingsOther = {
                     你可以自由使用、修改和分发本软件，但必须保留原版权声明，并以相同协议发布修改后的版本。
                   </div>
                   <div style="margin-top:8px;">
-                    <button class="btn btn-ghost btn-sm" @click="openExternalUrl('https://github.com/doujie081231/VersePc2/blob/main/LICENSE')">
+                    <VButton variant="ghost" size="sm" @click="openExternalUrl('https://github.com/doujie081231/VersePc2/blob/main/LICENSE')">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;margin-right:4px;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                       查看完整协议
-                    </button>
+                    </VButton>
                   </div>
                 </div>
               </div>
@@ -388,8 +391,8 @@ const PageSettingsOther = {
             </div>
 
             <div class="form-actions">
-              <button class="btn btn-primary" @click="saveOtherSettings()">保存设置</button>
-              <button class="btn btn-secondary" @click="resetOtherSettings()">重置默认</button>
+              <VButton variant="accent" @click="saveOtherSettings()">保存设置</VButton>
+              <VButton variant="secondary" @click="resetOtherSettings()">重置默认</VButton>
             </div>
           </div>
   `

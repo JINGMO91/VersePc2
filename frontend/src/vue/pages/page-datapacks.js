@@ -1,13 +1,19 @@
-/* page-datapacks - 数据包页 Vue 组件 */
+/* page-datapacks - 数据包页 Vue 组件
+ * 通用按钮与搜索框走 components/verse 语义层；列表与分页结构保持原样。
+ */
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
+
 const PageDatapacks = {
+  components: { VButton, VInput },
   template: `
           <div class="page-header">
             <h2>数据包</h2>
           </div>
           <div class="mod-filter-bar">
             <div class="search-bar">
-              <input type="text" id="datapack-search-input" placeholder="搜索数据包..." class="search-input">
-              <button id="datapack-search-btn" class="btn btn-primary">搜索</button>
+              <VInput type="text" id="datapack-search-input" placeholder="搜索数据包..." class="flex-1" />
+              <VButton variant="accent" id="datapack-search-btn">搜索</VButton>
             </div>
             <div class="filter-row">
               <div class="filter-group">
@@ -28,9 +34,9 @@ const PageDatapacks = {
             <div class="loading-spinner"><div class="spinner"></div></div>
           </div>
           <div class="pagination">
-            <button id="datapack-prev-btn" class="btn btn-secondary btn-sm">上一页</button>
+            <VButton variant="secondary" size="sm" id="datapack-prev-btn">上一页</VButton>
             <span id="datapack-page-info" class="page-info">1/1</span>
-            <button id="datapack-next-btn" class="btn btn-secondary btn-sm">下一页</button>
+            <VButton variant="secondary" size="sm" id="datapack-next-btn">下一页</VButton>
           </div>
   `
 };

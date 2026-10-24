@@ -45,18 +45,18 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
             <div class="vset-section">
               <div class="vset-section-title">快捷方式</div>
               <div class="vset-btn-group">
-                <button class="btn btn-secondary btn-sm" @click="openVersionFolder()">版本文件夹</button>
-                <button class="btn btn-secondary btn-sm" @click="openSavesFolder()">存档文件夹</button>
-                <button class="btn btn-secondary btn-sm" @click="openModsFolder()">Mod文件夹</button>
+                <VButton @click="openVersionFolder()" variant="secondary" size="sm">版本文件夹</VButton>
+                <VButton @click="openSavesFolder()" variant="secondary" size="sm">存档文件夹</VButton>
+                <VButton @click="openModsFolder()" variant="secondary" size="sm">Mod文件夹</VButton>
               </div>
             </div>
             <div class="vset-section">
               <div class="vset-section-title">高级管理</div>
               <div class="vset-btn-group">
-                <button class="btn btn-secondary btn-sm" @click="exportLaunchScript()">导出启动脚本</button>
-                <button class="btn btn-secondary btn-sm" @click="repairFiles()">补全文件</button>
-                <button class="btn btn-secondary btn-sm" @click="diagnoseVersion()">诊断</button>
-                <button class="btn btn-danger btn-sm" @click="deleteCurrentVersion()">删除版本</button>
+                <VButton @click="exportLaunchScript()" variant="secondary" size="sm">导出启动脚本</VButton>
+                <VButton @click="repairFiles()" variant="secondary" size="sm">补全文件</VButton>
+                <VButton @click="diagnoseVersion()" variant="secondary" size="sm">诊断</VButton>
+                <VButton @click="deleteCurrentVersion()" variant="danger" size="sm">删除版本</VButton>
               </div>
             </div>
           </div>
@@ -66,11 +66,11 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
               <div class="vset-section-title">版本信息</div>
               <div class="vset-form-row">
                 <label class="vset-label">自定义版本名</label>
-                <input type="text" class="vset-input" v-model="customName" placeholder="留空使用默认名称" @input="onCustomNameInput();saveSetting('customName',$event.target.value)" @change="saveSetting('customName',customName)">
+                <VInput type="text" class="max-w-[300px]" v-model="customName" placeholder="留空使用默认名称" @input="onCustomNameInput();saveSetting('customName',$event.target.value)" @change="saveSetting('customName',customName)" />
               </div>
               <div class="vset-form-row">
                 <label class="vset-label">版本描述</label>
-                <input type="text" class="vset-input" v-model="description" placeholder="留空使用默认描述" @change="saveSetting('description',description)">
+                <VInput type="text" class="max-w-[300px]" v-model="description" placeholder="留空使用默认描述" @change="saveSetting('description',description)" />
               </div>
             </div>
             <div class="vset-section">
@@ -85,11 +85,11 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
               </div>
               <div class="vset-form-row">
                 <label class="vset-label">游戏窗口标题</label>
-                <input type="text" class="vset-input" v-model="windowTitle" placeholder="跟随全局设置" @change="saveSetting('windowTitle',windowTitle)">
+                <VInput type="text" class="max-w-[300px]" v-model="windowTitle" placeholder="跟随全局设置" @change="saveSetting('windowTitle',windowTitle)" />
               </div>
               <div class="vset-form-row">
                 <label class="vset-label">自定义信息</label>
-                <input type="text" class="vset-input" v-model="customInfo" placeholder="跟随全局设置" @change="saveSetting('customInfo',customInfo)">
+                <VInput type="text" class="max-w-[300px]" v-model="customInfo" placeholder="跟随全局设置" @change="saveSetting('customInfo',customInfo)" />
               </div>
               <div class="vset-form-row">
                 <label class="vset-label">游戏 Java</label>
@@ -97,14 +97,14 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
                   <select class="vset-select" id="vset-java" v-model="javaPath" @change="saveSetting('javaPath',javaPath)" style="flex:1;">
                     <option v-for="opt in javaOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
                   </select>
-                  <button class="btn btn-secondary btn-sm" @click="detectJava()" title="自动搜索">
+                  <VButton @click="detectJava()" title="自动搜索" variant="secondary" size="sm">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     自动搜索
-                  </button>
-                  <button class="btn btn-secondary btn-sm" @click="browseJava()" title="手动导入">
+                  </VButton>
+                  <VButton @click="browseJava()" title="手动导入" variant="secondary" size="sm">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     手动导入
-                  </button>
+                  </VButton>
                 </div>
               </div>
             </div>
@@ -136,11 +136,11 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
               <div class="vset-section-title">高级启动选项</div>
               <div class="vset-form-row">
                 <label class="vset-label">JVM 参数</label>
-                <input type="text" class="vset-input" v-model="jvmArgs" placeholder="跟随全局设置，如 -XX:+UseG1GC" @change="saveSetting('jvmArgs',jvmArgs)">
+                <VInput type="text" class="max-w-[300px]" v-model="jvmArgs" placeholder="跟随全局设置，如 -XX:+UseG1GC" @change="saveSetting('jvmArgs',jvmArgs)" />
               </div>
               <div class="vset-form-row">
                 <label class="vset-label">游戏参数</label>
-                <input type="text" class="vset-input" v-model="gameArgs" placeholder="跟随全局设置，如 --demo" @change="saveSetting('gameArgs',gameArgs)">
+                <VInput type="text" class="max-w-[300px]" v-model="gameArgs" placeholder="跟随全局设置，如 --demo" @change="saveSetting('gameArgs',gameArgs)" />
               </div>
             </div>
             <div class="vset-info-bar">这些设置只对该游戏版本生效，不影响其他版本。</div>
@@ -148,8 +148,8 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
           <!-- 存档 -->
           <div class="vset-panel" :class="{ active: activeTab==='saves' }">
             <div class="saves-header-row">
-              <button class="btn btn-secondary btn-sm" @click="openSavesFolder()">打开存档文件夹</button>
-              <button class="btn btn-secondary btn-sm" @click="loadSaves()">刷新</button>
+              <VButton @click="openSavesFolder()" variant="secondary" size="sm">打开存档文件夹</VButton>
+              <VButton @click="loadSaves()" variant="secondary" size="sm">刷新</VButton>
             </div>
             <p v-if="savesLoading" class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">加载中...</p>
             <p v-else-if="saves.length===0" class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">暂无存档</p>
@@ -183,7 +183,7 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
                 <div class="save-modal-body">
                   <div class="save-form-row">
                     <label>显示名称</label>
-                    <input type="text" class="vset-input" v-model="saveEditing.name" placeholder="输入新的存档名称">
+                    <VInput type="text" class="max-w-[300px]" v-model="saveEditing.name" placeholder="输入新的存档名称" />
                   </div>
                   <div class="save-form-row">
                     <label>难度</label>
@@ -203,14 +203,14 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
                       </label>
                       <label class="save-rule-row save-rule-num">
                         <span>{{ ruleDefs.randomTickSpeed.label }}</span>
-                        <input type="number" min="0" max="10000" class="vset-input" v-model="saveEditing.rules.randomTickSpeed" style="width:84px;padding:2px 6px;">
+                        <VInput type="number" min="0" max="10000"  v-model="saveEditing.rules.randomTickSpeed" class="w-[84px] px-1.5 py-0.5" />
                       </label>
                     </div>
                   </div>
                 </div>
                 <div class="save-modal-footer">
-                  <button class="btn btn-secondary btn-sm" @click="closeSaveEditor()">取消</button>
-                  <button class="btn btn-primary btn-sm" @click="saveSaveEdit()">保存</button>
+                  <VButton @click="closeSaveEditor()" variant="secondary" size="sm">取消</VButton>
+                  <VButton @click="saveSaveEdit()" variant="accent" size="sm">保存</VButton>
                 </div>
               </div>
             </div>
@@ -230,15 +230,15 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modmgr-search-icon"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                   <input type="text" class="modmgr-search-input" placeholder="搜索已安装模组..." v-model="modSearch">
                 </div>
-                <button class="btn btn-primary btn-sm" @click="goDownloadMods()">
+                <VButton @click="goDownloadMods()" variant="accent" size="sm">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   下载模组
-                </button>
+                </VButton>
               </div>
               <div class="modmgr-actions">
-                <button class="btn btn-secondary btn-sm" @click="openModsFolder()">打开文件夹</button>
-                <button class="btn btn-secondary btn-sm" @click="installModFromFile()">安装 Mod 文件</button>
-                <button class="btn btn-secondary btn-sm" @click="checkModUpdates()">检查更新</button>
+                <VButton @click="openModsFolder()" variant="secondary" size="sm">打开文件夹</VButton>
+                <VButton @click="installModFromFile()" variant="secondary" size="sm">安装 Mod 文件</VButton>
+                <VButton @click="checkModUpdates()" variant="secondary" size="sm">检查更新</VButton>
               </div>
               <div class="modmgr-list">
                 <p v-if="modsLoading" class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">加载中...</p>
@@ -254,10 +254,10 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
                     <div class="modmgr-desc">{{ (m.description || '').substring(0, 60) }}</div>
                   </div>
                   <div class="modmgr-actions-row">
-                    <button class="btn btn-sm" :class="m.disabled ? 'btn-primary' : 'btn-secondary'" @click="toggleMod(m)">{{ m.disabled ? '启用' : '禁用' }}</button>
-                    <button v-if="m.projectId || m.slug" class="btn btn-secondary btn-sm" @click="previewMod(m.projectId || m.slug)">预览</button>
-                    <button class="btn btn-secondary btn-sm" @click="openTranslate(m)">汉化</button>
-                    <button class="btn btn-danger btn-sm" @click="removeMod(m)">移除</button>
+                    <VButton :variant="m.disabled ? 'accent' : 'secondary'" size="sm" @click="toggleMod(m)">{{ m.disabled ? '启用' : '禁用' }}</VButton>
+                    <VButton v-if="m.projectId || m.slug" @click="previewMod(m.projectId || m.slug)" variant="secondary" size="sm">预览</VButton>
+                    <VButton @click="openTranslate(m)" variant="secondary" size="sm">汉化</VButton>
+                    <VButton @click="removeMod(m)" variant="danger" size="sm">移除</VButton>
                   </div>
                 </div>
               </div>
@@ -268,22 +268,22 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
             <div class="export-header-row">
               <div class="export-field">
                 <label class="vset-label">整合包名称</label>
-                <input type="text" class="vset-input" v-model="exportName" placeholder="输入整合包名称">
+                <VInput type="text" v-model="exportName" placeholder="输入整合包名称" />
               </div>
               <div class="export-field">
                 <label class="vset-label">整合包版本</label>
-                <input type="text" class="vset-input" v-model="exportVersion" placeholder="1.0.0">
+                <VInput type="text" v-model="exportVersion" placeholder="1.0.0" />
               </div>
             </div>
             <div class="export-header-row" style="margin-top:12px">
               <div class="export-field" style="flex:1">
                 <label class="vset-label">作者</label>
-                <input type="text" class="vset-input" v-model="exportAuthor" placeholder="输入作者名称">
+                <VInput type="text" v-model="exportAuthor" placeholder="输入作者名称" />
               </div>
             </div>
             <div class="export-field" style="margin-top:12px">
               <label class="vset-label">描述</label>
-              <textarea class="vset-textarea" v-model="exportDescription" placeholder="输入整合包描述..." style="width:100%;min-height:60px;resize:vertical;padding:8px 12px;border-radius:8px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--text-primary);font-size:13px"></textarea>
+              <VTextarea v-model="exportDescription" placeholder="输入整合包描述..." class="min-h-[60px] resize-y" />
             </div>
             <div class="export-section-title">导出内容列表</div>
             <div class="export-tree">
@@ -396,10 +396,10 @@ export const VERSION_SETTINGS_TEMPLATE = `    <div>
               </div>
             </div>
             <div class="export-footer">
-              <button class="btn btn-primary btn-lg" @click="startExport()">
+              <VButton @click="startExport()" variant="accent" size="lg">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 开始导出
-              </button>
+              </VButton>
             </div>
           </div>
         </div>

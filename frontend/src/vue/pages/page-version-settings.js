@@ -23,9 +23,14 @@ import { formatModNameWithChinese } from '../../features/mods/chinese-names.js';
 import { isPinned as isPinnedItem, PIN_ICONS, togglePinSave } from '../../features/versions/pinned-store.js';
 import { vmHolders } from '../../core/vm-holders.js';
 import { VERSION_SETTINGS_TEMPLATE } from './version-settings-template.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
+import VTextarea from '@/components/verse/VTextarea.vue';
 
 const PageVersionSettings = {
   name: 'PageVersionSettings',
+  // 模板里的通用控件使用 components/verse 语义层组件，此处统一注册
+  components: { VButton, VInput, VTextarea },
   data() {
     return {
       versionId: null,

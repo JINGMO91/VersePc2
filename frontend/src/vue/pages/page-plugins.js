@@ -7,8 +7,10 @@ import { bridge } from '../../core/tauri-bridge.js';
 import { reloadPluginUI } from '../../features/misc/plugin-runtime.js';
 
 import { showToast } from '../../features/misc/ui-components.js';
+import VButton from '@/components/verse/VButton.vue';
 
 const PagePlugins = {
+  components: { VButton },
   data() {
     return {
       tabs: [
@@ -172,8 +174,8 @@ const PagePlugins = {
         <div class="search-bar plugins-search">
           <input type="text" v-model="keyword" placeholder="搜索插件..." class="search-input">
         </div>
-        <button class="btn btn-secondary btn-sm" @click="openDocs">开发文档</button>
-        <button class="btn btn-secondary btn-sm" @click="loadMarket">刷新市场</button>
+        <VButton variant="secondary" size="sm" @click="openDocs">开发文档</VButton>
+        <VButton variant="secondary" size="sm" @click="loadMarket">刷新市场</VButton>
       </div>
       <div class="plugins-tabs">
         <button
@@ -197,7 +199,7 @@ const PagePlugins = {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       </div>
       <p class="plugins-state-text">{{ error }}</p>
-      <button class="btn btn-primary btn-sm" @click="loadMarket">重试</button>
+      <VButton variant="accent" size="sm" @click="loadMarket">重试</VButton>
     </div>
 
     <div v-else-if="!filtered.length" class="plugins-state">
@@ -222,12 +224,12 @@ const PagePlugins = {
         </div>
         <div class="plugin-actions">
           <template v-if="p.isInstalled">
-            <button v-if="p.hasUpdate" class="btn btn-accent btn-sm" :disabled="busy === p.id" @click="install(p)">更新</button>
-            <button class="btn btn-secondary btn-sm" :disabled="busy === p.id" @click="uninstall(p)">卸载</button>
+            <VButton v-if="p.hasUpdate" variant="accent" size="sm" class="flex-1" :disabled="busy === p.id" @click="install(p)">更新</VButton>
+            <VButton variant="secondary" size="sm" class="flex-1" :disabled="busy === p.id" @click="uninstall(p)">卸载</VButton>
           </template>
-          <button v-else class="btn btn-primary btn-sm" :disabled="busy === p.id" @click="install(p)">
+          <VButton v-else variant="accent" size="sm" class="flex-1" :disabled="busy === p.id" @click="install(p)">
             {{ busy === p.id ? '安装中...' : '安装' }}
-          </button>
+          </VButton>
         </div>
       </div>
     </div>

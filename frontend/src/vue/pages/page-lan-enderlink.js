@@ -14,8 +14,10 @@ import { bridge } from '../../core/tauri-bridge.js';
 import { enderlinkHostStep1 } from '../../features/misc/lan.js';
 
 import { enderlinkStartOnboarding, enderlinkHostNext, enderlinkCopyAddr, enderlinkDisconnect } from '../../features/misc/lan.js';
+import VButton from '@/components/verse/VButton.vue';
 
 const PageLanEnderlink = {
+  components: { VButton },
   setup() {
     return { enderlinkStartOnboarding, enderlinkHostNext, enderlinkCopyAddr, enderlinkDisconnect };
   },
@@ -115,10 +117,10 @@ const PageLanEnderlink = {
               </div>
 
               <div class="terracotta-actions">
-                <button class="btn btn-primary btn-lg" @click="host()" :disabled="gameInstances.length === 0" title="创建房间">
+                <VButton variant="accent" size="lg" @click="host()" :disabled="gameInstances.length === 0" title="创建房间">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:32px;height:32px"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="14 3 14 9 20 9"/></svg>
                   创建房间
-                </button>
+                </VButton>
                 <p class="terracotta-join-hint">朋友在游戏内直接输入你分享的联机地址即可加入</p>
               </div>
             </div>

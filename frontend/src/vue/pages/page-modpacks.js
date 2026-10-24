@@ -1,13 +1,19 @@
-/* page-modpacks - 整合包页 Vue 组件 */
+/* page-modpacks - 整合包页 Vue 组件
+ * 通用按钮与搜索框走 components/verse 语义层；自研 custom-select 保持原样。
+ */
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
+
 const PageModpacks = {
+  components: { VButton, VInput },
   template: `
           <div class="page-header">
             <h2>整合包</h2>
           </div>
           <div class="mod-filter-bar">
             <div class="search-bar">
-              <input type="text" id="modpack-search-input" placeholder="搜索整合包..." class="search-input">
-              <button id="modpack-search-btn" class="btn btn-primary">搜索</button>
+              <VInput type="text" id="modpack-search-input" placeholder="搜索整合包..." class="flex-1" />
+              <VButton variant="accent" id="modpack-search-btn">搜索</VButton>
             </div>
             <div class="filter-row">
               <div class="filter-group">
@@ -52,9 +58,9 @@ const PageModpacks = {
             <div class="loading-spinner"><div class="spinner"></div></div>
           </div>
           <div class="pagination">
-            <button id="modpack-prev-btn" class="btn btn-secondary btn-sm">上一页</button>
+            <VButton variant="secondary" size="sm" id="modpack-prev-btn">上一页</VButton>
             <span id="modpack-page-info" class="page-info">1/1</span>
-            <button id="modpack-next-btn" class="btn btn-secondary btn-sm">下一页</button>
+            <VButton variant="secondary" size="sm" id="modpack-next-btn">下一页</VButton>
           </div>
   `
 };

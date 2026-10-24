@@ -3,6 +3,8 @@ import { API } from '../../core/api.js';
 import { handleSkinUpload, handleCapeUpload } from '../../features/accounts/accounts.js';
 
 import { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount } from '../../features/accounts/accounts.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
 
 function pickSkinFile() {
   document.getElementById('skin-file-input')?.click();
@@ -13,8 +15,10 @@ function pickCapeFile() {
 }
 
 const PageAccounts = {
+  components: { VButton, VInput },
   setup() {
-    return { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount, pickSkinFile, pickCapeFile };
+    // handleSkinUpload / handleCapeUpload 原为内联 onchange 调用的全局函数，改为模板事件后必须暴露到作用域
+    return { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount, pickSkinFile, pickCapeFile, handleSkinUpload, handleCapeUpload };
   },
   template: `
           <div class="accounts-redesign">
@@ -99,7 +103,7 @@ const PageAccounts = {
                     <p>授权码：</p>
                     <div class="msauth-code">
                       <span id="msauth-code-text"></span>
-                      <button class="btn btn-sm btn-secondary" @click="copyMsCode()">复制</button>
+                      <VButton variant="secondary" size="sm" @click="copyMsCode()">复制</VButton>
                     </div>
                   </div>
                   <div class="msauth-status">
@@ -108,8 +112,8 @@ const PageAccounts = {
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button class="btn btn-secondary" @click="reopenMsAuthPage()">重新打开网页</button>
-                  <button class="btn btn-secondary" @click="closeMsAuthModal()">取消</button>
+                  <VButton variant="secondary" @click="reopenMsAuthPage()">重新打开网页</VButton>
+                  <VButton variant="secondary" @click="closeMsAuthModal()">取消</VButton>
                 </div>
               </div>
             </div>
@@ -122,13 +126,13 @@ const PageAccounts = {
                 <div class="modal-body">
                   <div class="form-group">
                     <label>玩家 ID</label>
-                    <input type="text" id="offline-username-input" class="text-input" placeholder="3 - 16 位，只可包含英文字母、数字与下划线" maxlength="16">
+                    <VInput type="text" id="offline-username-input" placeholder="3 - 16 位，只可包含英文字母、数字与下划线" maxlength="16" />
                     <div class="form-hint" style="font-size:12px;color:var(--text-secondary);margin-top:4px;">UUID 将按照行业规范自动生成（与 HMCL、BakaXL 等一致）</div>
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button class="btn btn-secondary" @click="closeOfflineModal()">取消</button>
-                  <button id="create-offline-btn" class="btn btn-primary">创建</button>
+                  <VButton variant="secondary" @click="closeOfflineModal()">取消</VButton>
+                  <VButton id="create-offline-btn" variant="accent">创建</VButton>
                 </div>
               </div>
             </div>
@@ -148,17 +152,17 @@ const PageAccounts = {
                       <option value="https://auth.mc-user.com:233/api/yggdrasil">皮肤站2</option>
                       <option value="custom">自定义服务器</option>
                     </select>
-                    <input type="text" id="tp-server-url" class="text-input" placeholder="https://littleskin.cn/api/yggdrasil">
+                    <VInput type="text" id="tp-server-url" placeholder="https://littleskin.cn/api/yggdrasil" />
                     <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">输入Yggdrasil认证服务器API地址</div>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">更多信息参考 Yggdrasil 手册： <a href="https://manual.littlesk.in/yggdrasil/" target="_blank">manual.littlesk.in/yggdrasil/</a></div>
                   </div>
                   <div class="form-group">
                     <label>邮箱 / 用户名</label>
-                    <input type="text" id="tp-username-input" class="text-input" placeholder="输入邮箱或用户名">
+                    <VInput type="text" id="tp-username-input" placeholder="输入邮箱或用户名" />
                   </div>
                   <div class="form-group">
                     <label>密码</label>
-                    <input type="password" id="tp-password-input" class="text-input" placeholder="输入密码">
+                    <VInput type="password" id="tp-password-input" placeholder="输入密码" />
                   </div>
                   <div id="tp-server-info" style="display:none;padding:12px;background:var(--bg-tertiary);border-radius:8px;margin-top:8px;">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
@@ -171,8 +175,8 @@ const PageAccounts = {
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button class="btn btn-secondary" @click="closeThirdPartyModal()">取消</button>
-                  <button id="tp-login-btn" class="btn btn-primary">登录</button>
+                  <VButton variant="secondary" @click="closeThirdPartyModal()">取消</VButton>
+                  <VButton id="tp-login-btn" variant="accent">登录</VButton>
                 </div>
               </div>
             </div>
@@ -237,7 +241,7 @@ const PageAccounts = {
                 <div class="acct-detail-skins" id="acct-detail-skins" style="display:none">
                   <span class="acct-detail-label">皮肤</span>
                   <div class="acct-skin-grid" id="acct-skin-grid"></div>
-                  <input type="file" id="skin-file-input" accept=".png" style="display:none" onchange="handleSkinUpload(this)">
+                  <input type="file" id="skin-file-input" accept=".png" style="display:none" @change="handleSkinUpload($event.target)">
                   <button class="acct-skin-import-btn" @click="pickSkinFile()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span>导入自定义皮肤</span>
@@ -246,7 +250,7 @@ const PageAccounts = {
                 <div class="acct-detail-skins" id="acct-detail-capes" style="display:none">
                   <span class="acct-detail-label">披风</span>
                   <div class="acct-skin-grid" id="acct-cape-grid"></div>
-                  <input type="file" id="cape-file-input" accept=".png" style="display:none" onchange="handleCapeUpload(this)">
+                  <input type="file" id="cape-file-input" accept=".png" style="display:none" @change="handleCapeUpload($event.target)">
                   <div class="acct-cape-btns">
                     <button class="acct-skin-import-btn" @click="pickCapeFile()">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>

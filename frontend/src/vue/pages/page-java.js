@@ -1,7 +1,9 @@
 /* page-java - Java 页 Vue 组件 */
 import { cancelJavaDownload } from '../../features/launch/java-mgr.js';
+import VButton from '@/components/verse/VButton.vue';
 
 const PageJava = {
+  components: { VButton },
   setup() {
     return { cancelJavaDownload };
   },
@@ -17,10 +19,10 @@ const PageJava = {
               <div class="loading">正在检测Java...</div>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-              <button id="refresh-java-btn" class="btn btn-secondary">刷新列表</button>
-              <button id="add-manual-java-btn" class="btn btn-secondary">手动添加 Java</button>
-              <button id="import-archive-btn" class="btn btn-secondary">导入压缩包</button>
-              <button id="import-directory-btn" class="btn btn-secondary">导入文件夹</button>
+              <VButton variant="secondary" id="refresh-java-btn">刷新列表</VButton>
+              <VButton variant="secondary" id="add-manual-java-btn">手动添加 Java</VButton>
+              <VButton variant="secondary" id="import-archive-btn">导入压缩包</VButton>
+              <VButton variant="secondary" id="import-directory-btn">导入文件夹</VButton>
             </div>
             <p class="hint" style="margin-top: 8px; font-size: 12px;">
               「手动添加」：选择电脑上已有的 java 可执行文件加入列表（原位引用，不复制文件）<br>
@@ -75,7 +77,7 @@ const PageJava = {
             </div>
             <p id="java-progress-message" class="hint" style="margin-top: 8px;">准备下载...</p>
             <div style="margin-top: 12px;">
-              <button class="btn btn-danger btn-sm" id="java-cancel-btn" @click="cancelJavaDownload()" style="display: none;">取消下载</button>
+              <VButton variant="danger" size="sm" id="java-cancel-btn" @click="cancelJavaDownload()" style="display: none;">取消下载</VButton>
             </div>
           </div>
   `

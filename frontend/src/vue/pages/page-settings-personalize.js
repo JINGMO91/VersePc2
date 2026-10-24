@@ -13,6 +13,7 @@ import { applyWallpaperByName, applyWeWallpaper, applyPanoramaThemeByName, apply
 import { showGlobalDownloadProgress, hideGlobalDownloadProgress } from '../../features/settings/wallpaper-engine.js';
 
 import { personalizeState } from '../../features/settings/personalize-state.js';
+import VButton from '@/components/verse/VButton.vue';
 
 const PageSettingsPersonalize = (function () {
   'use strict';
@@ -100,6 +101,7 @@ const PageSettingsPersonalize = (function () {
 
   const BackgroundCard = {
     name: 'BackgroundCard',
+    components: { VButton },
     data() {
       return {
         _previewCache: {},
@@ -314,13 +316,13 @@ const PageSettingsPersonalize = (function () {
             <div v-if="isWindows && state.wePickerOpen" class="we-wallpaper-picker" style="border:1px solid var(--border,#2a2f3a);border-radius:10px;padding:14px;margin-top:12px;background:var(--bg-card,#14171d);">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                 <span style="font-weight:600;">选择 Wallpaper Engine 壁纸</span>
-                <button class="btn btn-secondary btn-sm" @click="state.wePickerOpen = false">关闭</button>
+                <VButton variant="secondary" size="sm" @click="state.wePickerOpen = false">关闭</VButton>
               </div>
               <div v-if="state.weLoading" style="padding:16px 0;text-align:center;color:var(--text-muted);font-size:13px;">正在扫描 Steam 创意工坊...</div>
               <div v-else-if="state.weWallpapers.length === 0" style="padding:16px 0;text-align:center;color:var(--text-muted);font-size:13px;">
                 <p>未找到 Wallpaper Engine 壁纸。</p>
                 <p style="font-size:12px;">请确认已通过 Steam 订阅壁纸（workshop/content/431960）后，点下方按钮重新扫描。</p>
-                <button class="btn btn-secondary btn-sm" style="margin-top:10px;" @click="loadWe">重新扫描</button>
+                <VButton variant="secondary" size="sm" style="margin-top:10px;" @click="loadWe">重新扫描</VButton>
               </div>
               <div v-else style="max-height:320px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;">
                 <div v-for="wp in state.weWallpapers" :key="wp.id" @click="applyWe(wp)" style="cursor:pointer;border-radius:8px;overflow:hidden;background:var(--bg-secondary,#1a1d24);position:relative;">
@@ -341,9 +343,9 @@ const PageSettingsPersonalize = (function () {
                   <span v-else-if="state.weRendererInstalled" style="color:var(--success,#3dd68c);">已安装</span>
                   <span v-else>未安装（约 104MB）</span>
                 </span>
-                <button v-if="!state.weRendererInstalled && state.weRendererInstalled !== null" class="btn btn-primary btn-sm" :disabled="state.weRendererDownloading" @click="downloadRenderer">
+                <VButton v-if="!state.weRendererInstalled && state.weRendererInstalled !== null" variant="accent" size="sm" :disabled="state.weRendererDownloading" @click="downloadRenderer">
                   {{ state.weRendererDownloading ? '下载中...' : '下载组件' }}
-                </button>
+                </VButton>
               </div>
             </div>
             <div class="form-group" id="panorama-theme-group" v-show="state.wallpaper === 'panorama'">
@@ -393,7 +395,7 @@ const PageSettingsPersonalize = (function () {
             <div class="form-group" id="custom-wallpaper-file-group" v-show="isCustomMode">
               <label id="custom-wallpaper-file-label">{{ isVideoMode ? '选择视频文件' : '选择图片文件' }}</label>
               <div class="custom-wallpaper-file-row">
-                <button class="btn btn-secondary btn-sm" @click="pickFile">选择文件</button>
+                <VButton variant="secondary" size="sm" @click="pickFile">选择文件</VButton>
                 <span id="custom-wallpaper-file-name" class="custom-wallpaper-file-name">{{ state.customFileName }}</span>
               </div>
               <div id="custom-wallpaper-drop-zone" class="custom-wallpaper-drop-zone" @dragover.prevent="onDragOver" @dragleave.prevent="onDragLeave" @drop.prevent="onDrop">
@@ -516,6 +518,7 @@ const PageSettingsPersonalize = (function () {
 
   const LayoutCard = {
     name: 'LayoutCard',
+    components: { VButton },
     data() {
       return { resettingHome: false };
     },
@@ -550,15 +553,15 @@ const PageSettingsPersonalize = (function () {
                      :value="state.navWidth" @input="onNavWidthInput($event.target.value)">
               <span class="form-hint">仅经典导航栏生效，默认 80px；拖动后立即生效</span>
               <div style="margin-top:10px;">
-                <button class="btn btn-secondary" @click="resetNavWidth">恢复默认宽度</button>
+                <VButton variant="secondary" @click="resetNavWidth">恢复默认宽度</VButton>
               </div>
             </div>
             <div class="layout-subsection">
               <h4>主页布局</h4>
               <p class="form-hint" style="color:#6b7280;font-size:13px;margin:0 0 12px;">恢复主页控件（软件名 / 头像 / 版本卡 / 启动按钮 / 存档坞）的默认位置与头像缩放</p>
-              <button class="btn btn-secondary" @click="resetHomeLayout" :disabled="resettingHome">
+              <VButton variant="secondary" @click="resetHomeLayout" :disabled="resettingHome">
                 {{ resettingHome ? '已恢复' : '恢复主页默认布局' }}
-              </button>
+              </VButton>
             </div>
           </div>
   `
@@ -569,6 +572,7 @@ const PageSettingsPersonalize = (function () {
   const PageSettingsPersonalize = {
     name: 'PageSettingsPersonalize',
     components: {
+      VButton: VButton,
       ThemeAppearanceCard: ThemeAppearanceCard,
       BackgroundCard: BackgroundCard,
       VisualEffectsCard: VisualEffectsCard,
@@ -584,8 +588,8 @@ const PageSettingsPersonalize = (function () {
             <visual-effects-card></visual-effects-card>
             <layout-card></layout-card>
             <div class="form-actions">
-              <button class="btn btn-primary" @click="save">保存设置</button>
-              <button class="btn btn-secondary" @click="reset">重置默认</button>
+              <VButton variant="accent" @click="save">保存设置</VButton>
+              <VButton variant="secondary" @click="reset">重置默认</VButton>
             </div>
           </div>
   `,

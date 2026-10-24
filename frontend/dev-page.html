@@ -61,19 +61,35 @@
 <body class="classic-nav">
   <div id="stage"></div>
   <div class="vp-bar">
-    <select id="vp-page">
-      <option value="feedback">问题反馈</option>
-      <option value="settings-other">设置-其他</option>
-      <option value="java">Java 管理</option>
-      <option value="downloads">下载管理</option>
-      <option value="cloud">Verse 云盘</option>
-      <option value="toolbox">工具箱</option>
-    </select>
+    <select id="vp-page"></select>
     <button data-set-theme="light">亮色</button>
     <button data-set-theme="dark">暗色</button>
     <button data-set-theme="custom">自定义</button>
   </div>
   <script>
+    // Tauri 桥接桩：纯浏览器下没有注入 __TAURI__，core/tauri-bridge.js 会返回空对象，
+    // 任何在模块顶层访问 api.xxx.yyy 的页面都会中断整个模块图而无法渲染。
+    // 这里在模块脚本执行前补齐最小接口，只为让页面能在预览页里渲染，
+    // 不影响真实应用（真实应用里 __TAURI__ 由 Tauri 注入，此处不生效）。
+    if (!window.__TAURI__) {
+      var noopWindow = {
+        show: function () {}, hide: function () {}, setTitle: function () {},
+        isMaximized: function () { return Promise.resolve(false); },
+        isFullscreen: function () { return Promise.resolve(false); },
+        onResized: function () { return Promise.resolve(function () {}); },
+        onCloseRequested: function () { return Promise.resolve(function () {}); },
+        setFullscreen: function () { return Promise.resolve(); },
+      };
+      window.__TAURI__ = {
+        core: { invoke: function () { return Promise.resolve({}); } },
+        event: { listen: function () { return Promise.resolve(function () {}); } },
+        window: { getCurrentWindow: function () { return noopWindow; } },
+        webviewWindow: { getCurrentWebviewWindow: function () { return noopWindow; } },
+        dialog: { open: function () { return Promise.resolve(null); } },
+        path: {},
+        app: { getVersion: function () { return Promise.resolve('0.0.0'); } },
+      };
+    }
     document.querySelectorAll('.vp-bar [data-set-theme]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         document.documentElement.dataset.theme = btn.dataset.setTheme;

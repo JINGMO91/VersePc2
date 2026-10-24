@@ -1,9 +1,14 @@
-/* page-mod-favorites - 模组收藏页 Vue 组件 */
+/* page-mod-favorites - 模组收藏页 Vue 组件
+ * 通用按钮与搜索框走 components/verse 语义层；收藏夹下拉与多选勾选框保持原样。
+ */
 import { toggleFavSelectAll } from '../../features/mods/favorites.js';
 
 import { showFavManageMenu, toggleFavMultiSelect, showFavImportModal, exportCurrentFav, batchRemoveFavorites, batchDownloadFavorites } from '../../features/mods/favorites.js';
+import VButton from '@/components/verse/VButton.vue';
+import VInput from '@/components/verse/VInput.vue';
 
 const PageModFavorites = {
+  components: { VButton, VInput },
   setup() {
     return { showFavManageMenu, toggleFavMultiSelect, showFavImportModal, exportCurrentFav, batchRemoveFavorites, batchDownloadFavorites };
   },
@@ -13,16 +18,16 @@ const PageModFavorites = {
             <div class="page-actions">
               <select id="fav-folder-select" style="min-width:150px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
               </select>
-              <button class="btn btn-secondary btn-sm" @click="showFavManageMenu()">
+              <VButton variant="secondary" size="sm" @click="showFavManageMenu()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                 管理
-              </button>
-              <button class="btn btn-secondary btn-sm" id="fav-multiselect-toggle" @click="toggleFavMultiSelect()">
+              </VButton>
+              <VButton variant="secondary" size="sm" id="fav-multiselect-toggle" @click="toggleFavMultiSelect()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
                 多选
-              </button>
-              <button class="btn btn-secondary btn-sm" @click="showFavImportModal()">导入</button>
-              <button class="btn btn-secondary btn-sm" @click="exportCurrentFav()">导出</button>
+              </VButton>
+              <VButton variant="secondary" size="sm" @click="showFavImportModal()">导入</VButton>
+              <VButton variant="secondary" size="sm" @click="exportCurrentFav()">导出</VButton>
             </div>
           </div>
           <div id="fav-multiselect-bar" class="mod-multiselect-bar" style="display:none">
@@ -31,20 +36,20 @@ const PageModFavorites = {
               <span>全选</span>
             </label>
             <span class="mod-selected-count" id="fav-selected-count">已选 0 个</span>
-            <button class="btn btn-danger btn-sm" id="fav-batch-remove-btn" @click="batchRemoveFavorites()" disabled>
+            <VButton variant="danger" size="sm" id="fav-batch-remove-btn" @click="batchRemoveFavorites()" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
               取消收藏
-            </button>
-            <button class="btn btn-primary btn-sm" id="fav-batch-download-btn" @click="batchDownloadFavorites()" disabled>
+            </VButton>
+            <VButton variant="accent" size="sm" id="fav-batch-download-btn" @click="batchDownloadFavorites()" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               批量下载
-            </button>
-            <button class="btn btn-secondary btn-sm" @click="toggleFavMultiSelect()">取消多选</button>
+            </VButton>
+            <VButton variant="secondary" size="sm" @click="toggleFavMultiSelect()">取消多选</VButton>
           </div>
           <div class="mod-filter-bar" style="margin-bottom:16px">
             <div class="search-bar">
-              <input type="text" id="fav-search-input" placeholder="搜索收藏的模组..." class="search-input">
-              <button id="fav-search-btn" class="btn btn-primary">搜索</button>
+              <VInput type="text" id="fav-search-input" placeholder="搜索收藏的模组..." class="flex-1" />
+              <VButton variant="accent" id="fav-search-btn">搜索</VButton>
             </div>
           </div>
           <div id="fav-content">
