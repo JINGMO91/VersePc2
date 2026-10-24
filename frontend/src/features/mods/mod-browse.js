@@ -1,5 +1,5 @@
 import { API } from '../../core/api.js';
-import { escapeHtml } from '../../core/utils.js';
+import { escapeHtml, normalizeIconUrl } from '../../core/utils.js';
 import { toggleMod, deleteMod } from '../accounts/accounts.js';
 import { getCustomSelectValue, setCustomSelectValue, updateCustomSelectOptions } from '../misc/custom-select.js';
 import { formatNumber } from '../misc/ui-components.js';
@@ -12,6 +12,7 @@ import { formatModNameWithChinese } from './chinese-names.js';
 import { isPinned, PIN_ICONS, pinBtnToggle } from '../versions/pinned-store.js';
 import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
 import { preloadModVersions } from './mod-detail.js';
+import { registerLazyLoader } from '../../core/lazy-loaders.js';
 
 // 搜索结果卡片悬停时预加载版本列表
 document.addEventListener('mouseover', (event) => {
@@ -40,7 +41,7 @@ async function loadInstalledMods() {
                 ).join('');
             }
             container.innerHTML = warningHtml + mods.map(function (mod) {
-                const icon = mod.icon || '';
+                const icon = normalizeIconUrl(mod.icon || '');
                 const isApiIcon = icon.indexOf('/api/') === 0;
                 const hash = isApiIcon && icon.match(/hash=([^&]+)/) ? decodeURIComponent(icon.match(/hash=([^&]+)/)[1]) : '';
                 let iconHtml;
@@ -167,7 +168,7 @@ async function loadMods() {
                 var pinBtnHtml = '<button class="pin-btn' + (isPin ? ' active' : '') + '" title="' + (isPin ? '取消置顶' : '置顶模组') + '"' + actionAttrsStop('pinMod', mod.id, formatModNameWithChinese(mod.slug || mod.id, mod.title), mod.source || 'modrinth', mod.icon || '') + '>' + PIN_ICONS.pin + '</button>';
                 return '<div class="mod-item mod-item-clickable' + (appState.modMultiSelectMode ? ' mod-multiselect-active' : '') + '"' + actionAttrs('openModDetail', mod.id, mod.source) + ' data-preload-mod="' + escapeHtml(mod.id) + '" data-preload-source="' + escapeHtml(mod.source) + '">' +
                     (appState.modMultiSelectMode ? '<div class="mod-checkbox' + (isSelected ? ' checked' : '') + '" data-mod-id="' + mod.id + '"' + actionAttrsStop('toggleModSelect', mod.id) + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>' : '') +
-                    '<div class="mod-icon"><img src="' + escapeHtml(mod.icon || '') + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.classList.add(\'mod-icon--fallback\')"></div>' +
+                    '<div class="mod-icon"><img src="' + escapeHtml(normalizeIconUrl(mod.icon || '')) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.classList.add(\'mod-icon--fallback\')"></div>' +
                     '<div class="mod-info">' +
                         '<div class="mod-name">' + escapeHtml(formatModNameWithChinese(mod.slug || mod.id, mod.title)) +
                             (sourceFilter === 'any' ? ' <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:' + (mod.source === 'curseforge' ? '#f1643620;color:#f16436;border:1px solid #f1643630' : '#4caf5020;color:#4caf50;border:1px solid #4caf5030') + ';font-weight:500;vertical-align:middle">' + (mod.source === 'curseforge' ? 'CF' : 'MR') + '</span>' : '') +
@@ -224,3 +225,6 @@ registerActions({
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { loadInstalledMods, loadModFilterOptions, populateModVersionFilter, loadMods, updateModPagination, loadFeaturedMods, searchMods, MODRINTH_CATEGORY_ZH };
+
+// 注册筛选刷新入口，供公共下拉组件按需触发
+registerLazyLoader('mods:refresh', () => loadMods());

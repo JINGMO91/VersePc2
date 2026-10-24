@@ -1,5 +1,5 @@
 import { API as API } from '../../core/api.js';
-import { escapeHtml as escapeHtml } from '../../core/utils.js';
+import { escapeHtml as escapeHtml, normalizeIconUrl as normalizeIconUrl } from '../../core/utils.js';
 import { appState as appState } from '../../core/app-state.js';
 import { actionAttrs as actionAttrs } from '../../core/actions.js';
 import { S } from './mod-detail-state.js';
@@ -32,8 +32,10 @@ async function setLocalImage(el, url, source) {
 function proxifyBodyHtml(html) {
   const source = appState.currentModDetailSource || 'modrinth';
   if (source !== 'modrinth') return html;
+  // 正文图片同样可能被后端改写成镜像地址，先归一回官方 CDN 再交给占位图代理
+  const normalized = normalizeIconUrl(html);
   const PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
-  return html.replace(/<img([^>]*?)src="([^"]+cdn\.modrinth\.com[^"]+)"([^>]*)>/gi, (m, pre, url, post) => {
+  return normalized.replace(/<img([^>]*?)src="([^"]+cdn\.modrinth\.com[^"]+)"([^>]*)>/gi, (m, pre, url, post) => {
     return `<img${pre}src="${PLACEHOLDER}" data-src="${url}"${post}>`;
   });
 }

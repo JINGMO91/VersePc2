@@ -6,6 +6,13 @@ export function escapeHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Modrinth 图片会被后端改写成 mod.mcimirror.top 镜像，但该镜像对浏览器返回 HTML，
+// 直接被 ORB 拦截（net::ERR_BLOCKED_BY_ORB），列表里的 <img> 需回退到官方 CDN
+export function normalizeIconUrl(url) {
+    if (typeof url !== 'string' || !url) return url;
+    return url.replace(/mod\.mcimirror\.top/g, 'cdn.modrinth.com');
+}
+
 export function formatDate(dateStr) {
     if (!dateStr) return '';
     try {

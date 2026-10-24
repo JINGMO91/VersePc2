@@ -6,13 +6,14 @@ let modpackImporting = false;
  * @file resource.js
  * @description 资源管理 - 整合包、数据包、材质包、光影包的浏览、详情与安装
  */
-import { escapeHtml } from '../../core/utils.js';
+import { escapeHtml, normalizeIconUrl } from '../../core/utils.js';
 import { getCustomSelectValue, customSelectInstances } from '../misc/custom-select.js';
 import { showToast, formatNumber } from '../misc/ui-components.js';
 import { setLocalImage, renderModDescription, renderModGallery, renderMdSidebar, resetMdDetailView, _versionToMajor, switchMdVersionTab, renderMdVersionList, _projectDataCache, _versionPreloadCache, _versionPreloadInFlight } from './mod-detail.js';
 import { showModpackInstallModal, resolveResourceSavePath, showModDownloadModal } from './mod-install.js';
 import { dlManager } from '../versions/custom-download.js';
-import { navigateToPage, goBackFromDetail, pushModDetailHistory } from '../versions/versions.js';
+import { navigateToPage } from '../../core/navigation.js';
+import { goBackFromDetail, pushModDetailHistory } from '../versions/versions-detail-history.js';
 
 import { modDetailState } from './detail-state.js';
 import { appState } from '../../core/app-state.js';
@@ -20,6 +21,7 @@ import { formatModNameWithChinese } from './chinese-names.js';
 import { isPinned, PIN_ICONS, pinBtnToggle } from '../versions/pinned-store.js';
 import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
 import { DynamicIsland } from '../misc/dynamic-island.js';
+import { registerLazyLoader } from '../../core/lazy-loaders.js';
 
 // 资源卡片悬停时预加载版本列表
 document.addEventListener('mouseover', (event) => {
@@ -398,7 +400,7 @@ async function loadResourceList(type) {
     } else {
       container.innerHTML = hits.map(item => `
         <div class="mod-item mod-item-clickable"${actionAttrs('openResourceDetail', item.id, type, item.source || 'modrinth')} data-preload-resource="${escapeHtml(item.id)}" data-preload-source="${escapeHtml(item.source || 'modrinth')}">
-          ${item.icon ? `<div class="mod-icon"><img src="${item.icon}" alt="" onerror="this.parentElement.remove()"></div>` : ''}
+          ${item.icon ? `<div class="mod-icon"><img src="${normalizeIconUrl(item.icon)}" alt="" onerror="this.parentElement.remove()"></div>` : ''}
           <div class="mod-info">
             <div class="mod-name">${escapeHtml(formatModNameWithChinese(item.slug || item.id, item.title))}
               ${(source === 'any' || !source) ? `<span style="font-size:10px;padding:1px 5px;border-radius:3px;margin-left:6px;background:${item.source === 'curseforge' ? '#f1643620;color:#f16436;border:1px solid #f1643630' : '#4caf5020;color:#4caf50;border:1px solid #4caf5030'};font-weight:500;vertical-align:middle">${item.source === 'curseforge' ? 'CF' : 'MR'}</span>` : ''}

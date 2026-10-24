@@ -1,10 +1,10 @@
 import { API as API } from '../../core/api.js';
-import { escapeHtml as escapeHtml } from '../../core/utils.js';
+import { escapeHtml as escapeHtml, normalizeIconUrl as normalizeIconUrl } from '../../core/utils.js';
 import { customSelectInstances as customSelectInstances } from '../misc/custom-select.js';
 import { showToast as showToast, showConfirmDialog as showConfirmDialog } from '../misc/ui-components.js';
 import { loadMods as loadMods } from '../mods/mod-browse.js';
 import { openModDetail as openModDetail } from '../mods/mod-detail.js';
-import { navigateToPage as navigateToPage } from './versions.js';
+import { navigateToPage as navigateToPage } from '../../core/navigation.js';
 import { appState as appState } from '../../core/app-state.js';
 import { formatModNameWithChinese as formatModNameWithChinese } from '../mods/chinese-names.js';
 import { actionAttrs as actionAttrs, actionAttrsStop as actionAttrsStop } from '../../core/actions.js';
@@ -126,7 +126,7 @@ function renderModMgrList(mods) {
         : '';
       let iconHtml;
       if (iconUrl && !isApiIcon) {
-        iconHtml = `<div class="modmgr-icon"><img src="${iconUrl}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.add('modmgr-icon--fallback')"></div>`;
+        iconHtml = `<div class="modmgr-icon"><img src="${normalizeIconUrl(iconUrl)}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.classList.add('modmgr-icon--fallback')"></div>`;
       } else {
         iconHtml = `<div class="modmgr-icon modmgr-icon--fallback"${iconHash ? ` data-icon-hash="${escapeHtml(iconHash)}"` : ''}></div>`;
       }
