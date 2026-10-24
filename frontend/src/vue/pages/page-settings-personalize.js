@@ -10,7 +10,7 @@ import { applyThemeByName } from '../../features/launch/launch-settings.js';
 import { showToast, showConfirmDialog } from '../../features/misc/ui-components.js';
 import { applyCustomThemeColor, setCustomThemeMode } from '../../features/settings/custom-theme.js';
 import { applyWallpaperByName, applyWeWallpaper, applyPanoramaThemeByName, applyWallpaperOpacityValue, applyWallpaperBlurValue, applyWallpaperFitValue, applyPanoramaSpeedValue, applyPanoramaFollowValue, applyGlassEffectValue, applyLiquidGlassEffectValue, applyMinimalNavValue, applyHideNavLabelsValue, applyAutoCollapseNavValue, applyNavWidthValue, applyRememberWindowSizeValue, applyStartFullscreenValue, pickCustomWallpaperFile, _applyCustomWallpaperFile, loadPersonalizeStateIntoStore, savePersonalizeSettings, resetPersonalizeSettings } from '../../features/settings/personalize.js';
-import { showGlobalDownloadProgress, hideGlobalDownloadProgress, WallpaperEngine, wallpaperEngine } from '../../features/settings/wallpaper-engine.js';
+import { showGlobalDownloadProgress, hideGlobalDownloadProgress } from '../../features/settings/wallpaper-engine.js';
 
 import { personalizeState } from '../../features/settings/personalize-state.js';
 

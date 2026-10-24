@@ -1,0 +1,25 @@
+// dynamic-island-state.js — 模块共享可变状态
+// 仅本域子模块读写，门面不重新声明状态。
+export const S = {
+  _el: null,
+  _hoverZone: null,
+  _expanded: false,
+  _visible: false,
+  _state: 'idle',
+  _autoDismissTimer: null,
+  _hoverTimer: null,
+  _leaveTimer: null,
+  _hideTimer: null,
+  _replyHideTimer: null,
+  _tasks: {},
+  _currentName: null,
+  _circumference: 94.25,
+  _popSoundCtx: null,
+  _snapshotElements: [],
+  _pendingConfirm: null,
+  _tts: null,
+  _wakeRec: null,
+  _wakeListening: false,
+  _inDialog: false,
+  _dialogHistory: [],
+};

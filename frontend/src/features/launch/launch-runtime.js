@@ -2,7 +2,7 @@ import { API as API } from '../../core/api.js';
 import { gameStore as gameStore } from '../../core/game-store.js';
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { showToast as showToast } from '../misc/ui-components.js';
-import { wallpaperEngine as wallpaperEngine } from '../settings/wallpaper-engine.js';
+import { getWallpaperEngine as getWallpaperEngine } from '../settings/wallpaper-engine.js';
 import { appState as appState } from '../../core/app-state.js';
 import { actionAttrs as actionAttrs } from '../../core/actions.js';
 import { S } from './launch-state.js';
@@ -157,8 +157,8 @@ async function stopGameInstance(sessionId) {
 function _onGameRunning() {
   try { document.body.classList.add('game-running'); } catch (e) {}
   try {
-    if (typeof wallpaperEngine !== 'undefined' && wallpaperEngine && typeof wallpaperEngine.suspend === 'function') {
-      wallpaperEngine.suspend();
+    if (typeof getWallpaperEngine() !== 'undefined' && getWallpaperEngine() && typeof getWallpaperEngine().suspend === 'function') {
+      getWallpaperEngine().suspend();
     }
   } catch (e) {}
   try {
@@ -178,8 +178,8 @@ function _onGameRunning() {
 function _onGameExited() {
   try { document.body.classList.remove('game-running'); } catch (e) {}
   try {
-    if (typeof wallpaperEngine !== 'undefined' && wallpaperEngine && typeof wallpaperEngine.resume === 'function') {
-      wallpaperEngine.resume();
+    if (typeof getWallpaperEngine() !== 'undefined' && getWallpaperEngine() && typeof getWallpaperEngine().resume === 'function') {
+      getWallpaperEngine().resume();
     }
   } catch (e) {}
   try {
