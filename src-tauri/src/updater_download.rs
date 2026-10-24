@@ -246,6 +246,25 @@ fn is_dead_source_error(e: &str) -> bool {
     e.contains("TTFB 超时") || e.contains("连接失败")
 }
 
+/// 全新下载的流式校验：尺寸一致且流式 SHA-256 与期望值匹配。
+/// 断点续传或缺少期望哈希时返回 false，由调用方回退到整文件异步校验。
+fn fresh_download_verified(
+    part: &Path,
+    expected_size: u64,
+    expected_sha: Option<&str>,
+    outcome: &StreamOutcome,
+) -> bool {
+    if !outcome.fresh {
+        return false;
+    }
+    let Some(sha) = expected_sha else {
+        return false;
+    };
+    let size_ok =
+        expected_size == 0 || fs::metadata(part).map(|m| m.len()).unwrap_or(0) == expected_size;
+    size_ok && outcome.hash.eq_ignore_ascii_case(sha)
+}
+
 pub(super) async fn download_with_fallback(
     app: &AppHandle,
     url: &str,
@@ -303,12 +322,7 @@ pub(super) async fn download_with_fallback(
                         // 从 0 开始的下载已在流式过程中算完哈希，无需再整文件读盘；
                         // 断点续传只覆盖了部分字节，仍需完整校验。
                         let verified = if outcome.fresh && expected_sha.is_some() {
-                            let size_ok = expected_size == 0
-                                || fs::metadata(&part).map(|m| m.len()).unwrap_or(0) == expected_size;
-                            size_ok
-                                && expected_sha
-                                    .map(|s| outcome.hash.eq_ignore_ascii_case(s))
-                                    .unwrap_or(true)
+                            fresh_download_verified(&part, expected_size, expected_sha, &outcome)
                         } else {
                             verify_file(&part, expected_size, expected_sha).await
                         };
@@ -367,7 +381,7 @@ pub(super) async fn download_with_fallback(
 
 #[cfg(test)]
 mod tests {
-    use super::{clean_stale_updates, hex_lower, verify_file_blocking};
+    use super::{clean_stale_updates, fresh_download_verified, hex_lower, verify_file_blocking, StreamOutcome};
     use sha2::{Digest, Sha256};
     use std::time::{Duration, SystemTime};
 
@@ -392,6 +406,25 @@ mod tests {
         broken[1024] ^= 0xFF;
         std::fs::write(&path, &broken).unwrap();
         assert!(!verify_file_blocking(&path, broken.len() as u64, Some(&sha)));
+    }
+
+    #[test]
+    fn fresh_download_verification_uses_stream_hash() {
+        let dir = tempfile::tempdir().unwrap();
+        let part = dir.path().join("pkg.exe.part");
+        let data = vec![1u8, 2, 3, 4];
+        std::fs::write(&part, &data).unwrap();
+        let sha = sha_of(&data);
+
+        let fresh_ok = StreamOutcome { fresh: true, hash: sha.clone() };
+        assert!(fresh_download_verified(&part, 4, Some(&sha), &fresh_ok));
+        assert!(!fresh_download_verified(&part, 5, Some(&sha), &fresh_ok));
+
+        let wrong_hash = StreamOutcome { fresh: true, hash: "00".repeat(32) };
+        assert!(!fresh_download_verified(&part, 4, Some(&sha), &wrong_hash));
+
+        let resumed = StreamOutcome { fresh: false, hash: sha.clone() };
+        assert!(!fresh_download_verified(&part, 4, Some(&sha), &resumed));
     }
 
     #[test]
