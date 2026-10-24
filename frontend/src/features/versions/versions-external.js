@@ -88,7 +88,7 @@ async function autoDetectExternalFolders() {
   } catch (e) {
     if (resultEl) {
       resultEl.style.display = 'block';
-      resultEl.innerHTML = '<div style="color:#ff4d4d;font-size:13px">一键识别失败：' + escapeHtml((e && e.message) || e) + '</div>';
+      resultEl.innerHTML = '<div style="color:var(--red);font-size:13px">一键识别失败：' + escapeHtml((e && e.message) || e) + '</div>';
     }
   } finally {
     if (detectEl) detectEl.style.display = 'none';

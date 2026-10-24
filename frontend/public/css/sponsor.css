@@ -15,7 +15,7 @@
 
 /* 标题爱心图标 */
 .sponsor-heart {
-  color: var(--accent, #6366f1);
+  color: var(--accent-ink, #6366f1);
   flex-shrink: 0;
 }
 
@@ -23,7 +23,7 @@
 .sponsor-count {
   font-size: 11px;
   font-weight: 600;
-  color: var(--accent, #6366f1);
+  color: var(--accent-ink, #6366f1);
   background: color-mix(in srgb, var(--accent, #6366f1) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent, #6366f1) 30%, transparent);
   border-radius: 999px;

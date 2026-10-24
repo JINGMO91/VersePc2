@@ -407,7 +407,7 @@
 
 #vset-memory-display {
     font-weight: 700;
-    color: var(--accent);
+    color: var(--accent-ink);
     font-size: 14px;
 }
 
@@ -417,7 +417,7 @@
     border-radius: var(--radius);
     padding: 10px 14px;
     font-size: 12.5px;
-    color: var(--accent);
+    color: var(--accent-ink);
     margin-top: 4px;
 }
 
@@ -613,8 +613,8 @@
     color: var(--text-primary);
 }
 .mod-translate-tab.active {
-    color: var(--accent-color);
-    border-bottom-color: var(--accent-color);
+    color: var(--accent-ink);
+    border-bottom-color: var(--accent);
 }
 
 /* 整合包导出 - 文件树勾选、导出表单 */
@@ -639,7 +639,7 @@
 .export-section-title {
     font-size: 15px;
     font-weight: 600;
-    color: var(--accent);
+    color: var(--accent-ink);
     margin-bottom: 12px;
 }
 
@@ -900,7 +900,7 @@
   overflow-y: auto;
   border-radius: 16px;
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
 }
 .save-modal-header {
@@ -908,7 +908,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border);
   font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
@@ -959,7 +959,7 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 18px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border);
 }
 
 /* ==========================================================================
@@ -1007,7 +1007,7 @@
 .terracotta-ob-icon svg {
   width: 112px;
   height: 112px;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .terracotta-ob-title {
@@ -1031,9 +1031,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  color: var(--accent);
+  color: var(--accent-ink);
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   cursor: pointer;
   padding: 0;
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
@@ -1074,7 +1074,7 @@
 .terracotta-ob-spinner .spinner {
   width: 88px;
   height: 88px;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .terracotta-ob-progress-text {
   font-size: 15px;
@@ -1105,7 +1105,7 @@
   padding: 28px 32px;
   border-radius: 32px;
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
@@ -1120,7 +1120,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 24px;
-  color: var(--accent);
+  color: var(--accent-ink);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   flex-shrink: 0;
 }
@@ -1162,7 +1162,7 @@
   margin: 20px auto 0;
   padding: 52px 40px;
   border-radius: 32px;
-  border: 1px dashed var(--border-color);
+  border: 1px dashed var(--border);
   text-align: center;
   color: var(--text-muted);
   font-size: 26px;
@@ -1217,7 +1217,7 @@
   gap: 8px;
   border-radius: 18px;
   background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
@@ -1268,7 +1268,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 44px;
-  color: var(--accent);
+  color: var(--accent-ink);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .terracotta-step-bigicon svg {
@@ -1295,12 +1295,12 @@
 .terracotta-step .spinner {
   width: 88px;
   height: 88px;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .terracotta-port-hint {
   font-size: 17px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-ink);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   padding: 10px 26px;
   border-radius: 999px;
@@ -1325,7 +1325,7 @@
   gap: 10px;
 }
 .terracotta-node-card {
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px;
   cursor: pointer;
@@ -1404,7 +1404,7 @@
   padding: 18px 22px;
   border-radius: 16px;
   background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border);
   color: var(--text-primary);
   font-size: 17px;
   font-family: inherit;
@@ -1446,7 +1446,7 @@
   padding: 8px 18px;
   border-radius: 10px;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--accent);
+  color: var(--accent-ink);
   border: none;
   cursor: pointer;
 }
@@ -1469,12 +1469,12 @@
   margin: 0;
   font-size: 30px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .terracotta-ob-check {
   width: 52px;
   height: 52px;
-  color: var(--accent);
+  color: var(--accent-ink);
   flex-shrink: 0;
 }
 .terracotta-ob-check polyline {

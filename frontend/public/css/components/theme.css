@@ -40,7 +40,7 @@
 .custom-theme-color-value {
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 12px;
-    color: var(--accent);
+    color: var(--accent-ink);
     margin-left: 6px;
     text-transform: uppercase;
 }
@@ -105,7 +105,7 @@
 
 .wallpaper-option.active {
     border-color: var(--accent);
-    background: rgba(var(--accent-rgb), 0.08);
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-tertiary));
     box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
@@ -143,7 +143,7 @@
 }
 
 .wallpaper-option.active .wallpaper-name {
-    color: var(--accent);
+    color: var(--text-primary);
 }
 
 .panorama-theme-option {
@@ -166,12 +166,12 @@
 
 .panorama-theme-option.active {
     border-color: var(--accent);
-    background: rgba(var(--accent-rgb), 0.08);
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-tertiary));
     box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .panorama-theme-option.active .wallpaper-name {
-    color: var(--accent);
+    color: var(--text-primary);
 }
 
 #wp-preview-custom-image {
@@ -238,7 +238,7 @@
 .custom-wallpaper-drop-zone.drag-over {
     border-color: var(--accent);
     background: rgba(var(--accent-rgb), 0.08);
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .wp-preview-thumb {
@@ -811,22 +811,22 @@ body.game-running:not([data-no-glass]) .sidebar {
     );
 }
 
-/* 液态玻璃下，按钮/卡片文字用白字+深色投影，保证在任何明暗背景下都清晰可读 */
-[data-liquid-glass] .theme-option .theme-name,
+/* 液态玻璃下：壁纸/全景选项使用固定浅色玻璃，文字用深色；主题选项跟随当前主题文字色。
+   选中态统一深色，避免白字压在浅色玻璃上 */
+[data-liquid-glass] .theme-option .theme-name {
+    color: var(--text-secondary);
+    text-shadow: none;
+}
 [data-liquid-glass] .wallpaper-option .wallpaper-name,
 [data-liquid-glass] .panorama-theme-option .wallpaper-name {
-    color: #ffffff;
-    text-shadow:
-        0 1px 2px rgba(0, 0, 0, 0.6),
-        0 0 6px rgba(0, 0, 0, 0.4);
+    color: #14171d;
+    text-shadow: none;
 }
 [data-liquid-glass] .theme-option.active .theme-name,
 [data-liquid-glass] .wallpaper-option.active .wallpaper-name,
 [data-liquid-glass] .panorama-theme-option.active .wallpaper-name {
-    color: #ffffff;
-    text-shadow:
-        0 1px 2px rgba(0, 0, 0, 0.7),
-        0 0 8px rgba(0, 0, 0, 0.5);
+    color: #14171d;
+    text-shadow: none;
 }
 
 /* 深色主题 / 深色壁纸下的可点击卡片：实深色底座保底可读 */

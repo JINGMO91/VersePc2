@@ -275,7 +275,7 @@ const api = bridge;
             await api.updater.checkForUpdates();
         } catch (e) {
             document.getElementById('updater-status-area').innerHTML =
-                '<div style="color:#ef4444;">检查失败：' + e.message + '</div>';
+                '<div style="color:var(--red);">检查失败：' + e.message + '</div>';
         }
     };
 
@@ -287,7 +287,7 @@ const api = bridge;
             await api.updater.downloadUpdate();
         } catch (e) {
             document.getElementById('updater-status-area').innerHTML =
-                '<div style="color:#ef4444;">下载失败：' + e.message + '</div>';
+                '<div style="color:var(--red);">下载失败：' + e.message + '</div>';
             downloadBtn.disabled = false;
             downloadBtn.textContent = '下载更新';
         }

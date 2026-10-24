@@ -68,7 +68,7 @@
     padding: 2px 6px;
     border-radius: 3px;
     background: rgba(var(--accent-rgb), 0.15);
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .version-grid-item .v-badge.fabric {
@@ -384,7 +384,7 @@
 
 .btn-outline {
     background: transparent;
-    color: var(--accent);
+    color: var(--accent-ink);
     border: 1px solid var(--accent);
 }
 
@@ -637,7 +637,7 @@
 
 .folder-action-btn:hover {
     background: rgba(var(--accent-rgb), 0.15);
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .folder-action-btn-danger:hover {
@@ -854,7 +854,7 @@
 
 .custom-select-option.selected {
     background: rgba(var(--accent-rgb), 0.1);
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .custom-select-option.selected:hover {
@@ -1094,7 +1094,7 @@
 }
 
 .loader-option.selected .loader-status {
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .loader-option.available .loader-status {
@@ -1217,7 +1217,7 @@
 
 .home-current-version-card:hover .home-current-version-arrow {
     transform: translateX(2px);
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 /* "已选中"标记 - 已安装版本卡片 */
@@ -1273,7 +1273,7 @@
 }
 
 .version-item-settings-btn:hover {
-    color: var(--accent);
+    color: var(--accent-ink);
     border-color: var(--accent);
     background: var(--bg-hover);
     transform: rotate(60deg);
@@ -1321,7 +1321,7 @@
     overflow: hidden;
     border-radius: 16px;
     background: var(--bg-card);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border);
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }

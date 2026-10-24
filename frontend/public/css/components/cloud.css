@@ -29,7 +29,7 @@
 }
 
 .cloud-login-tip a {
-    color: var(--accent);
+    color: var(--accent-ink);
     text-decoration: none;
 }
 
@@ -76,7 +76,7 @@
     font-size: 11px;
     font-weight: 600;
     background: rgba(var(--accent-rgb), 0.12);
-    color: var(--accent);
+    color: var(--accent-ink);
     border: 1px solid rgba(var(--accent-rgb), 0.25);
     white-space: nowrap;
 }

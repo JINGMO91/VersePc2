@@ -421,9 +421,13 @@ async function applyThemeByName(theme) {
     }
   } else {
     if (typeof clearCustomThemeVars === 'function') clearCustomThemeVars();
-    document.documentElement.style.setProperty('--accent', theme === 'dark' ? '#ffffff' : '#1a1a1a');
-    document.documentElement.style.setProperty('--accent-hover', theme === 'dark' ? '#d0d0d0' : '#333333');
-    document.documentElement.style.setProperty('--accent-rgb', theme === 'dark' ? '255, 255, 255' : '26, 26, 26');
+    const isDark = theme === 'dark';
+    document.documentElement.style.setProperty('--accent', isDark ? '#ffffff' : '#1a1a1a');
+    document.documentElement.style.setProperty('--accent-hover', isDark ? '#d0d0d0' : '#333333');
+    document.documentElement.style.setProperty('--accent-rgb', isDark ? '255, 255, 255' : '26, 26, 26');
+    document.documentElement.style.setProperty('--accent-text', isDark ? '#0a0a0a' : '#ffffff');
+    document.documentElement.style.setProperty('--accent-ink', isDark ? '#ffffff' : '#1a1a1a');
+    document.documentElement.style.setProperty('--accent-glow', isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)');
   }
 
   if (typeof updateWallpaperTheme === 'function') {

@@ -310,26 +310,21 @@ function syncLiquidGlassSurfaces(enabled) {
 }
 
 function applyThemeColors(themeName) {
-  if (themeName === 'dark') {
-    document.documentElement.style.setProperty('--accent', '#ffffff');
-    document.documentElement.style.setProperty('--accent-hover', '#d0d0d0');
-  } else {
-    document.documentElement.style.setProperty('--accent', '#1a1a1a');
-    document.documentElement.style.setProperty('--accent-hover', '#333333');
-  }
+  const isDark = themeName === 'dark';
+  document.documentElement.style.setProperty('--accent', isDark ? '#ffffff' : '#1a1a1a');
+  document.documentElement.style.setProperty('--accent-hover', isDark ? '#d0d0d0' : '#333333');
+  document.documentElement.style.setProperty('--accent-text', isDark ? '#0a0a0a' : '#ffffff');
+  document.documentElement.style.setProperty('--accent-ink', isDark ? '#ffffff' : '#1a1a1a');
 }
 
 async function updateCustomAccentColor(_color) {
   const theme = document.documentElement.getAttribute('data-theme') || 'light';
-  if (theme === 'dark') {
-    document.documentElement.style.setProperty('--accent', '#ffffff');
-    document.documentElement.style.setProperty('--accent-hover', '#d0d0d0');
-    document.documentElement.style.setProperty('--accent-rgb', '255, 255, 255');
-  } else {
-    document.documentElement.style.setProperty('--accent', '#1a1a1a');
-    document.documentElement.style.setProperty('--accent-hover', '#333333');
-    document.documentElement.style.setProperty('--accent-rgb', '26, 26, 26');
-  }
+  const isDark = theme === 'dark';
+  document.documentElement.style.setProperty('--accent', isDark ? '#ffffff' : '#1a1a1a');
+  document.documentElement.style.setProperty('--accent-hover', isDark ? '#d0d0d0' : '#333333');
+  document.documentElement.style.setProperty('--accent-rgb', isDark ? '255, 255, 255' : '26, 26, 26');
+  document.documentElement.style.setProperty('--accent-text', isDark ? '#0a0a0a' : '#ffffff');
+  document.documentElement.style.setProperty('--accent-ink', isDark ? '#ffffff' : '#1a1a1a');
 }
 
 function aiToggleApiKeyVisibility() {

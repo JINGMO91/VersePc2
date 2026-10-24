@@ -20,11 +20,11 @@ function openPrivateServerModal(id) {
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>服务器名称 <span style="color:#ff4d4f">*</span></label>
+          <label>服务器名称 <span style="color:var(--red)">*</span></label>
           <input type="text" id="ps-modal-name" class="text-input" placeholder="例如：豆杰的小服" value="${escapeHtml(server?.name || '')}">
         </div>
         <div class="form-group">
-          <label>服务器地址 <span style="color:#ff4d4f">*</span></label>
+          <label>服务器地址 <span style="color:var(--red)">*</span></label>
           <input type="text" id="ps-modal-address" class="text-input" placeholder="例如：mc.example.com:25565" value="${escapeHtml(server?.address || '')}">
           <span class="form-hint">支持域名或 IP，不带端口默认 25565</span>
         </div>

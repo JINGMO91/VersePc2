@@ -223,7 +223,7 @@
     font-weight: 500;
     border-radius: 999px;
     background: color-mix(in srgb, var(--accent) 14%, transparent);
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .fb-auto-log-tip {
@@ -236,7 +236,7 @@
 }
 
 .fb-auto-log-tip.loading {
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .fb-auto-log-tip.empty {
@@ -256,12 +256,12 @@
     border-radius: 999px;
     flex-shrink: 0;
     background: color-mix(in srgb, var(--accent) 14%, transparent);
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .fb-log-tag.is-auto {
     background: color-mix(in srgb, var(--accent) 14%, transparent);
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 /* 反馈内容 */
@@ -530,14 +530,14 @@
     width: 80px;
     height: 80px;
     display: inline-block;
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .spinner-sm {
     width: 24px;
     height: 24px;
     display: inline-block;
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 @keyframes spin {
@@ -617,7 +617,7 @@
 
 .java-badge.system {
     background: rgba(var(--accent-rgb), 0.15);
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .java-badge.bundled {
@@ -713,7 +713,7 @@
 .progress-text {
     font-size: 14px;
     font-weight: 600;
-    color: var(--accent);
+    color: var(--accent-ink);
     min-width: 50px;
     text-align: right;
 }
@@ -958,7 +958,7 @@
 
 .java-progress-source {
     font-size: 12px;
-    color: var(--accent);
+    color: var(--accent-ink);
     background: rgba(var(--accent-rgb), 0.1);
     padding: 2px 8px;
     border-radius: 10px;
@@ -1009,7 +1009,7 @@
 }
 
 .download-stats strong {
-    color: var(--accent);
+    color: var(--accent-ink);
     font-weight: 600;
 }
 
@@ -1058,7 +1058,7 @@
 .update-card-icon svg {
     width: 22px;
     height: 22px;
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .update-card-title-wrap {
@@ -1172,7 +1172,7 @@
 }
 
 .update-status--info .update-status__title {
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 /* 成功条 - 下载完成 */
@@ -1199,7 +1199,7 @@
 
 .update-status--loading .update-status__icon svg {
     animation: spin 1s linear infinite;
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 /* 更新进度条 */
@@ -1219,7 +1219,7 @@
 }
 
 .update-progress__label {
-    color: var(--accent);
+    color: var(--accent-ink);
     display: flex;
     align-items: center;
     gap: 6px;

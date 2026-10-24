@@ -24,7 +24,7 @@
 .moddetail-icon-wrap .icon-fallback {
     font-size: 28px;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--accent-ink);
     background: var(--bg-secondary);
     width: 100%;
     height: 100%;
@@ -93,8 +93,8 @@
     padding: 2px 9px;
     border-radius: 999px;
     white-space: nowrap;
-    color: #a855f7;
-    background: rgba(168, 85, 247, 0.12);
+    color: var(--purple);
+    background: color-mix(in srgb, var(--purple) 14%, transparent);
 }
 
 .md-action-bar {
@@ -143,7 +143,7 @@
     border-radius: 6px;
     border: 1px solid var(--accent);
     background: transparent;
-    color: var(--accent);
+    color: var(--accent-ink);
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
@@ -262,7 +262,7 @@
 }
 
 .md-dep-status.compatible {
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .md-dep-status.incompatible-version {

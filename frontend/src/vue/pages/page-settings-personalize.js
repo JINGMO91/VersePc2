@@ -558,7 +558,7 @@ const PageSettingsPersonalize = (function () {
             </div>
             <div class="layout-subsection">
               <h4>主页布局</h4>
-              <p class="form-hint" style="color:#6b7280;font-size:13px;margin:0 0 12px;">恢复主页控件（软件名 / 头像 / 版本卡 / 启动按钮 / 存档坞）的默认位置与头像缩放</p>
+              <p class="form-hint" style="color:var(--text-secondary);font-size:13px;margin:0 0 12px;">恢复主页控件（软件名 / 头像 / 版本卡 / 启动按钮 / 存档坞）的默认位置与头像缩放</p>
               <VButton variant="secondary" @click="resetHomeLayout" :disabled="resettingHome">
                 {{ resettingHome ? '已恢复' : '恢复主页默认布局' }}
               </VButton>

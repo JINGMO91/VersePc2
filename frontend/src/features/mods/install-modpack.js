@@ -45,12 +45,12 @@ function showModpackNameModal(defaultName, projectId, versionId) {
         <div id="mpnm-hint" style="margin-top:6px;font-size:12px;color:var(--text-muted);"></div>
       </div>
       <div id="mpnm-warn" style="display:none;padding:10px 12px;border-radius:8px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);margin-bottom:12px;">
-        <span style="font-size:13px;color:#e6a817;">⚠ 已有相同名称的版本</span>
+        <span style="font-size:13px;color:var(--warning);">⚠ 已有相同名称的版本</span>
       </div>
     </div>
     <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
       <button id="mpnm-cancel" style="padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-primary);cursor:pointer;font-size:13px;">取消</button>
-      <button id="mpnm-confirm" style="padding:8px 20px;border-radius:8px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-size:13px;font-weight:500;">确认安装</button>
+      <button id="mpnm-confirm" style="padding:8px 20px;border-radius:8px;border:none;background:var(--accent);color:var(--accent-text);cursor:pointer;font-size:13px;font-weight:500;">确认安装</button>
     </div>
   `;
 

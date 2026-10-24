@@ -349,7 +349,7 @@ const PageToolbox = {
           <div class="toolbox-section">
             <h3 class="toolbox-category">下载自定义文件</h3>
             <div class="toolbox-grid" style="grid-template-columns:1fr;">
-              <div style="background:var(--glass-bg);border-radius:12px;padding:20px;border:1px solid var(--border-color);">
+              <div style="background:var(--glass-bg);border-radius:12px;padding:20px;border:1px solid var(--border);">
                 <p class="hint" style="margin-bottom:16px;">使用启动器的高速多线程下载引擎下载任意文件。请注意，部分网站（例如百度网盘）可能会报错（403），无法正常下载。</p>
                 <div class="form-group" style="margin-bottom:12px;">
                   <label style="font-weight:500;margin-bottom:6px;display:block;">下载地址</label>

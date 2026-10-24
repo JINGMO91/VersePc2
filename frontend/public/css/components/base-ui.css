@@ -26,7 +26,7 @@
 
 .progress-fill {
     height: 100%;
-    background: var(--primary);
+    background: var(--accent);
     border-radius: 9999px;
     transition: width 0.4s ease-out;
     width: 0%;
@@ -48,7 +48,7 @@
 
 .install-speed {
     font-size: 12px;
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .install-progress-container {
@@ -77,7 +77,7 @@
 
 .install-progress-container .install-speed {
     font-size: 12px;
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 /* 依赖检查列表与进度条容器：对应标记已改由 Vue 组件渲染，原 .dep-* /
@@ -114,3 +114,12 @@
 }
 
 /* 账户列表 - 账户条目、微软认证步骤 */
+
+/* 更新加速标识 */
+.updater-accel-badge {
+    font-size: 11px;
+    padding: 1px 8px;
+    background: color-mix(in srgb, var(--green) 12%, transparent);
+    color: var(--green);
+    border-radius: 10px;
+}

@@ -92,7 +92,7 @@ const STATIC_MODALS_HTML = `
           <div style="font-weight:600;margin-bottom:4px;" id="mod-translate-modname"></div>
           <div style="font-size:12px;color:var(--text-muted);" id="mod-translate-langinfo"></div>
         </div>
-        <div id="mod-translate-tabs" style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border-color);">
+        <div id="mod-translate-tabs" style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);">
           <button class="mod-translate-tab active" data-tab="quick" data-action="switchTranslateTab" data-args='["quick"]'>快速汉化</button>
           <button class="mod-translate-tab" data-tab="auto" data-action="switchTranslateTab" data-args='["auto"]'>AI 机翻</button>
           <button class="mod-translate-tab" data-tab="manual" data-action="switchTranslateTab" data-args='["manual"]'>手动汉化</button>
@@ -103,7 +103,7 @@ const STATIC_MODALS_HTML = `
           </p>
           <div id="mod-translate-quick-progress" style="display:none;margin-bottom:12px;">
             <div style="height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;">
-              <div id="mod-translate-quick-progress-bar" style="height:100%;width:0%;background:var(--accent-color);transition:width 0.3s;"></div>
+              <div id="mod-translate-quick-progress-bar" style="height:100%;width:0%;background:var(--accent);transition:width 0.3s;"></div>
             </div>
             <p id="mod-translate-quick-progress-text" style="font-size:12px;color:var(--text-muted);margin-top:6px;">准备中...</p>
           </div>
@@ -116,12 +116,12 @@ const STATIC_MODALS_HTML = `
           <p style="color:var(--text-secondary);font-size:13px;line-height:1.7;margin-bottom:12px;">
             自动翻译模组中的英文文本为中文，适合快速体验。翻译质量取决于 AI 模型，专业术语可能不够准确。
           </p>
-          <div id="mod-translate-ai-warning" style="display:none;padding:10px 12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;margin-bottom:12px;font-size:12px;color:#f59e0b;">
+          <div id="mod-translate-ai-warning" style="display:none;padding:10px 12px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px;margin-bottom:12px;font-size:12px;color:var(--warning);">
             未配置 AI 供应商，请先在 V岛设置中配置 AI 对话功能。
           </div>
           <div id="mod-translate-progress" style="display:none;margin-bottom:12px;">
             <div style="height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;">
-              <div id="mod-translate-progress-bar" style="height:100%;width:0%;background:var(--accent-color);transition:width 0.3s;"></div>
+              <div id="mod-translate-progress-bar" style="height:100%;width:0%;background:var(--accent);transition:width 0.3s;"></div>
             </div>
             <p id="mod-translate-progress-text" style="font-size:12px;color:var(--text-muted);margin-top:6px;">准备中...</p>
           </div>

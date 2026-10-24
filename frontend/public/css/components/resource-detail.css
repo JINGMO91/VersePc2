@@ -162,7 +162,7 @@
     align-items: center;
     gap: 6px;
     font-size: 13px;
-    color: var(--accent);
+    color: var(--accent-ink);
     text-decoration: none;
     transition: opacity 0.15s ease;
 }
@@ -224,7 +224,7 @@
     margin-bottom: 4px;
 }
 .md-body-content a {
-    color: var(--accent);
+    color: var(--accent-ink);
     text-decoration: none;
 }
 .md-body-content a:hover {

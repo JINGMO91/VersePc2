@@ -377,7 +377,7 @@
 
 .mod-filter-hint {
     font-size: 11px;
-    color: var(--accent);
+    color: var(--accent-ink);
     background: rgba(var(--accent-rgb), 0.1);
     padding: 2px 8px;
     border-radius: 4px;
@@ -432,7 +432,7 @@
 }
 
 .batch-progress-header span:last-child {
-    color: var(--accent);
+    color: var(--accent-ink);
     font-weight: 600;
 }
 
@@ -620,7 +620,7 @@
     border-radius: 4px;
     font-size: 11px;
     background: rgba(var(--accent-rgb), 0.1);
-    color: var(--accent);
+    color: var(--accent-ink);
     border: 1px solid rgba(var(--accent-rgb), 0.2);
 }
 
@@ -647,7 +647,7 @@
 }
 
 .detail-tab.active {
-    color: var(--accent);
+    color: var(--accent-ink);
     border-bottom-color: var(--accent);
 }
 
@@ -725,7 +725,7 @@
 }
 
 .mod-detail-content a {
-    color: var(--accent);
+    color: var(--accent-ink);
     text-decoration: none;
 }
 

@@ -22,7 +22,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent);
+    color: var(--accent-ink);
     font-weight: bold;
     font-size: 14px;
 }
@@ -120,7 +120,7 @@
 
 .lver-badge {
     font-size: 11px;
-    color: var(--accent);
+    color: var(--accent-ink);
     background: rgba(var(--accent-rgb), 0.12);
     padding: 1px 7px;
     border-radius: 4px;
@@ -132,7 +132,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent);
+    color: var(--accent-ink);
     font-weight: bold;
     font-size: 13px;
 }

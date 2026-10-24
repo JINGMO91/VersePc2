@@ -50,12 +50,12 @@ function showModUpdateDialog(updates, checkedCount) {
   dialog.style.cssText = 'background:var(--bg-primary);border-radius:12px;padding:24px;max-width:560px;width:90%;max-height:70vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);';
 
   const listHtml = updates.map(u => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-color);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(u.modName)}</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${escapeHtml(u.fileName)} | 当前版本: ${escapeHtml(u.currentVersion)}</div>
       </div>
-      <a href="${u.projectUrl}" target="_blank" style="color:var(--accent);font-size:13px;text-decoration:none;white-space:nowrap;margin-left:12px;">查看更新</a>
+      <a href="${u.projectUrl}" target="_blank" style="color: var(--accent-ink);font-size:13px;text-decoration:none;white-space:nowrap;margin-left:12px;">查看更新</a>
     </div>
   `).join('');
 

@@ -79,7 +79,7 @@ async function handleLaunch() {
           const ok = await waitJavaAutoInstall(ai.sessionId, requiredVer, rangeDesc);
           if (!ok) {
             setLaunchStep('java-check', 'error', `Java ${rangeDesc} 自动下载失败`);
-            showLaunchError(`Java 自动下载失败，请检查网络后重试，或前往 Java 管理页面手动安装。<br><a href="javascript:void(0)" id="launch-nav-java" style="color:var(--accent);text-decoration:underline;cursor:pointer;">前往 Java 管理页面 →</a>`);
+            showLaunchError(`Java 自动下载失败，请检查网络后重试，或前往 Java 管理页面手动安装。<br><a href="javascript:void(0)" id="launch-nav-java" style="color: var(--accent-ink);text-decoration:underline;cursor:pointer;">前往 Java 管理页面 →</a>`);
             launchBtn.disabled = false;
             homeLaunchBtn.disabled = false;
             S.launching = false;
@@ -91,7 +91,7 @@ async function handleLaunch() {
         }
       } catch (e) {
         setLaunchStep('java-check', 'error', `Java ${rangeDesc} 自动下载失败`);
-        showLaunchError(`${e.message || 'Java 自动下载失败'}<br><a href="javascript:void(0)" id="launch-nav-java" style="color:var(--accent);text-decoration:underline;cursor:pointer;">前往 Java 管理页面 →</a>`);
+        showLaunchError(`${e.message || 'Java 自动下载失败'}<br><a href="javascript:void(0)" id="launch-nav-java" style="color: var(--accent-ink);text-decoration:underline;cursor:pointer;">前往 Java 管理页面 →</a>`);
         launchBtn.disabled = false;
         homeLaunchBtn.disabled = false;
         S.launching = false;
@@ -104,7 +104,7 @@ async function handleLaunch() {
       } catch (_) {}
       if (!depCheck.java || !depCheck.java.ok) {
         setLaunchStep('java-check', 'error', `Java ${rangeDesc} 仍未就绪`);
-        showLaunchError(`${serverMsg || `未找到合适的Java运行环境（需要 Java ${rangeDesc}）`}<br><a href="javascript:void(0)" id="launch-nav-java" style="color:var(--accent);text-decoration:underline;cursor:pointer;">前往 Java 管理页面 →</a>`);
+        showLaunchError(`${serverMsg || `未找到合适的Java运行环境（需要 Java ${rangeDesc}）`}<br><a href="javascript:void(0)" id="launch-nav-java" style="color: var(--accent-ink);text-decoration:underline;cursor:pointer;">前往 Java 管理页面 →</a>`);
         launchBtn.disabled = false;
         homeLaunchBtn.disabled = false;
         S.launching = false;

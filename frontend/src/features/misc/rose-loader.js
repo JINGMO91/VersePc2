@@ -161,7 +161,7 @@
     // 保留占位文字，前面插入玫瑰加载动画
     var holder = document.createElement('div');
     holder.className = 'rose-loader-holder';
-    holder.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;width:100%;color:var(--accent,currentColor);';
+    holder.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;width:100%;color: var(--accent-ink,currentColor);';
     var spinner = document.createElement('div');
     spinner.className = 'rose-loader-inline';
     spinner.style.cssText = 'width:40px;height:40px;flex-shrink:0;color:inherit;';

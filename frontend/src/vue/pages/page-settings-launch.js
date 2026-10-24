@@ -144,7 +144,7 @@ const PageSettingsLaunch = {
                 </label>
               </div>
               <div id="memory-auto-info" style="margin-top: 8px; padding: 10px 14px; background: var(--bg-secondary); border-radius: var(--radius); font-size: 13px;">
-                自动分配: <span id="memory-auto-value" style="font-weight: 600; color: var(--accent);">-- GB</span>
+                自动分配: <span id="memory-auto-value" style="font-weight: 600; color: var(--accent-ink);">-- GB</span>
                 <span style="color: var(--text-muted); font-size: 12px; margin-left: 4px;">(系统内存 - 保留量)</span>
               </div>
               <div id="memory-custom-settings" style="display: none; margin-top: 8px;">
@@ -162,12 +162,12 @@ const PageSettingsLaunch = {
                     <span style="font-size: 12px; color: var(--text-muted);" id="memory-slider-max">16384 MB</span>
                   </div>
                 </div>
-                <div id="memory-warning" style="display: none; margin-top: 6px; padding: 8px 12px; background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.2); border-radius: 6px; font-size: 12px; color: #ff9800;"></div>
+                <div id="memory-warning" style="display: none; margin-top: 6px; padding: 8px 12px; background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.2); border-radius: 6px; font-size: 12px; color: var(--warning);"></div>
               </div>
               <div style="margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: var(--radius); display: flex; justify-content: space-between; align-items: center;">
                 <div>
                   <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">游戏分配内存</div>
-                  <div style="font-size: 20px; font-weight: 700; color: var(--accent);" id="allocated-memory-display">-- GB</div>
+                  <div style="font-size: 20px; font-weight: 700; color: var(--accent-ink);" id="allocated-memory-display">-- GB</div>
                 </div>
                 <div style="text-align: right;">
                   <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">剩余可用</div>
@@ -249,7 +249,7 @@ const PageSettingsLaunch = {
                     <span id="cds-status-text" style="font-size: 11px; color: var(--text-tertiary); margin-left: 8px;"></span>
                   </div>
                 </div>
-                <div style="margin-top: 8px; padding: 10px; background: rgba(74, 158, 255, 0.08); border: 1px solid rgba(74, 158, 255, 0.2); border-radius: var(--radius); font-size: 12px; color: var(--accent);">
+                <div style="margin-top: 8px; padding: 10px; background: rgba(74, 158, 255, 0.08); border: 1px solid rgba(74, 158, 255, 0.2); border-radius: var(--radius); font-size: 12px; color: var(--accent-ink);">
                   版本独立设置中还有更多高级选项可供调整。
                 </div>
               </div>

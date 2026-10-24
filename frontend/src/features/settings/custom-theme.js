@@ -16,7 +16,7 @@ const CUSTOM_THEME_LIGHT_STORE_KEY = 'versepc_custom_theme_light';
 /** 记录所有被 inline 覆盖的 CSS 变量名，便于切回黑/白主题时清除 */
 const _CUSTOM_THEME_VARS = [
   '--bg-primary', '--bg-secondary', '--bg-tertiary', '--bg-card', '--bg-hover', '--bg-active',
-  '--accent', '--accent-hover', '--accent-glow', '--accent-text', '--accent-rgb',
+  '--accent', '--accent-hover', '--accent-glow', '--accent-text', '--accent-ink', '--accent-rgb',
   '--bg-glass', '--bg-card-glass',
   '--border', '--hover-overlay', '--dot-border',
   '--splash-bg-start', '--splash-bg-end',
@@ -70,13 +70,50 @@ function _hslToHex(h, s, l) {
   return `#${to(r)}${to(g)}${to(b)}`;
 }
 
-/** 根据背景色亮度返回具有足够对比度的文字色（黑或白） */
-function _contrastTextColor(hex) {
+/** W3C 相对亮度 */
+function _relativeLuminance(hex) {
   const rgb = _hexToRgb(hex);
-  if (!rgb) return '#ffffff';
-  // W3C 相对亮度公式
-  const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
-  return luminance > 0.55 ? '#0a0a0a' : '#ffffff';
+  if (!rgb) return 0;
+  const lin = (v) => {
+    const s = v / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * lin(rgb.r) + 0.7152 * lin(rgb.g) + 0.0722 * lin(rgb.b);
+}
+
+/** WCAG 对比度 */
+function _contrastRatio(a, b) {
+  const la = _relativeLuminance(a);
+  const lb = _relativeLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/** 根据背景色返回对比度更高的文字色（黑或白） */
+function _contrastTextColor(hex) {
+  if (!_hexToRgb(hex)) return '#ffffff';
+  return _contrastRatio(hex, '#ffffff') >= _contrastRatio(hex, '#0a0a0a') ? '#ffffff' : '#0a0a0a';
+}
+
+/**
+ * 强调色作为文字色使用时，按基底明暗调整明度直到达到 4.5:1，
+ * 避免浅色基底配亮黄/浅绿时正文不可读。
+ */
+function _readableAccent(hex, bgHex) {
+  // 目标略高于 4.5，给卡片/次级底色留出余量
+  if (_contrastRatio(hex, bgHex) >= 5) return hex;
+  const rgb = _hexToRgb(hex);
+  if (!rgb) return hex;
+  const { h, s, l } = _rgbToHsl(rgb.r, rgb.g, rgb.b);
+  const darkBg = _relativeLuminance(bgHex) < 0.5;
+  const step = darkBg ? 2 : -2;
+  let cur = l;
+  for (let i = 0; i < 60; i += 1) {
+    cur += step;
+    if (cur < 0 || cur > 100) break;
+    const candidate = _hslToHex(h, s, cur);
+    if (_contrastRatio(candidate, bgHex) >= 5) return candidate;
+  }
+  return darkBg ? '#ffffff' : '#000000';
 }
 
 // ─── 主题变量生成与应用 ───────────────────────────────────
@@ -104,8 +141,9 @@ function generateCustomThemeVars(hex, isLight = false) {
   const aRgb = _hexToRgb(accent);
 
   if (isLight) {
+    const bgPrimary = _hslToHex(h, bgSat, 98);
     return {
-      '--bg-primary': _hslToHex(h, bgSat, 98),
+      '--bg-primary': bgPrimary,
       '--bg-secondary': _hslToHex(h, bgSat, 96),
       '--bg-tertiary': _hslToHex(h, bgSat, 93),
       '--bg-card': _hslToHex(h, bgSat, 97),
@@ -117,6 +155,7 @@ function generateCustomThemeVars(hex, isLight = false) {
       '--accent-rgb': `${aRgb.r}, ${aRgb.g}, ${aRgb.b}`,
       '--accent-glow': `rgba(${aRgb.r}, ${aRgb.g}, ${aRgb.b}, 0.25)`,
       '--accent-text': _contrastTextColor(accent),
+      '--accent-ink': _readableAccent(accent, bgPrimary),
 
       '--bg-glass': `hsla(${Math.round(h)}, ${Math.round(bgSat)}%, 96%, 0.85)`,
       '--bg-card-glass': `hsla(${Math.round(h)}, ${Math.round(bgSat)}%, 97%, 0.7)`,
@@ -140,8 +179,9 @@ function generateCustomThemeVars(hex, isLight = false) {
     };
   }
 
+  const bgPrimary = _hslToHex(h, bgSat, 7);
   return {
-    '--bg-primary': _hslToHex(h, bgSat, 7),
+    '--bg-primary': bgPrimary,
     '--bg-secondary': _hslToHex(h, bgSat, 10.5),
     '--bg-tertiary': _hslToHex(h, bgSat, 13.5),
     '--bg-card': _hslToHex(h, bgSat, 12),
@@ -153,6 +193,7 @@ function generateCustomThemeVars(hex, isLight = false) {
     '--accent-rgb': `${aRgb.r}, ${aRgb.g}, ${aRgb.b}`,
     '--accent-glow': `rgba(${aRgb.r}, ${aRgb.g}, ${aRgb.b}, 0.25)`,
     '--accent-text': _contrastTextColor(accent),
+    '--accent-ink': _readableAccent(accent, bgPrimary),
 
     '--bg-glass': `hsla(${Math.round(h)}, ${Math.round(bgSat)}%, 8%, 0.85)`,
     '--bg-card-glass': `hsla(${Math.round(h)}, ${Math.round(bgSat)}%, 12%, 0.7)`,

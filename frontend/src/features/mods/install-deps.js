@@ -133,7 +133,7 @@ async function downloadDepWithNestedDeps(projectId, source, versionId, savePath,
           <div style="max-height:200px;overflow-y:auto;margin-bottom:16px;padding:8px;background:var(--bg-secondary);border-radius:8px;">${nestedDepsHtml}</div>
           <div style="display:flex;gap:10px;justify-content:flex-end;">
             <button id="${modalId}-cancel" style="padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-primary);cursor:pointer;font-size:13px;">取消</button>
-            <button id="${modalId}-confirm" style="padding:8px 20px;border-radius:8px;border:none;background:var(--primary);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">确认下载全部</button>
+            <button id="${modalId}-confirm" style="padding:8px 20px;border-radius:8px;border:none;background:var(--accent);color:var(--accent-text);cursor:pointer;font-size:13px;font-weight:600;">确认下载全部</button>
           </div>
         </div>`;
         document.body.appendChild(confirmModal);
@@ -216,8 +216,8 @@ function showDependencyDialog(projectId, source, versionId, fileId, savePath, de
         <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(dep.title)}</div>
         <div style="font-size:11px;color:var(--text-secondary);">${escapeHtml(verInfo)}</div>
       </div>
-      <button class="dep-single-download-btn" data-project-id="${escapeHtml(dep.projectId)}" style="padding:4px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;font-size:11px;white-space:nowrap;${btnDisabled}" title="${ver ? '选择版本并下载前置模组' : '无兼容版本'}">下载前置</button>
-      ${ver ? '<span style="font-size:11px;color:#22c55e;">✓</span>' : '<span style="font-size:11px;color:#ef4444;">✗</span>'}
+      <button class="dep-single-download-btn" data-project-id="${escapeHtml(dep.projectId)}" style="padding:4px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color: var(--accent-ink);cursor:pointer;font-size:11px;white-space:nowrap;${btnDisabled}" title="${ver ? '选择版本并下载前置模组' : '无兼容版本'}">下载前置</button>
+      ${ver ? '<span style="font-size:11px;color:var(--green);">✓</span>' : '<span style="font-size:11px;color:var(--red);">✗</span>'}
     </div>`;
   }).join('');
 
@@ -229,7 +229,7 @@ function showDependencyDialog(projectId, source, versionId, fileId, savePath, de
     <div style="max-height:280px;overflow-y:auto;margin-bottom:16px;">${depListHtml}</div>
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button id="dep-cancel-btn" style="padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-primary);cursor:pointer;font-size:13px;">取消</button>
-      <button id="dep-download-btn" style="padding:8px 20px;border-radius:8px;border:none;background:var(--primary);color:#fff;cursor:pointer;font-size:13px;font-weight:600;${downloadableCount === 0 ? 'opacity:0.5;pointer-events:none;' : ''}">一键下载全部（${downloadableCount} 个前置）</button>
+      <button id="dep-download-btn" style="padding:8px 20px;border-radius:8px;border:none;background:var(--accent);color:var(--accent-text);cursor:pointer;font-size:13px;font-weight:600;${downloadableCount === 0 ? 'opacity:0.5;pointer-events:none;' : ''}">一键下载全部（${downloadableCount} 个前置）</button>
     </div>
   </div>`;
 
@@ -395,8 +395,8 @@ async function maybeShowPostInstallDeps(projectId, source, versionId, savePath, 
         ? formatModNameWithChinese(dep.slug || dep.projectId, dep.title || dep.projectId)
         : (dep.title || dep.projectId);
       const checkHtml = index === -1
-        ? `<span style="font-size:11px;padding:2px 7px;border-radius:4px;background:rgba(34,197,94,.12);color:#22c55e;white-space:nowrap;">必选</span>`
-        : `<input type="checkbox" class="pi-optional" data-index="${index}" ${ver ? '' : 'disabled'} style="width:15px;height:15px;accent-color:var(--primary);cursor:${ver ? 'pointer' : 'not-allowed'};">`;
+        ? `<span style="font-size:11px;padding:2px 7px;border-radius:4px;background:color-mix(in srgb, var(--green) 12%, transparent);color:var(--green);white-space:nowrap;">必选</span>`
+        : `<input type="checkbox" class="pi-optional" data-index="${index}" ${ver ? '' : 'disabled'} style="width:15px;height:15px;accent-color: var(--accent);cursor:${ver ? 'pointer' : 'not-allowed'};">`;
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);margin-left:${indent}px;">
         ${iconHtml}
         <div style="flex:1;min-width:0;">
@@ -418,7 +418,7 @@ async function maybeShowPostInstallDeps(projectId, source, versionId, savePath, 
       <div id="pi-dep-list" style="max-height:320px;overflow-y:auto;margin-bottom:12px;">${rows}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
         <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;">
-          <input type="checkbox" id="pi-select-all" style="width:14px;height:14px;accent-color:var(--primary);"> 全选可选前置
+          <input type="checkbox" id="pi-select-all" style="width:14px;height:14px;accent-color: var(--accent);"> 全选可选前置
         </label>
         <div style="display:flex;gap:10px;justify-content:flex-end;">
           <button id="pi-skip" class="btn btn-secondary">跳过</button>

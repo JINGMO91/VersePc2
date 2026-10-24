@@ -69,7 +69,7 @@ var ANNOUNCEMENT_CONTENT = {
     body: `
         <div class="announcement-section">
             <p style="font-size:16px;line-height:1.8;">亲爱的小伙伴们，VersePC2 启动器正式开放<strong>预览版</strong>啦！</p>
-            <p style="color:#e67e22;font-weight:bold;font-size:15px;margin-top:12px;">预览版可能存在较多 Bug，如果你比较在意稳定性，建议等待八月份发布的正式稳定版。</p>
+            <p style="color:var(--warning);font-weight:bold;font-size:15px;margin-top:12px;">预览版可能存在较多 Bug，如果你比较在意稳定性，建议等待八月份发布的正式稳定版。</p>
         </div>
 
         <div class="announcement-section">
@@ -88,13 +88,13 @@ var ANNOUNCEMENT_CONTENT = {
         <div class="announcement-section">
             <h4>实验性功能</h4>
             <p>实验性功能（AI 助手等）目前需要<strong>赞助后获取测试版</strong>才能解锁使用。</p>
-            <p>如果你对实验性功能感兴趣，欢迎前往 <a href="javascript:void(0)" data-action="openExternal" data-args="[&quot;https://afdian.com/a/versejava&quot;]" style="color:#9b59b6;font-weight:bold;">爱发电</a> 支持我们的发展</p>
+            <p>如果你对实验性功能感兴趣，欢迎前往 <a href="javascript:void(0)" data-action="openExternal" data-args="[&quot;https://afdian.com/a/versejava&quot;]" style="color:var(--purple);font-weight:bold;">爱发电</a> 支持我们的发展</p>
         </div>
 
         <div class="announcement-section">
             <h4>Bug 反馈</h4>
             <p>如果你在使用过程中遇到任何问题，欢迎加入我们的腾讯频道反馈：</p>
-            <p style="font-size:15px;font-weight:bold;color:#4a9eff;margin-top:8px;">腾讯频道：verselauncher1</p>
+            <p style="font-size:15px;font-weight:bold;color:var(--text-primary);margin-top:8px;">腾讯频道：verselauncher1</p>
         </div>
 
         <div class="announcement-footer">

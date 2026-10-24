@@ -265,7 +265,7 @@ function renderInstalledVersionsInto(container) {
   const renderVersionItem = (v) => {
     const iconClass = v.type === 'snapshot' ? 'snapshot' : v.type === 'special' ? 'special' : 'installed';
     const iconDataAttrs = `data-vi-id="${escapeHtml(v.id)}" data-vi-type="${v.type || 'release'}" data-vi-forge="${v.isForge ? '1' : '0'}" data-vi-fabric="${v.isFabric ? '1' : '0'}" data-vi-neoforge="${v.isNeoForge ? '1' : '0'}" data-vi-modpack="${v.isModpack ? '1' : '0'}" data-vi-extdir="${v.externalVersionDir ? escapeHtml(v.externalVersionDir) : ''}"`;
-    const externalBadgeHtml = v.isExternal ? '<span style="display:inline-block;background:rgba(255,165,0,0.15);color:#ffa500;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px">外部文件夹</span>' : '';
+    const externalBadgeHtml = v.isExternal ? '<span style="display:inline-block;background:color-mix(in srgb, var(--orange) 15%, transparent);color:var(--orange);font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px">外部文件夹</span>' : '';
     const externalPathHtml = v.isExternal && v.externalPath ? `<span style="color:var(--text-muted);font-size:11px;margin-left:4px" title="${escapeHtml(v.externalPath)}">${escapeHtml(v.externalPath)}</span>` : '';
     const displayName = v.isExternal ? (v.customName || v.id.replace(/ \[外部\d*\]/, '')) : (v.customName || v.id);
     const deleteBtnHtml = `<button class="btn btn-danger btn-sm"${actionAttrsStop('deleteVersion', v.id)}>${v.isExternal ? '移除' : '删除'}</button>`;

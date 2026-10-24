@@ -28,15 +28,15 @@ const DinoGame = {
     const ov = document.createElement('div');
     ov.id = 'dino-overlay';
     ov.style.cssText =
-      'position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;' +
+      'position:fixed;inset:0;z-index:99999;background:var(--bg-primary);display:flex;flex-direction:column;' +
       'font-family:system-ui,-apple-system,"Segoe UI",sans-serif;';
     ov.innerHTML = `
-      <div class="dino-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #e0e0e0;background:#fafafa;position:relative;z-index:9999;flex-shrink:0;">
+      <div class="dino-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--border);background:var(--bg-card);position:relative;z-index:9999;flex-shrink:0;">
         <button class="btn btn-ghost btn-sm dino-back-btn" type="button" style="position:relative;z-index:10000;pointer-events:auto;cursor:pointer;" data-action="closeDinoGame">← 返回</button>
-        <span style="font-size:13px;color:#888;">赞助者彩蛋 · 恐龙快跑</span>
+        <span style="font-size:13px;color:var(--text-muted);">赞助者彩蛋 · 恐龙快跑</span>
         <span style="width:60px;"></span>
       </div>
-      <div style="flex:1;position:relative;overflow:hidden;background:#fff;z-index:1;min-height:0;">
+      <div style="flex:1;position:relative;overflow:hidden;background:var(--bg-primary);z-index:1;min-height:0;">
         <iframe id="dino-frame" src="dino/index.html"
           style="position:absolute;inset:0;width:100%;height:100%;border:0;display:block;"></iframe>
       </div>

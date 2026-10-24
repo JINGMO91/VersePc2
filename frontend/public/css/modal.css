@@ -159,7 +159,7 @@
 }
 
 .modal-close:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
     opacity: 1;
 }
@@ -184,7 +184,7 @@
 }
 
 .modal-btn:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 
@@ -251,7 +251,7 @@
     width: 2.5rem;
     height: 2.5rem;
     display: inline-block;
-    color: var(--primary);
+    color: var(--accent-ink);
 }
 
 /* Exit animation */
@@ -311,7 +311,7 @@
 /* Focus trap - visually hidden unless focused */
 
 .modal-content:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
 

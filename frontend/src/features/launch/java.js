@@ -273,15 +273,83 @@ async function cleanupRun() {
     }
 }
 
+/** 相对亮度（WCAG） */
+function _luminance(r, g, b) {
+    const lin = (v) => {
+        const s = v / 255;
+        return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+function _contrastRatio(a, b) {
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+function _parseHex(hex) {
+    if (!hex || !/^#[0-9a-fA-F]{6}$/.test(hex)) return null;
+    return {
+        r: parseInt(hex.slice(1, 3), 16),
+        g: parseInt(hex.slice(3, 5), 16),
+        b: parseInt(hex.slice(5, 7), 16),
+    };
+}
+
+/** 强调色上的文字色：按对比度选深/浅，避免自定义强调色出现白底白字 */
+function _accentTextColor(r, g, b) {
+    const lum = _luminance(r, g, b);
+    return _contrastRatio(lum, 1) >= _contrastRatio(lum, 0) ? '#ffffff' : '#0a0a0a';
+}
+
+/** 强调色作为文字色时的可读色：向黑/白混合直到与页面底色达到 4.5:1 */
+function _accentInkColor(color, bgHex) {
+    const bg = _parseHex(bgHex);
+    if (!bg) return color;
+    const bgLum = _luminance(bg.r, bg.g, bg.b);
+    const fg = _parseHex(color);
+    if (!fg) return color;
+    if (_contrastRatio(_luminance(fg.r, fg.g, fg.b), bgLum) >= 5) return color;
+    const target = bgLum < 0.5 ? 255 : 0;
+    for (let i = 1; i <= 18; i += 1) {
+        const t = (i / 18) * 0.9;
+        const mix = (v) => Math.round(v + (target - v) * t);
+        const nr = mix(fg.r), ng = mix(fg.g), nb = mix(fg.b);
+        if (_contrastRatio(_luminance(nr, ng, nb), bgLum) >= 5) {
+            const to = (v) => v.toString(16).padStart(2, '0');
+            return `#${to(nr)}${to(ng)}${to(nb)}`;
+        }
+    }
+    return bgLum < 0.5 ? '#ffffff' : '#000000';
+}
+
+/** 当前页面底色，取不到时按主题类回退 */
+function _currentPageBg() {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
+    const isDark = document.documentElement.classList.contains('dark-theme')
+        || document.documentElement.getAttribute('data-theme') === 'dark';
+    return isDark ? '#0a0a0a' : '#ffffff';
+}
+
+/** 强调色悬停色：向黑白中更远的一端偏移，保持为实色而非半透明 */
+function _accentHoverColor(r, g, b) {
+    const target = _accentTextColor(r, g, b) === '#ffffff' ? 255 : 0;
+    const mix = (v) => Math.round(v + (target - v) * 0.16);
+    return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+}
+
 function applyAccentColor(color) {
     if (!color || typeof color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(color)) return;
-    document.documentElement.style.setProperty('--accent', color);
     const r = parseInt(color.slice(1, 3), 16);
     const g = parseInt(color.slice(3, 5), 16);
     const b = parseInt(color.slice(5, 7), 16);
-    document.documentElement.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.3)`);
-    document.documentElement.style.setProperty('--accent-hover', `rgba(${r}, ${g}, ${b}, 0.85)`);
-    document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+    const root = document.documentElement;
+    root.style.setProperty('--accent', color);
+    root.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.3)`);
+    root.style.setProperty('--accent-hover', _accentHoverColor(r, g, b));
+    root.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
+    root.style.setProperty('--accent-text', _accentTextColor(r, g, b));
+    root.style.setProperty('--accent-ink', _accentInkColor(color, _currentPageBg()));
 }
 
 registerActions({

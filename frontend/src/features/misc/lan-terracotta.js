@@ -198,7 +198,7 @@ function terracottaShowAgreement() {
     modal.innerHTML = `<div style="background:var(--bg-primary);border-radius:12px;padding:24px;max-width:500px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
         <h3 style="margin-bottom:12px">陶瓦联机使用须知</h3>
         <div style="color:var(--text-secondary);font-size:13px;line-height:1.7;margin-bottom:16px">
-            <p>陶瓦联机基于 <a href="https://github.com/EasyTier/EasyTier" style="color:var(--primary)">EasyTier</a> 开源项目，由第三方提供公共节点。</p>
+            <p>陶瓦联机基于 <a href="https://github.com/EasyTier/EasyTier" style="color: var(--accent-ink)">EasyTier</a> 开源项目，由第三方提供公共节点。</p>
             <p style="margin-top:8px">• 联机质量取决于网络环境，可能有延迟</p>
             <p>• 公共节点由社区维护，不保证100%可用</p>
             <p>• 游戏数据通过P2P加密传输，不经过服务器</p>

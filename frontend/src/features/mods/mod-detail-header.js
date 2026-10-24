@@ -173,8 +173,10 @@ function _renderModDetailHeader(detail, source, projectId) {
   if (mdFollowers) mdFollowers.textContent = `❤ ${formatNumber(detail.followers || 0)}`;
   if (mdUpdated) { const u = detail.dateModified ? formatDate(detail.dateModified) : ''; mdUpdated.textContent = u ? `🕐 更新于 ${u}` : ''; }
   if (srcBadge) {
-    if (source === 'curseforge') { srcBadge.textContent = 'CurseForge'; srcBadge.style.color = '#f97316'; srcBadge.style.background = 'rgba(249,115,22,0.12)'; }
-    else { srcBadge.textContent = 'Modrinth'; srcBadge.style.color = '#a855f7'; srcBadge.style.background = 'rgba(168,85,247,0.12)'; }
+    const tone = source === 'curseforge' ? '--orange' : '--purple';
+    srcBadge.textContent = source === 'curseforge' ? 'CurseForge' : 'Modrinth';
+    srcBadge.style.color = `var(${tone})`;
+    srcBadge.style.background = `color-mix(in srgb, var(${tone}) 14%, transparent)`;
   }
   const mdFavBtn = document.getElementById('md-fav-btn');
   if (mdFavBtn) {

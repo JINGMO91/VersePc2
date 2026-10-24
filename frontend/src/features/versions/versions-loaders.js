@@ -167,7 +167,7 @@ async function loadFabricApiVersions(gameVersion) {
     }
     renderFabricApiList();
   } catch (e) {
-    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#ff4d4f">加载失败：' + escapeHtml(e.message) + '</div>';
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">加载失败：' + escapeHtml(e.message) + '</div>';
   }
 }
 
@@ -177,12 +177,12 @@ function renderFabricApiList() {
   const items = [];
   // 第一项：不安装
   items.push(`
-    <div class="fabric-api-item${S._fabricApiSelectedId === '' ? ' selected' : ''}"${actionAttrs('selectFabricApiVersion', '', '不安装')} style="padding:12px 14px;border:1px solid ${S._fabricApiSelectedId === '' ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${S._fabricApiSelectedId === '' ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s">
+    <div class="fabric-api-item${S._fabricApiSelectedId === '' ? ' selected' : ''}"${actionAttrs('selectFabricApiVersion', '', '不安装')} style="padding:12px 14px;border:1px solid ${S._fabricApiSelectedId === '' ? 'var(--accent)' : 'var(--border)'};border-radius:8px;background:${S._fabricApiSelectedId === '' ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s">
       <div>
         <div style="font-size:14px;font-weight:500;color:var(--text-primary)">不安装 Fabric API</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">仅安装 Fabric 加载器，不安装 API</div>
       </div>
-      ${S._fabricApiSelectedId === '' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent)"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+      ${S._fabricApiSelectedId === '' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color: var(--accent-ink)"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
     </div>
   `);
   S._fabricApiVersionsCache.forEach(v => {
@@ -191,15 +191,15 @@ function renderFabricApiList() {
     const date = v.datePublished ? v.datePublished.substring(0, 10) : '';
     const isRecommended = v.versionId === S._fabricApiRecommendedId;
     items.push(`
-      <div class="fabric-api-item${isSelected ? ' selected' : ''}"${actionAttrs('selectFabricApiVersion', v.versionId)} style="padding:12px 14px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${isSelected ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s" onmouseover="if(!this.classList.contains('selected'))this.style.borderColor='var(--accent)'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--border-color)'">
+      <div class="fabric-api-item${isSelected ? ' selected' : ''}"${actionAttrs('selectFabricApiVersion', v.versionId)} style="padding:12px 14px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};border-radius:8px;background:${isSelected ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s" onmouseover="if(!this.classList.contains('selected'))this.style.borderColor='var(--accent)'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--border)'">
         <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px;font-weight:500;color:var(--text-primary)">${escapeHtml(v.versionNumber)}</span>
-            ${isRecommended ? '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:var(--accent);color:#fff;font-weight:500">推荐</span>' : ''}
+            ${isRecommended ? '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:var(--accent);color:var(--accent-text);font-weight:500">推荐</span>' : ''}
           </div>
           <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${escapeHtml(typeLabel)}${date ? ' · ' + date : ''}</div>
         </div>
-        ${isSelected ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+        ${isSelected ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color: var(--accent-ink);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
       </div>
     `);
   });
@@ -390,7 +390,7 @@ async function loadFabricApiDetailVersions(gameVersion) {
     }
     renderFabricApiDetailList();
   } catch (e) {
-    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#ff4d4f">加载失败：' + escapeHtml(e.message) + '</div>';
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red)">加载失败：' + escapeHtml(e.message) + '</div>';
   }
 }
 
@@ -400,12 +400,12 @@ function renderFabricApiDetailList() {
   const items = [];
   // 第一项：不安装
   items.push(`
-    <div class="fabric-api-item${S._fabricApiDetailId === '' ? ' selected' : ''}"${actionAttrs('selectFabricApiDetailVersion', '', '不安装')} style="padding:12px 14px;border:1px solid ${S._fabricApiDetailId === '' ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${S._fabricApiDetailId === '' ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s">
+    <div class="fabric-api-item${S._fabricApiDetailId === '' ? ' selected' : ''}"${actionAttrs('selectFabricApiDetailVersion', '', '不安装')} style="padding:12px 14px;border:1px solid ${S._fabricApiDetailId === '' ? 'var(--accent)' : 'var(--border)'};border-radius:8px;background:${S._fabricApiDetailId === '' ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s">
       <div>
         <div style="font-size:14px;font-weight:500;color:var(--text-primary)">不安装 Fabric API</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">仅安装 Fabric 加载器，不安装 API</div>
       </div>
-      ${S._fabricApiDetailId === '' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent)"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+      ${S._fabricApiDetailId === '' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color: var(--accent-ink)"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
     </div>
   `);
   S._fabricApiDetailVersions.forEach(v => {
@@ -414,15 +414,15 @@ function renderFabricApiDetailList() {
     const date = v.datePublished ? v.datePublished.substring(0, 10) : '';
     const isRecommended = v.versionId === S._fabricApiDetailRecommendedId;
     items.push(`
-      <div class="fabric-api-item${isSelected ? ' selected' : ''}"${actionAttrs('selectFabricApiDetailVersion', v.versionId, v.versionNumber + ' (' + typeLabel + ')')} style="padding:12px 14px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${isSelected ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s" onmouseover="if(!this.classList.contains('selected'))this.style.borderColor='var(--accent)'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--border-color)'">
+      <div class="fabric-api-item${isSelected ? ' selected' : ''}"${actionAttrs('selectFabricApiDetailVersion', v.versionId, v.versionNumber + ' (' + typeLabel + ')')} style="padding:12px 14px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};border-radius:8px;background:${isSelected ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s" onmouseover="if(!this.classList.contains('selected'))this.style.borderColor='var(--accent)'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--border)'">
         <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px;font-weight:500;color:var(--text-primary)">${escapeHtml(v.versionNumber)}</span>
-            ${isRecommended ? '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:var(--accent);color:#fff;font-weight:500">推荐</span>' : ''}
+            ${isRecommended ? '<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:var(--accent);color:var(--accent-text);font-weight:500">推荐</span>' : ''}
           </div>
           <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${escapeHtml(typeLabel)}${date ? ' · ' + date : ''}</div>
         </div>
-        ${isSelected ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--accent);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+        ${isSelected ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color: var(--accent-ink);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
       </div>
     `);
   });

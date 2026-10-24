@@ -169,7 +169,7 @@ async function loadMods() {
                     '<div class="mod-icon"><img src="' + escapeHtml(normalizeIconUrl(mod.icon || '')) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.classList.add(\'mod-icon--fallback\')"></div>' +
                     '<div class="mod-info">' +
                         '<div class="mod-name">' + escapeHtml(formatModNameWithChinese(mod.slug || mod.id, mod.title)) +
-                            (sourceFilter === 'any' ? ' <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:' + (mod.source === 'curseforge' ? '#f1643620;color:#f16436;border:1px solid #f1643630' : '#4caf5020;color:#4caf50;border:1px solid #4caf5030') + ';font-weight:500;vertical-align:middle">' + (mod.source === 'curseforge' ? 'CF' : 'MR') + '</span>' : '') +
+                            (sourceFilter === 'any' ? ' <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:' + (mod.source === 'curseforge' ? 'color-mix(in srgb, var(--orange) 14%, transparent);color:var(--orange);border:1px solid color-mix(in srgb, var(--orange) 24%, transparent)' : 'color-mix(in srgb, var(--green) 14%, transparent);color:var(--green);border:1px solid color-mix(in srgb, var(--green) 24%, transparent)') + ';font-weight:500;vertical-align:middle">' + (mod.source === 'curseforge' ? 'CF' : 'MR') + '</span>' : '') +
                         '</div>' +
                         '<div class="mod-desc">' + escapeHtml(mod.description) + '</div>' +
                         '<div class="mod-meta">' +

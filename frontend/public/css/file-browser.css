@@ -85,7 +85,7 @@
 .fb-title svg {
     width: 20px;
     height: 20px;
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .fb-close-btn {
@@ -185,7 +185,7 @@
 }
 
 .fb-path-item:hover {
-    color: var(--accent);
+    color: var(--accent-ink);
     background: rgba(74, 158, 255, 0.08);
 }
 
@@ -212,7 +212,7 @@
 
 .fb-refresh-btn:hover {
     background: var(--bg-hover);
-    color: var(--accent);
+    color: var(--accent-ink);
     border-color: var(--accent);
 }
 
@@ -272,7 +272,7 @@
 
 .fb-sidebar-item.active {
     background: rgba(74, 158, 255, 0.08);
-    color: var(--accent);
+    color: var(--accent-ink);
     border-left-color: var(--accent);
 }
 
@@ -305,7 +305,7 @@
 
 .fb-sidebar-child.active {
     background: rgba(74, 158, 255, 0.06);
-    color: var(--accent);
+    color: var(--accent-ink);
     border-left-color: var(--accent);
 }
 
@@ -472,7 +472,7 @@
 }
 
 .fb-file-item.selected .fb-file-name {
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .fb-file-icon {
@@ -691,7 +691,7 @@
 
 .fb-new-folder-btn:hover {
     background: var(--bg-hover);
-    color: var(--accent);
+    color: var(--accent-ink);
     border-color: var(--accent);
 }
 

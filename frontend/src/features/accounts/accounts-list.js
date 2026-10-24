@@ -43,7 +43,7 @@ async function loadAccounts() {
             <div class="account-item-type ${typeClass}">${typeLabel}</div>
           </div>
           <div class="mod-actions">
-            ${!isSelected ? `<button class="btn btn-primary btn-sm"${actionAttrsStop('selectAccount', acc.id)}>选择</button>` : '<span style="color: var(--accent); font-size: 12px; padding: 4px 10px; display: inline-flex; align-items: center;">当前使用</span>'}
+            ${!isSelected ? `<button class="btn btn-primary btn-sm"${actionAttrsStop('selectAccount', acc.id)}>选择</button>` : '<span style="color: var(--accent-ink); font-size: 12px; padding: 4px 10px; display: inline-flex; align-items: center;">当前使用</span>'}
       <button class="btn btn-danger btn-sm"${actionAttrsStop('deleteAccount', acc.id)}>删除</button>
           </div>
         </div>`;
