@@ -21,6 +21,21 @@
 /* 暗色变体：Tailwind 默认用 .dark 类，项目用 data-theme，这里对齐 */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/* 激活态变体：现有业务代码用 classList 切换 .active，直接暴露给 Tailwind，
+ * 迁移页面时无需为了一个状态再写一份独立 CSS */
+@custom-variant is-active (&:is(.active));
+
+/* 表单控件补充重置：跳过 preflight 后，input/textarea/select 不再继承文字颜色与字体，
+ * 会退回浏览器默认黑字，在暗色主题下不可读。这里只补这两项，不做其它重置。 */
+@layer base {
+  input,
+  textarea,
+  select {
+    color: inherit;
+    font: inherit;
+  }
+}
+
 /*
  * 语义 token 映射：shadcn-vue 组件读取 --background 等语义变量，
  * 这里全部指向项目现有主题变量（base.css / themes.css），不新建第二套主题。

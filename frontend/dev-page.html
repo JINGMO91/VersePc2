@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<!-- dev-page.html - 单页独立预览（仅开发用，不参与构建，不进产物）
+     用途：绕开主应用启动流程，把某个真实页面组件套进应用同款样式环境里单独渲染，
+     用于页面迁移前后的视觉对比（主应用在纯浏览器下无法启动，原因见迁移文档）。
+     访问方式：npm run dev:web 后打开
+       http://localhost:1420/dev-page.html            → 默认问题反馈页
+       http://localhost:1420/dev-page.html?p=java     → Java 管理页
+       http://localhost:1420/dev-page.html?p=settings-other -->
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VersePC2 - 单页预览（仅开发用）</title>
+  <!-- 与 frontend/index.html 保持同序，尽量还原真实样式环境 -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components/base-ui.css">
+  <link rel="stylesheet" href="css/components/accounts.css">
+  <link rel="stylesheet" href="css/components/theme.css">
+  <link rel="stylesheet" href="css/components/version-ui.css">
+  <link rel="stylesheet" href="css/components/toolbox.css">
+  <link rel="stylesheet" href="css/components/mod-detail.css">
+  <link rel="stylesheet" href="css/components/version-settings.css">
+  <link rel="stylesheet" href="css/components/lan.css">
+  <link rel="stylesheet" href="css/components/downloads.css">
+  <link rel="stylesheet" href="css/components/dialogs.css">
+  <link rel="stylesheet" href="css/components/favorites.css">
+  <link rel="stylesheet" href="css/components/resource-detail.css">
+  <link rel="stylesheet" href="css/components/cloud.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/classic-nav.css">
+  <link rel="stylesheet" href="css/versions.css">
+  <link rel="stylesheet" href="css/launch.css">
+  <link rel="stylesheet" href="css/mods.css">
+  <link rel="stylesheet" href="css/settings.css">
+  <link rel="stylesheet" href="css/modal.css">
+  <link rel="stylesheet" href="css/private-server.css">
+  <link rel="stylesheet" href="css/server-host.css">
+  <link rel="stylesheet" href="css/plugins.css">
+  <link rel="stylesheet" href="css/redstone.css">
+  <link rel="stylesheet" href="css/sponsor.css">
+  <style>
+    /* 模拟 .content-area > .page.active 的容器环境 */
+    html, body { height: 100%; }
+    body { margin: 0; background: var(--bg-primary); color: var(--text-primary); }
+    #stage {
+      height: 100%; overflow-y: auto; padding: 0 24px 24px;
+      background: var(--bg-primary); color: var(--text-primary);
+    }
+    .vp-bar {
+      position: fixed; bottom: 12px; right: 12px; z-index: 99;
+      display: flex; gap: 6px; align-items: center;
+    }
+    .vp-bar button, .vp-bar select {
+      padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer;
+      background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border);
+    }
+    .vp-error { padding: 24px; font-size: 13px; color: var(--red); }
+  </style>
+</head>
+<body class="classic-nav">
+  <div id="stage"></div>
+  <div class="vp-bar">
+    <select id="vp-page">
+      <option value="feedback">问题反馈</option>
+      <option value="settings-other">设置-其他</option>
+      <option value="java">Java 管理</option>
+      <option value="downloads">下载管理</option>
+      <option value="cloud">Verse 云盘</option>
+      <option value="toolbox">工具箱</option>
+    </select>
+    <button data-set-theme="light">亮色</button>
+    <button data-set-theme="dark">暗色</button>
+    <button data-set-theme="custom">自定义</button>
+  </div>
+  <script>
+    document.querySelectorAll('.vp-bar [data-set-theme]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.documentElement.dataset.theme = btn.dataset.setTheme;
+      });
+    });
+  </script>
+  <script type="module" src="/src/dev-page-entry.js"></script>
+</body>
+</html>

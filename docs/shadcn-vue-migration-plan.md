@@ -201,15 +201,21 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 | 阶段 | 状态 | 完成日期 | 备注 |
 | --- | --- | --- | --- |
 | P0 基建 | 已完成 | 2026-10-24 | 只引 theme + utilities，跳过 preflight；token 经 `@theme inline` 映射到现有变量 |
-| P1 组件基座 | 已完成 | 2026-10-24 | 已生成 14 个组件；预览页 `frontend/dev-components.html` |
-| P2 试点页 | 进行中 | - | 试点页改为「问题反馈」 |
-| P3 批量迁移 | 未开始 | - | - |
+| P1 组件基座 | 已完成 | 2026-10-24 | 已生成 15 个组件；预览页 `frontend/dev-components.html` |
+| P2 试点页 | 已完成 | 2026-10-24 | 试点页「问题反馈」，产出迁移 playbook |
+| P3 批量迁移 | 未开始 | - | 按 playbook 分四批推进 |
 | P4 收尾 | 未开始 | - | - |
 
 ### 执行记录
 
 - P0：`vue` 别名保留，新增 `@` → `frontend/src`。Tailwind 用 `source(none)` 关闭自动扫描，只扫 `src/vue` 与 `src/components`，避免旧文案被误判成工具类名。
 - P1：`components.json` 的风格名必须写 `reka-vega`（`vega` 在 registry 里不存在）。CLI 会误生成 `import { cn } from "cn"` 并安装同名 npm 包，已统一改为 `@/lib/utils` 并移除该包。
-- P1：`src/vue/pages/page-components.js` 同时被 `dev-preview.js`（主应用 dev 模式）和 `frontend/dev-components.html`（独立预览页）复用。独立页存在的原因是纯浏览器环境下 `tauri-bridge` 返回空对象，`updater-ui.js` 模块顶层调用 `api.updater.onStatusChanged` 会中断整个模块图，`npm run dev:web` 无法加载主应用（既有问题，与本次迁移无关）。
+- P1：预览入口有两个。`frontend/dev-components.html` 看组件基座，`frontend/dev-page.html?p=<页面名>` 看单个真实页面；两者都是 dev-only，不参与构建。之所以需要独立入口：纯浏览器下 `tauri-bridge` 返回空对象，`updater-ui.js` 模块顶层调用 `api.updater.onStatusChanged` 会中断整个模块图，`npm run dev:web` 无法加载主应用（既有问题，与本次迁移无关）。
+- P2：反馈类型与问题分类磁贴改为 Tailwind 工具类，新增 `is-active:` 变体对接现有 `classList` 切换逻辑，旧 CSS 中两组磁贴规则已删除。试点页原有 3 处内联 `oninput=` 与 1 处 `onchange=` 因绑不到组件作用域而失效（既有 bug），改为 `@input` / `@change` 后修复。
+- P2：跳过 preflight 导致 `input/textarea/select` 不继承文字颜色，暗色主题下黑字不可读，已在 `tailwind.css` 补最小重置。
 - 待办：`vue-sonner` 的 Toaster 暂未接入。现有 `#toast-container` 体系继续生效，等有页面真正需要 sonner 时再单独初始化一次。
+
+### 验证方式
+
+每个阶段用 `frontend/dev-page.html` 做亮色 / 暗色 / 自定义三态视觉回归，再跑 `npm run verify`。P2 实测项：磁贴选中态切换、字数统计、表单校验提示、提交按钮启用逻辑、暗色对比度、文本域高度。
 

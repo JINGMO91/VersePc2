@@ -183,120 +183,12 @@
     vertical-align: -2px;
 }
 
-/* 反馈类型 - 三选一卡片 */
-.fb-type-group {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-}
-
-.fb-type-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 14px;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    text-align: left;
-    cursor: pointer;
-    transition: border-color var(--transition), background var(--transition), color var(--transition);
-}
-
-.fb-type-btn svg {
-    width: 20px;
-    height: 20px;
-    margin-bottom: 4px;
-    color: var(--text-muted);
-    transition: color var(--transition);
-}
-
-.fb-type-btn:hover {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-}
-
-.fb-type-btn.active {
-    border-color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 10%, var(--bg-tertiary));
-    color: var(--text-primary);
-}
-
-.fb-type-btn.active svg {
-    color: var(--accent);
-}
-
-.fb-type-title {
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.fb-type-desc {
-    font-size: 11px;
-    color: var(--text-muted);
-    line-height: 1.4;
-}
-
+/* 反馈类型 / 问题分类三选一磁贴
+   已迁移到 Tailwind 工具类（见 page-feedback.js），此处的 .fb-type-btn /
+   .fb-category-btn 只作为交互钩子存在，不再承载视觉样式。 */
 .fb-required {
     color: var(--red);
     margin-left: 2px;
-}
-
-/* 问题分类 - 三选一卡片（启动/下载/其他） */
-.fb-category-group {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 8px;
-}
-
-.fb-category-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 14px;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-    text-align: left;
-    cursor: pointer;
-    transition: border-color var(--transition), background var(--transition), color var(--transition);
-}
-
-.fb-category-btn svg {
-    width: 20px;
-    height: 20px;
-    margin-bottom: 4px;
-    color: var(--text-muted);
-    transition: color var(--transition);
-}
-
-.fb-category-btn:hover {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-}
-
-.fb-category-btn.active {
-    border-color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 10%, var(--bg-tertiary));
-    color: var(--text-primary);
-}
-
-.fb-category-btn.active svg {
-    color: var(--accent);
-}
-
-.fb-category-title {
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.fb-category-desc {
-    font-size: 11px;
-    color: var(--text-muted);
-    line-height: 1.4;
 }
 
 /* 日志附件 - 自动收集 */
@@ -351,12 +243,7 @@
 }
 
 /* 反馈内容 */
-.fb-textarea {
-    resize: vertical;
-    min-height: 140px;
-    line-height: 1.6;
-    font-family: inherit;
-}
+/* 输入框尺寸由组件与 Tailwind 工具类控制，这里不再保留独立样式 */
 
 .fb-counter {
     text-align: right;
