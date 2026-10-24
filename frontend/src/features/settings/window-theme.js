@@ -9,8 +9,8 @@ import { resetCarouselPosition, showAccountList, getCurrentDetailAccount } from 
 import { applyAccentColor } from '../launch/java.js';
 import { showToast } from '../misc/ui-components.js';
 import { updateWallpaperTheme } from './wallpaper-engine.js';
-import { openVersionSettings } from '../versions/version-settings.js';
-import { selectLaunchVersion, navigateToPage, openVersionDetail } from '../versions/versions.js';
+import { selectLaunchVersion } from '../versions/versions-list.js';
+import { navigateToPage, openVersionDetail } from '../versions/versions-nav.js';
 
 import { appState } from '../../core/app-state.js';
 function switchTheme(themeName) {
@@ -298,7 +298,9 @@ function setupVersionListClicks() {
       const versionId = settingsBtn.dataset.versionId;
       const customName = settingsBtn.dataset.customName || '';
       if (versionId) {
-        openVersionSettings(versionId, customName || versionId);
+        import('../versions/version-settings.js')
+          .then((m) => m.openVersionSettings(versionId, customName || versionId))
+          .catch((err) => console.error('[theme] 版本设置模块加载失败:', err));
       }
       return;
     }

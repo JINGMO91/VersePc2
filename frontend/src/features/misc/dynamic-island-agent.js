@@ -1,9 +1,7 @@
 import { API } from '../../core/api.js';
 import { appState } from '../../core/app-state.js';
-import { navigateToPage } from '../versions/versions.js';
+import { navigateToPage } from '../versions/versions-nav.js';
 import { handleLaunch } from '../launch/launch.js';
-import { openVersionSettings, checkModUpdatesForVersion } from '../versions/version-settings.js';
-import { searchMods } from '../mods/mod-browse.js';
 import { S } from './dynamic-island-state.js';
 import { _esc, _ensureEl, _collapseChatInput, isEnabled, _clearHideTimer, _getActiveTaskCount } from './dynamic-island-view.js';
 import { speak } from './dynamic-island-tts.js';
@@ -108,7 +106,9 @@ export var _tools = [
                         searchInput.dispatchEvent(new Event('input', { bubbles: true }));
                         searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
                     }
-                    if (typeof searchMods === 'function') searchMods();
+                    import('../mods/mod-browse.js')
+                        .then((m) => m.searchMods())
+                        .catch((e) => console.error('[island] 模组模块加载失败:', e));
                 }, 300);
                 return '正在搜索模组：' + args.query;
             }
@@ -131,11 +131,10 @@ export var _tools = [
                     });
                     if (match) versionId = match.id;
                 }
-                if (openVersionSettings) {
-                    openVersionSettings(versionId, versionId);
-                    return '已打开版本设置：' + versionId;
-                }
-                return '无法打开版本设置';
+                import('../versions/version-settings.js')
+                    .then((m) => m.openVersionSettings(versionId, versionId))
+                    .catch((e) => console.error('[island] 版本设置模块加载失败:', e));
+                return '已打开版本设置：' + versionId;
             }
         },
         {
@@ -171,11 +170,10 @@ export var _tools = [
                 var versionId = (typeof appState.currentLaunchVersionId !== 'undefined' && appState.currentLaunchVersionId) ||
                                 (typeof appState.launchVersionCustomSelect !== 'undefined' && appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '');
                 if (!versionId) return '请先选择一个版本';
-                if (typeof checkModUpdatesForVersion === 'function') {
-                    checkModUpdatesForVersion();
-                    return '正在检查模组更新...';
-                }
-                return '无法检查更新';
+                import('../versions/version-settings.js')
+                    .then((m) => m.checkModUpdatesForVersion())
+                    .catch((e) => console.error('[island] 版本设置模块加载失败:', e));
+                return '正在检查模组更新...';
             }
         },
         {

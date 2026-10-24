@@ -2,7 +2,7 @@ import { API as API } from '../../core/api.js';
 import { formatSize as formatSize } from '../../core/utils.js';
 import { showToast as showToast } from '../misc/ui-components.js';
 import { dlManager as dlManager } from '../versions/custom-download.js';
-import { loadVersions as loadVersions } from '../versions/versions.js';
+import { loadVersions as loadVersions } from '../versions/versions-list.js';
 import { modDetailState as modDetailState } from './detail-state.js';
 import { appState as appState } from '../../core/app-state.js';
 import { resolveResourceSavePath } from './install-target.js';

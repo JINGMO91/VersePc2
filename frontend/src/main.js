@@ -15,6 +15,8 @@ import { showToast } from './features/misc/ui-components.js';
 import { setApiNotifier } from './core/api.js';
 import { bridge } from './core/tauri-bridge.js';
 import { installActionDelegation, registerActions } from './core/actions.js';
+import { mountStaticModals } from './vue/modals/static-modals.js';
+import { mountStaticIcons } from './core/static-icons.js';
 
 installActionDelegation();
 setApiNotifier(showToast);
@@ -28,6 +30,9 @@ function hideWinOnlyFeatures() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 静态资源在初始化前挂载，保证旧逻辑按 ID 查找元素时已存在
+  mountStaticIcons();
+  mountStaticModals();
   init();
   setTimeout(initSettingsPages, 500);
   renderSponsors();

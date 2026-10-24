@@ -1,24 +1,39 @@
 // versions-nav.js — 页面切换动画与版本详情导航
+// 页面专属模块按需动态加载，避免首屏把所有页面功能打进启动包。
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { showLegalNotice as showLegalNotice, VERSE_FEATURES as VERSE_FEATURES } from '../misc/feature-flags.js';
-import { resetCarouselPosition as resetCarouselPosition } from '../accounts/accounts.js';
 import { updateGameStatus as updateGameStatus } from '../launch/launch.js';
-import { onCloudPageShow as onCloudPageShow } from '../misc/cloud.js';
-import { initTerracottaPage as initTerracottaPage, redstoneInitPage as redstoneInitPage, enderlinkInitPage as enderlinkInitPage } from '../misc/lan.js';
-import { initServerHostPage as initServerHostPage } from '../misc/server-host.js';
-import { renderFavPage as renderFavPage, setupFavSearchListeners as setupFavSearchListeners } from '../mods/favorites.js';
-import { loadMods as loadMods } from '../mods/mod-browse.js';
-import { openModDetail as openModDetail } from '../mods/mod-detail.js';
-import { updateModSelectUI as updateModSelectUI } from '../mods/mod-install.js';
-import { loadResourcePage as loadResourcePage, openResourceDetail as openResourceDetail } from '../mods/resource.js';
 import { refreshMemoryInfo as refreshMemoryInfo } from '../settings/settings-misc.js';
-import { dlManager as dlManager } from './custom-download.js';
 import { appState as appState } from '../../core/app-state.js';
 import { modDetailState as modDetailState } from '../mods/detail-state.js';
 import { versionsState as S } from './versions-state.js';
 import { loadVersions, renderInstalledVersionsInto } from './versions-list.js';
-import { populateFolderSelector } from './versions-external.js';
-import { loadLoaderVersions } from './versions-install.js';
+
+/// 页面专属模块加载表（静态字面量路径，构建期可正确分包）
+const PAGE_LOADERS = {
+  resource: () => import('../mods/resource.js'),
+  favorites: () => import('../mods/favorites.js'),
+  modBrowse: () => import('../mods/mod-browse.js'),
+  modDetail: () => import('../mods/mod-detail.js'),
+  modInstall: () => import('../mods/mod-install.js'),
+  customDownload: () => import('./custom-download.js'),
+  versionsExternal: () => import('./versions-external.js'),
+  versionsInstall: () => import('./versions-install.js'),
+  accounts: () => import('../accounts/accounts.js'),
+  cloud: () => import('../misc/cloud.js'),
+  lan: () => import('../misc/lan.js'),
+  serverHost: () => import('../misc/server-host.js'),
+};
+
+/// 动态加载页面模块并执行指定导出；失败只记录日志，不影响页面切换本身
+function runPageModule(loader, pick, ...args) {
+  loader()
+    .then((mod) => {
+      const fn = mod[pick];
+      if (typeof fn === 'function') fn(...args);
+    })
+    .catch((e) => console.error('[Navigate] 页面模块加载失败:', pick, e));
+}
 
 function _collectPclBlocks(pageEl) {
   const blocks = [];
@@ -115,8 +130,8 @@ async function navigateToPage(pageName) {
     target.scrollTop = 0;
     runPageEnterAnim(target);
     // 开服页：进入时刷新本地版本列表
-    if (pageName === 'server-host' && typeof initServerHostPage === 'function') {
-      setTimeout(() => initServerHostPage(), 50);
+    if (pageName === 'server-host') {
+      setTimeout(() => runPageModule(PAGE_LOADERS.serverHost, 'initServerHostPage'), 50);
     }
     return;
   }
@@ -224,40 +239,42 @@ async function navigateToPage(pageName) {
 
   if (pageName === 'modpacks') {
     appState.modDetailHistory = [];
-    setTimeout(() => loadResourcePage('modpack'), 100);
+    setTimeout(() => runPageModule(PAGE_LOADERS.resource, 'loadResourcePage', 'modpack'), 100);
   } else if (pageName === 'settings-other') {
     setTimeout(() => { refreshMemoryInfo(); }, 200);
   } else if (pageName === 'datapacks') {
-    setTimeout(() => loadResourcePage('datapack'), 100);
+    setTimeout(() => runPageModule(PAGE_LOADERS.resource, 'loadResourcePage', 'datapack'), 100);
   } else if (pageName === 'resourcepacks') {
-    setTimeout(() => loadResourcePage('resourcepack'), 100);
+    setTimeout(() => runPageModule(PAGE_LOADERS.resource, 'loadResourcePage', 'resourcepack'), 100);
   } else if (pageName === 'shaders') {
-    setTimeout(() => loadResourcePage('shader'), 100);
+    setTimeout(() => runPageModule(PAGE_LOADERS.resource, 'loadResourcePage', 'shader'), 100);
   } else if (pageName === 'mods' && appState.modMultiSelectMode) {
     appState.modDetailHistory = [];
     setTimeout(() => {
       document.getElementById('mod-multiselect-bar').style.display = 'flex';
       document.getElementById('mod-multiselect-toggle').classList.add('btn-primary');
       document.getElementById('mod-multiselect-toggle').classList.remove('btn-secondary');
-      updateModSelectUI();
-      loadMods();
+      runPageModule(PAGE_LOADERS.modInstall, 'updateModSelectUI');
+      runPageModule(PAGE_LOADERS.modBrowse, 'loadMods');
     }, 200);
   } else if (pageName === 'mod-favorites') {
     appState.modDetailHistory = [];
-    setupFavSearchListeners();
-    setTimeout(function() { renderFavPage(); }, 100);
+    runPageModule(PAGE_LOADERS.favorites, 'setupFavSearchListeners');
+    setTimeout(() => runPageModule(PAGE_LOADERS.favorites, 'renderFavPage'), 100);
   } else if (pageName === 'mods') {
     appState.modDetailHistory = [];
   } else if (pageName === 'downloads') {
-    dlManager.render();
+    PAGE_LOADERS.customDownload()
+      .then((mod) => mod.dlManager.render())
+      .catch((e) => console.error('[Navigate] 下载页模块加载失败:', e));
   } else if (pageName === 'installed-versions') {
-    populateFolderSelector();
+    runPageModule(PAGE_LOADERS.versionsExternal, 'populateFolderSelector');
     const container = document.getElementById('installed-versions-list');
     if (container) {
       if (!appState.installedVersions || appState.installedVersions.length === 0) {
         container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>加载已安装版本...</p></div>';
         loadVersions(false).then(() => {
-          populateFolderSelector();
+          runPageModule(PAGE_LOADERS.versionsExternal, 'populateFolderSelector');
           renderInstalledVersionsInto(container);
         });
       } else {
@@ -265,27 +282,19 @@ async function navigateToPage(pageName) {
       }
     }
   } else if (pageName === 'lan-portmap') {
-    if (typeof redstoneInitPage === 'function') {
-      setTimeout(() => redstoneInitPage(), 100);
-    }
+    setTimeout(() => runPageModule(PAGE_LOADERS.lan, 'redstoneInitPage'), 100);
   } else if (pageName === 'lan-enderlink') {
-    if (typeof enderlinkInitPage === 'function') {
-      setTimeout(() => enderlinkInitPage(), 100);
-    }
+    setTimeout(() => runPageModule(PAGE_LOADERS.lan, 'enderlinkInitPage'), 100);
   } else if (pageName === 'lan-terracotta') {
-    if (typeof initTerracottaPage === 'function') {
-      setTimeout(() => initTerracottaPage(), 100);
-    }
+    setTimeout(() => runPageModule(PAGE_LOADERS.lan, 'initTerracottaPage'), 100);
   } else if (pageName === 'cloud') {
-    if (typeof onCloudPageShow === 'function') {
-      setTimeout(() => { try { onCloudPageShow(); } catch (e) { console.error('[cloud] show failed', e); } }, 100);
-    }
+    setTimeout(() => runPageModule(PAGE_LOADERS.cloud, 'onCloudPageShow'), 100);
   }
 
   // 切到账户页：等页面可见、尺寸稳定后，把账号轮播轨道定位到中间，避免闪到最左边
-  if (pageName === 'accounts' && typeof resetCarouselPosition === 'function') {
-    setTimeout(() => resetCarouselPosition(), 350);
-    setTimeout(() => resetCarouselPosition(), 700);
+  if (pageName === 'accounts') {
+    setTimeout(() => runPageModule(PAGE_LOADERS.accounts, 'resetCarouselPosition'), 350);
+    setTimeout(() => runPageModule(PAGE_LOADERS.accounts, 'resetCarouselPosition'), 700);
   }
 }
 
@@ -294,9 +303,9 @@ function goBackFromDetail() {
     const prev = appState.modDetailHistory.pop();
     appState._isRestoringModDetail = true;
     if (prev && prev.type !== 'mod') {
-      openResourceDetail(prev.id, prev.type, prev.source);
+      runPageModule(PAGE_LOADERS.resource, 'openResourceDetail', prev.id, prev.type, prev.source);
     } else {
-      openModDetail(prev && prev.id, prev && prev.source);
+      runPageModule(PAGE_LOADERS.modDetail, 'openModDetail', prev && prev.id, prev && prev.source);
     }
     appState._isRestoringModDetail = false;
   } else {
@@ -392,7 +401,7 @@ function openVersionDetail(versionId, versionUrl, versionType) {
   const fabricApiPicker = document.getElementById('fabric-api-picker-detail');
   if (fabricApiPicker) fabricApiPicker.style.display = 'none';
   
-  loadLoaderVersions(versionId);
+  runPageModule(PAGE_LOADERS.versionsInstall, 'loadLoaderVersions', versionId);
 }
 
 export { _collectPclBlocks, runPageEnterAnim, runPageExitAnim, navigateToPage, goBackFromDetail, pushModDetailHistory, openVersionDetail };

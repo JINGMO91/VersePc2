@@ -7,11 +7,10 @@
 
 import { bridge } from '../../core/tauri-bridge.js';
 import { showToast } from '../misc/ui-components.js';
-import { loadVersions } from '../versions/versions.js';
+import { loadVersions } from '../versions/versions-list.js';
 import { dlManager } from '../versions/custom-download.js';
 import { DynamicIsland } from '../misc/dynamic-island.js';
 import { featureBridge } from '../../core/feature-bridge.js';
-import { showImportNameModal } from './resource.js';
 import { formatSize } from '../../core/utils.js';
 
     function init() {
@@ -90,6 +89,7 @@ import { formatSize } from '../../core/utils.js';
 
         // 先弹窗让用户自定义版本名称，与下载版本时的命名弹窗保持一致
         let customName = '';
+        const { showImportNameModal } = await import('./resource.js').catch(() => ({}));
         if (typeof showImportNameModal === 'function') {
             const fileBaseName = (file.name || '').replace(/\.(mrpack|zip|cursemodpack)$/i, '');
             customName = await showImportNameModal(fileBaseName);

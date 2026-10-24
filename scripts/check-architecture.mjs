@@ -162,6 +162,32 @@ for (const [dir, limit] of sizeTargets) {
   }
 }
 
+// 7. 前端启动包预算：index.html 首屏加载的 JS 总量与主包体积
+const distIndex = join(root, 'frontend-dist', 'index.html');
+if (existsSync(distIndex)) {
+  const html = readFileSync(distIndex, 'utf8');
+  const jsFiles = [...html.matchAll(/<(?:script|link)[^>]+(?:src|href)="\.\/(assets\/[^"]+\.js)"/g)].map((m) => m[1]);
+  const uniqueFiles = [...new Set(jsFiles)];
+  let startupBytes = 0;
+  for (const rel of uniqueFiles) {
+    const file = join(root, 'frontend-dist', rel);
+    if (!existsSync(file)) continue;
+    const size = statSync(file).size;
+    startupBytes += size;
+    if (size > 600 * 1024) {
+      errors.push(`分包 ${rel} 为 ${(size / 1024).toFixed(1)} KB，超过 600 KB 上限`);
+    } else if (size > 550 * 1024) {
+      warnings.push(`分包 ${rel} 为 ${(size / 1024).toFixed(1)} KB，接近 600 KB 上限`);
+    }
+  }
+  const startupKb = startupBytes / 1024;
+  if (startupKb > 800) {
+    errors.push(`首屏 JS 总量 ${startupKb.toFixed(1)} KB，超过 800 KB 上限（检查新增的首屏静态导入）`);
+  } else if (startupKb > 760) {
+    warnings.push(`首屏 JS 总量 ${startupKb.toFixed(1)} KB，接近 800 KB 上限`);
+  }
+}
+
 // 输出
 if (errors.length) {
   console.log('\n[架构检查] 违规项：');

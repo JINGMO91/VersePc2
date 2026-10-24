@@ -4,7 +4,7 @@ import { showToast } from '../misc/ui-components.js';
 
 import { appState } from '../../core/app-state.js';
 import { actionAttrs, registerActions } from '../../core/actions.js';
-import { navigateToPage } from '../versions/versions.js';
+import { navigateToPage } from '../versions/versions-nav.js';
 
 function showJavaInstallModal(requiredVersion) {
     const existing = document.getElementById('java-install-modal');

@@ -1,7 +1,6 @@
 import { API as API } from '../../core/api.js';
 import { escapeHtml as escapeHtml } from '../../core/utils.js';
 import { showToast as showToast } from '../misc/ui-components.js';
-import { openVersionSettings as openVersionSettings, repairFiles as repairFiles } from '../versions/version-settings.js';
 
 async function showCrashAnalysis(versionId) {
   try {
@@ -142,9 +141,13 @@ function showCrashAnalysisDialog(result, versionId) {
   dialog.querySelector('#crash-dialog-repair').addEventListener('click', () => {
     closeDialog();
     if (versionId) {
-      openVersionSettings(versionId);
-      document.querySelectorAll('.vset-nav-item[data-tab="overview"]').forEach(b => b.click());
-      setTimeout(() => { if (typeof repairFiles === 'function') repairFiles(); }, 500);
+      import('../versions/version-settings.js')
+        .then((m) => {
+          m.openVersionSettings(versionId);
+          document.querySelectorAll('.vset-nav-item[data-tab="overview"]').forEach(b => b.click());
+          setTimeout(() => { if (typeof m.repairFiles === 'function') m.repairFiles(); }, 500);
+        })
+        .catch((e) => console.error('[crash] 版本设置模块加载失败:', e));
     }
   });
 

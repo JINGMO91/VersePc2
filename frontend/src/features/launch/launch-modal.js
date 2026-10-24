@@ -1,7 +1,6 @@
 import { API as API } from '../../core/api.js';
 import { incrementLaunchCount as incrementLaunchCount, checkSupportMilestone as checkSupportMilestone } from '../misc/announcement.js';
-import { openVersionSettings as openVersionSettings } from '../versions/version-settings.js';
-import { navigateToPage as navigateToPage } from '../versions/versions.js';
+import { navigateToPage as navigateToPage } from '../versions/versions-nav.js';
 import { appState as appState } from '../../core/app-state.js';
 import { S } from './launch-state.js';
 import { refreshGameStatusAfterLaunch, _onGameRunning, startGameLogStream } from './launch-runtime.js';
@@ -277,7 +276,9 @@ function openVersionSettingsForRepair() {
   const repairGuide = document.getElementById('launch-repair-guide');
   const versionId = (repairGuide && repairGuide.dataset.versionId) || (appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '');
   if (versionId) {
-    openVersionSettings(versionId);
+    import('../versions/version-settings.js')
+      .then((m) => m.openVersionSettings(versionId))
+      .catch((e) => console.error('[launch] 版本设置模块加载失败:', e));
   }
   closeLaunchModal();
 }

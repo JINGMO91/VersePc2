@@ -2,7 +2,7 @@
 // 已安装插件的模板与脚本按既有约定直接调用启动器提供的函数名。
 // 模块化后这些函数不再自动挂到 window，此处集中补回，仅作为插件兼容接口。
 import { showToast, showConfirmDialog } from '../features/misc/ui-components.js';
-import { navigateToPage } from '../features/versions/versions.js';
+import { navigateToPage } from '../features/versions/versions-nav.js';
 import {
   initServerHostPage,
   _shDetach,

@@ -15,10 +15,11 @@ import { bridge } from '../../core/tauri-bridge.js';
 import { gameStore } from '../../core/game-store.js';
 import { decodeFileBuffer } from '../../core/utils.js';
 
-import { loadAccounts } from '../../features/accounts/accounts.js';
+import { loadAccounts } from '../../features/accounts/accounts-list.js';
 import { handleLaunch, updateGameStatus, stopGameInstance } from '../../features/launch/launch.js';
 import { showToast } from '../../features/misc/ui-components.js';
-import { loadVersions, navigateToPage } from '../../features/versions/versions.js';
+import { loadVersions } from '../../features/versions/versions-list.js';
+import { navigateToPage } from '../../features/versions/versions-nav.js';
 
 import { appState } from '../../core/app-state.js';
 

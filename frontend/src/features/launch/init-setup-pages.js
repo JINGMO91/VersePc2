@@ -1,11 +1,18 @@
 import { API as API } from '../../core/api.js';
-import { loadAccounts as loadAccounts, startMsAuth as startMsAuth, closeOfflineModal as closeOfflineModal, closeThirdPartyModal as closeThirdPartyModal, verifyThirdPartyServer as verifyThirdPartyServer, showProfileSelectModal as showProfileSelectModal } from '../accounts/accounts.js';
+import { loadAccounts as loadAccounts } from '../accounts/accounts-list.js';
+import { startMsAuth as startMsAuth, closeOfflineModal as closeOfflineModal, closeThirdPartyModal as closeThirdPartyModal, verifyThirdPartyServer as verifyThirdPartyServer, showProfileSelectModal as showProfileSelectModal } from '../accounts/accounts-auth.js';
 import { applyAccentColor as applyAccentColor } from './java.js';
 import { showToast as showToast, showModal as showModal, hideModal as hideModal, showConfirmDialog as showConfirmDialog } from '../misc/ui-components.js';
 import { getDOMElement as getDOMElement, throttle as throttle } from '../misc/utils.js';
-import { loadMods as loadMods } from '../mods/mod-browse.js';
 import { loadSettings as loadSettings, saveCurrentSettings as saveCurrentSettings } from '../settings/settings-load-save.js';
 import { appState as appState } from '../../core/app-state.js';
+
+/// 模组列表按需加载，避免模组页模块进入启动包
+function lazyLoadMods() {
+  import('../mods/mod-browse.js')
+    .then((m) => m.loadMods())
+    .catch((e) => console.error('[setup] 模组模块加载失败:', e));
+}
 
 function setupModBrowse() {
   const modSearchBtn = document.getElementById('mod-search-btn');
@@ -14,31 +21,31 @@ function setupModBrowse() {
   modSearchBtn.addEventListener('click', () => {
     appState.modSearchQuery = modSearchInput ? modSearchInput.value.trim() : '';
     appState.modSearchOffset = 0;
-    loadMods();
+    lazyLoadMods();
   });
   if (modSearchInput) modSearchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.isComposing) {
       appState.modSearchQuery = e.target.value.trim();
       appState.modSearchOffset = 0;
-      loadMods();
+      lazyLoadMods();
     }
   });
   const modPrevBtn = document.getElementById('mod-prev-btn');
   if (modPrevBtn) modPrevBtn.addEventListener('click', () => {
     if (appState.modSearchOffset >= 15) {
       appState.modSearchOffset -= 15;
-      loadMods();
+      lazyLoadMods();
     }
   });
   const modNextBtn = document.getElementById('mod-next-btn');
   if (modNextBtn) modNextBtn.addEventListener('click', () => {
     appState.modSearchOffset += 15;
-    loadMods();
+    lazyLoadMods();
   });
 
   const bindFilter = (id) => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('change', () => { appState.modSearchOffset = 0; loadMods(); });
+    if (el) el.addEventListener('change', () => { appState.modSearchOffset = 0; lazyLoadMods(); });
   };
   bindFilter('mod-filter-loader');
   bindFilter('mod-filter-version');

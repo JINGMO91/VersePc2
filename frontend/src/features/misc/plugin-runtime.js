@@ -8,7 +8,7 @@
  * 页面走现有 navigateToPage 路由；cards/pet/main 均依赖同一 webview 环境的全局对象。
  */
 import { API } from '../../core/api.js';
-import { navigateToPage } from '../versions/versions.js';
+import { navigateToPage } from '../versions/versions-nav.js';
 import { bridge } from '../../core/tauri-bridge.js';
 import { createApp } from 'vue';
 import { isVueMountDone } from '../../core/vue-ready.js';

@@ -1,13 +1,9 @@
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { applyNavigationMode as applyNavigationMode, setupWindowControls as setupWindowControls, setupVersionListClicks as setupVersionListClicks } from '../settings/window-theme.js';
-import { loadAccounts as loadAccounts } from '../accounts/accounts.js';
-import { setupJavaPage as setupJavaPage } from './java-mgr.js';
+import { loadAccounts as loadAccounts } from '../accounts/accounts-list.js';
 import { updateGameStatus as updateGameStatus, checkJavaOnStartup as checkJavaOnStartup, triggerJvmPreheat as triggerJvmPreheat } from './launch.js';
 import { initAllCustomSelects as initAllCustomSelects } from '../misc/custom-select.js';
-import { setupFeedback as setupFeedback } from '../misc/feedback.js';
 import { cacheCommonElements as cacheCommonElements } from '../misc/utils.js';
-import { loadFavoritesData as loadFavoritesData, setupFavSearchListeners as setupFavSearchListeners } from '../mods/favorites.js';
-import { loadInstalledMods as loadInstalledMods, loadModFilterOptions as loadModFilterOptions, loadFeaturedMods as loadFeaturedMods } from '../mods/mod-browse.js';
 import { applyCustomThemeColor as applyCustomThemeColor, getSavedCustomThemeLight as getSavedCustomThemeLight, getSavedCustomThemeColor as getSavedCustomThemeColor } from '../settings/custom-theme.js';
 import { initWallpaperAutoAdapt as initWallpaperAutoAdapt } from '../settings/personalize.js';
 import { loadSettings as loadSettings } from '../settings/settings-load-save.js';
@@ -183,11 +179,21 @@ async function init() {
   safeSetup('modBrowse', setupModBrowse);
   safeSetup('accountButtons', setupAccountButtons);
   safeSetup('versionListClicks', setupVersionListClicks);
-  safeSetup('favSearch', setupFavSearchListeners);
+  safeSetup('favSearch', () => {
+    import('../mods/favorites.js')
+      .then((m) => m.setupFavSearchListeners())
+      .catch((e) => console.error('Setup failed: favSearch', e));
+  });
   safeSetup('settingsPage', setupSettingsPage);
-  safeSetup('feedback', setupFeedback);
+  safeSetup('feedback', () => {
+    import('../misc/feedback.js')
+      .then((m) => m.setupFeedback())
+      .catch((e) => console.error('Setup failed: feedback', e));
+  });
   // Vue 挂载完成后再绑定 Java 页面事件，避免元素不存在
-  try { setupJavaPage(); } catch (e) { console.error('Setup failed: javaPage', e); }
+  import('./java-mgr.js')
+    .then((m) => m.setupJavaPage())
+    .catch((e) => console.error('Setup failed: javaPage', e));
 
   // 阶段2：加载核心数据（仍在 splash 覆盖下）
   setProgress(70, '正在加载数据...');
@@ -208,7 +214,7 @@ async function init() {
       _t('loadSettings', loadSettings),
       _t('loadVersions', loadVersions),
       _t('loadAccounts', loadAccounts),
-      _t('loadFavoritesData', loadFavoritesData)
+      _t('loadFavoritesData', () => import('../mods/favorites.js').then((m) => m.loadFavoritesData()))
     ]);
   } catch (e) { console.error('后台数据加载失败:', e); }
   // 记录阶段2内部各函数耗时
@@ -219,11 +225,13 @@ async function init() {
   // 原因：热门模组/模组分类需要联网请求境外 API（Modrinth/CurseForge），国内网络访问慢，
   // 若 await 会拖住启动画面停在"加载模组"。改为后台加载，用户先进界面、数据稍后到位。
   setProgress(82, '正在加载模组...');
-  Promise.allSettled([
-    loadModFilterOptions(),
-    loadInstalledMods(),
-    loadFeaturedMods()
-  ]).catch(() => {});
+  import('../mods/mod-browse.js')
+    .then((m) => Promise.allSettled([
+      m.loadModFilterOptions(),
+      m.loadInstalledMods(),
+      m.loadFeaturedMods()
+    ]))
+    .catch(() => {});
 
   // 阶段4：初始化壁纸相关界面元素（轻量、同步，不阻塞 splash）
   setProgress(90, '正在初始化壁纸...');
