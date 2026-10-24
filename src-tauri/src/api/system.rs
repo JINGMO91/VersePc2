@@ -120,7 +120,7 @@ fn auto_memory_mb(total_mb: u64) -> u64 {
         return 2048;
     }
     let auto_mb = total_mb * 60 / 100;
-    auto_mb.max(1024).min(8192)
+    auto_mb.clamp(1024, 8192)
 }
 
 pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Value>) -> Option<ApiResult> {
@@ -130,7 +130,6 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
         "GET /api/system/memory" => {
             let (total_bytes, avail_bytes) = get_system_memory_kb();
             // Windows 返回的是字节，按 1024 转换
-            let total_bytes = total_bytes;
             let free_bytes = avail_bytes;
             let total_mb = total_bytes / 1024 / 1024;
             let free_mb = free_bytes / 1024 / 1024;
@@ -160,11 +159,7 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
             let total_mb = total_bytes / 1024 / 1024;
             let free_mb = avail_bytes / 1024 / 1024;
             let used_mb = total_mb.saturating_sub(free_mb);
-            let usage_percent = if total_mb > 0 {
-                used_mb * 100 / total_mb
-            } else {
-                0
-            };
+            let usage_percent = (used_mb * 100).checked_div(total_mb).unwrap_or(0);
             Some(ApiResult::ok(json!({
                 "totalMB": total_mb,
                 "freeMB": free_mb,
@@ -267,9 +262,11 @@ pub(crate) fn do_memory_optimize_purge() -> Result<(), String> {
             transition_re_purpose_count: usize,
             flags: usize,
         }
-        let mut file_cache = SystemFileCacheInformation::default();
-        file_cache.minimum_working_set = usize::MAX;
-        file_cache.maximum_working_set = usize::MAX;
+        let mut file_cache = SystemFileCacheInformation {
+            minimum_working_set: usize::MAX,
+            maximum_working_set: usize::MAX,
+            ..Default::default()
+        };
         let status = NtSetSystemInformation(
             SYSTEM_FILE_CACHE_INFORMATION_EX,
             &mut file_cache as *mut SystemFileCacheInformation as *mut c_void,
@@ -434,11 +431,10 @@ fn clean_natives() -> u64 {
     let mut bytes = 0u64;
     if let Ok(entries) = std::fs::read_dir(&natives_dir) {
         for entry in entries.flatten() {
-            if let Ok(meta) = entry.file_type() {
-                if meta.is_dir() {
+            if let Ok(meta) = entry.file_type()
+                && meta.is_dir() {
                     bytes += safe_rm_dir(&entry.path());
                 }
-            }
         }
     }
     bytes
@@ -493,8 +489,8 @@ fn clean_download_cache() -> u64 {
     let mut bytes = 0u64;
     if let Ok(entries) = std::fs::read_dir(&cache_dir) {
         for entry in entries.flatten() {
-            if let Ok(meta) = entry.file_type() {
-                if meta.is_file() {
+            if let Ok(meta) = entry.file_type()
+                && meta.is_file() {
                     let name = entry.file_name().to_string_lossy().to_string();
                     if name == ".gitkeep" {
                         continue;
@@ -505,7 +501,6 @@ fn clean_download_cache() -> u64 {
                     }
                     let _ = std::fs::remove_file(&path);
                 }
-            }
         }
     }
     bytes
@@ -548,8 +543,8 @@ fn handle_cleanup_scan() -> ApiResult {
     let mut details = serde_json::Map::new();
 
     // 各版本目录下的 logs / crash-reports
-    if versions_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(&versions_dir) {
+    if versions_dir.exists()
+        && let Ok(entries) = std::fs::read_dir(&versions_dir) {
             for entry in entries.flatten() {
                 if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
                     continue;
@@ -569,7 +564,6 @@ fn handle_cleanup_scan() -> ApiResult {
                 }
             }
         }
-    }
 
     let temp_size = scan_dir_size(&data_dir.join("temp"));
     if temp_size > 0 {
@@ -607,11 +601,10 @@ fn handle_cleanup_scan() -> ApiResult {
                 let path = entry.path();
                 if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                     let ext = ext.to_lowercase();
-                    if ext == "mrpack" || ext == "zip" {
-                        if let Ok(m) = std::fs::metadata(&path) {
+                    if (ext == "mrpack" || ext == "zip")
+                        && let Ok(m) = std::fs::metadata(&path) {
                             mp_total += m.len();
                         }
-                    }
                 }
             }
         }
@@ -684,9 +677,9 @@ fn get_java_major_version(java_path: &str) -> u32 {
             String::from_utf8_lossy(&out.stdout)
         );
         for line in text.lines() {
-            if line.contains("version") {
-                if let Some(start) = line.find('"') {
-                    if let Some(end) = line[start + 1..].find('"') {
+            if line.contains("version")
+                && let Some(start) = line.find('"')
+                    && let Some(end) = line[start + 1..].find('"') {
                         let v = &line[start + 1..start + 1 + end];
                         if let Some(first) = v.split('.').next() {
                             if first == "1" {
@@ -697,8 +690,6 @@ fn get_java_major_version(java_path: &str) -> u32 {
                             return first.parse().unwrap_or(0);
                         }
                     }
-                }
-            }
         }
     }
     0
@@ -826,15 +817,14 @@ fn handle_jvm_generate_cds(body: &Option<Value>) -> ApiResult {
         .map(|p| p.to_path_buf());
     if let Some(home) = java_home {
         let default_jsa = home.join("lib").join("server").join("classes.jsa");
-        if default_jsa.exists() {
-            if std::fs::copy(&default_jsa, &cds_archive).is_ok() {
+        if default_jsa.exists()
+            && std::fs::copy(&default_jsa, &cds_archive).is_ok() {
                 return ApiResult::ok(json!({
                     "success": true,
                     "archive": cds_archive.to_string_lossy(),
                     "source": "default"
                 }));
             }
-        }
     }
 
     // 调用 java -Xshare:dump 生成归档
@@ -861,9 +851,9 @@ fn handle_jvm_generate_cds(body: &Option<Value>) -> ApiResult {
 
     match output {
         Ok(out) => {
-            if cds_archive.exists() {
-                if let Ok(meta) = std::fs::metadata(&cds_archive) {
-                    if meta.len() > 1024 {
+            if cds_archive.exists()
+                && let Ok(meta) = std::fs::metadata(&cds_archive)
+                    && meta.len() > 1024 {
                         return ApiResult::ok(json!({
                             "success": true,
                             "archive": cds_archive.to_string_lossy(),
@@ -871,8 +861,6 @@ fn handle_jvm_generate_cds(body: &Option<Value>) -> ApiResult {
                             "sizeKB": meta.len() / 1024
                         }));
                     }
-                }
-            }
             let err_msg = String::from_utf8_lossy(&out.stderr);
             ApiResult::ok(json!({
                 "success": false,
@@ -902,8 +890,8 @@ fn handle_jvm_cds_status(params: &Option<Value>) -> ApiResult {
         .join("cds")
         .join(format!("{}.jsa", version_id));
 
-    if archive.exists() {
-        if let Ok(meta) = std::fs::metadata(&archive) {
+    if archive.exists()
+        && let Ok(meta) = std::fs::metadata(&archive) {
             return ApiResult::ok(json!({
                 "available": true,
                 "archive": archive.to_string_lossy(),
@@ -915,7 +903,6 @@ fn handle_jvm_cds_status(params: &Option<Value>) -> ApiResult {
                     .unwrap_or(0)
             }));
         }
-    }
 
     ApiResult::ok(json!({ "available": false }))
 }

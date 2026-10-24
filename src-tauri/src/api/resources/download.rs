@@ -1,23 +1,16 @@
 // api/resources/download.rs — 资源下载与下载会话
-use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
+use std::sync::Arc;
 
 use serde_json::{json, Value};
-use sha1::Digest;
-use tauri::{AppHandle, Listener};
-use tokio::sync::Mutex;
+use tauri::AppHandle;
 
 use crate::api::ApiResult;
-use crate::download::{download_with_mirror, download_with_mirror_cancellable, resources_session};
+use crate::download::{download_with_mirror_cancellable, resources_session};
 use crate::modpack;
-use crate::resource::{matcher, mcversion, wiki};
-use crate::resource::matcher::SearchSource;
 use crate::storage;
 
-use super::{MODRINTH_API, MODRINTH_API_MIRROR, CURSEFORGE_API, CURSEFORGE_API_MIRROR, DEFAULT_CF_API_KEY, shared_client, cached_fetch_json, fetch_json_with_mirror};
-use super::detail::to_modrinth_cdn_mirror;
+use super::{MODRINTH_API, CURSEFORGE_API, DEFAULT_CF_API_KEY, cached_fetch_json, fetch_json_with_mirror};
 
 /// POST /api/resources/download — 下载资源
 ///
@@ -99,11 +92,10 @@ pub(crate) async fn handle_download(app: &AppHandle, body: &Option<Value>) -> Ap
             "datapack" => resolve_sub_dir(&settings, &target_version_id, "datapacks"),
             _ => {
                 // mod → version mods dir
-                let mods_dir = resolve_version_mods_dir(&settings, &target_version_id);
-                if mods_dir.is_none() {
+                let Some(mods_dir) = resolve_version_mods_dir(&settings, &target_version_id) else {
                     return ApiResult::err(400, "请先安装一个游戏版本");
-                }
-                mods_dir.unwrap()
+                };
+                mods_dir
             }
         }
     };
@@ -121,7 +113,7 @@ pub(crate) async fn handle_download(app: &AppHandle, body: &Option<Value>) -> Ap
             .filter(|s| !s.is_empty())
             .unwrap_or(DEFAULT_CF_API_KEY);
         let mut cf_headers = reqwest::header::HeaderMap::new();
-        if let Ok(v) = reqwest::header::HeaderValue::from_str(&cf_api_key) {
+        if let Ok(v) = reqwest::header::HeaderValue::from_str(cf_api_key) {
             cf_headers.insert("x-api-key", v);
         }
         cf_headers.insert("Accept", reqwest::header::HeaderValue::from_static("application/json"));
@@ -444,8 +436,8 @@ pub(crate) async fn handle_download(app: &AppHandle, body: &Option<Value>) -> Ap
 
                     if import_result.get("success").and_then(|v| v.as_bool()).unwrap_or(false) {
                         // 若压缩包内没有根图标，下载整合包封面作为版本图标
-                        if !modpack_icon_url_clone.is_empty() {
-                            if let Some(vid) = import_result.get("versionId").and_then(|v| v.as_str()) {
+                        if !modpack_icon_url_clone.is_empty()
+                            && let Some(vid) = import_result.get("versionId").and_then(|v| v.as_str()) {
                                 let icon_dest = crate::storage::resolve_data_dir()
                                     .join("versions")
                                     .join(vid)
@@ -464,7 +456,6 @@ pub(crate) async fn handle_download(app: &AppHandle, body: &Option<Value>) -> Ap
                                     .await;
                                 }
                             }
-                        }
                         let pack_name = import_result
                             .get("name")
                             .and_then(|n| n.as_str())

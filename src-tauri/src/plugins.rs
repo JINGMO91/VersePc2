@@ -79,6 +79,7 @@ pub fn list_installed() -> Value {
 /// 从 zip 解压安装插件。
 /// - `zip_path`: 本地 zip 文件路径（下载/镜像已在调用侧完成）。
 /// - `expected_id`: 期望的插件 id，用于校验与确定安装目标。
+///
 /// zip 内允许含一个顶层插件目录（自动剥离），plugin.json 须位于有效根。
 pub async fn install_from_zip(zip_path: String, expected_id: String) -> Value {
     let root = plugins_root();

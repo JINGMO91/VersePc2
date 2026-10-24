@@ -242,12 +242,11 @@ fn handle_log_content(params: &Option<Value>) -> ApiResult {
 
     let mut in_whitelist = false;
     for dir in &search_dirs {
-        if let Ok(canonical_dir) = dir.canonicalize() {
-            if canonical_target.starts_with(&canonical_dir) {
+        if let Ok(canonical_dir) = dir.canonicalize()
+            && canonical_target.starts_with(&canonical_dir) {
                 in_whitelist = true;
                 break;
             }
-        }
     }
     if !in_whitelist {
         return ApiResult::err(403, "路径不在允许的范围内");

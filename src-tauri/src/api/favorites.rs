@@ -174,11 +174,10 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                             .and_then(|v| v.as_array())
                             .map(|favs| favs.iter().any(|v| v.as_str() == Some(&project_id)))
                             .unwrap_or(false);
-                        if !already {
-                            if let Some(favs) = f.get_mut("favs").and_then(|v| v.as_array_mut()) {
+                        if !already
+                            && let Some(favs) = f.get_mut("favs").and_then(|v| v.as_array_mut()) {
                                 favs.push(json!(project_id));
                             }
-                        }
                         found = true;
                         break;
                     }
@@ -233,11 +232,10 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
             if let Some(arr) = favorites.as_array_mut() {
                 for f in arr.iter_mut() {
                     if utils::get_str(f, "id") == fav_id {
-                        if f.get("notes").is_none() {
-                            if let Some(obj) = f.as_object_mut() {
+                        if f.get("notes").is_none()
+                            && let Some(obj) = f.as_object_mut() {
                                 obj.insert("notes".to_string(), json!({}));
                             }
-                        }
                         if let Some(notes) = f.get_mut("notes").and_then(|v| v.as_object_mut()) {
                             if !note.is_empty() {
                                 notes.insert(project_id.clone(), json!(note));
@@ -269,8 +267,8 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                         ids.push(s.to_string());
                     }
                 }
-            } else if let Some(s) = raw_data.as_str() {
-                if let Ok(parsed) = serde_json::from_str::<Value>(s) {
+            } else if let Some(s) = raw_data.as_str()
+                && let Ok(parsed) = serde_json::from_str::<Value>(s) {
                     if let Some(arr) = parsed.as_array() {
                         for v in arr {
                             if let Some(s) = v.as_str() {
@@ -287,7 +285,6 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                         }
                     }
                 }
-            }
 
             if ids.is_empty() {
                 return Some(ApiResult::err(400, "无有效数据"));
@@ -312,9 +309,9 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                 None => return Some(ApiResult::err(400, "无目标收藏夹")),
             };
 
-            if let Some(arr) = favorites.as_array_mut() {
-                if let Some(fav) = arr.get_mut(idx) {
-                    if let Some(favs) = fav.get_mut("favs").and_then(|v| v.as_array_mut()) {
+            if let Some(arr) = favorites.as_array_mut()
+                && let Some(fav) = arr.get_mut(idx)
+                    && let Some(favs) = fav.get_mut("favs").and_then(|v| v.as_array_mut()) {
                         for id in &ids {
                             let already = favs.iter().any(|v| v.as_str() == Some(id));
                             if !already {
@@ -322,8 +319,6 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                             }
                         }
                     }
-                }
-            }
             storage::save_favorites(&favorites);
             Some(ApiResult::ok(json!({ "success": true, "imported": ids.len() })))
         }

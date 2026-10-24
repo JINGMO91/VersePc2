@@ -157,11 +157,10 @@ fn pack_saves(body: &Option<Value>) -> ApiResult {
     };
     let mut worlds: Vec<String> = Vec::new();
     for entry in entries.flatten() {
-        if entry.path().is_dir() {
-            if let Some(name) = entry.file_name().to_str() {
+        if entry.path().is_dir()
+            && let Some(name) = entry.file_name().to_str() {
                 worlds.push(name.to_string());
             }
-        }
     }
     if worlds.is_empty() {
         return ApiResult::err(400, "该版本没有可上传的存档");
@@ -192,7 +191,6 @@ fn create_saves_zip(saves_dir: &std::path::Path, zip_path: &std::path::Path) -> 
     use zip::ZipWriter;
 
     let file = std::fs::File::create(zip_path)?;
-    let mut total: u64 = 0;
     {
         let mut zip = ZipWriter::new(file);
         let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
@@ -209,13 +207,12 @@ fn create_saves_zip(saves_dir: &std::path::Path, zip_path: &std::path::Path) -> 
                 let rel = if prefix.is_empty() { name.clone() } else { format!("{}/{}", prefix, name) };
                 if path.is_dir() {
                     zip.add_directory(rel.clone(), options)
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                        .map_err(|e| std::io::Error::other(e.to_string()))?;
                     stack.push((path.clone(), rel));
                 } else {
                     let mut f = std::fs::File::open(&path)?;
-                    let size = f.metadata().map(|m| m.len()).unwrap_or(0);
                     zip.start_file(rel.clone(), options)
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                        .map_err(|e| std::io::Error::other(e.to_string()))?;
                     let mut buf = vec![0u8; 256 * 1024];
                     loop {
                         let n = f.read(&mut buf)?;
@@ -223,14 +220,12 @@ fn create_saves_zip(saves_dir: &std::path::Path, zip_path: &std::path::Path) -> 
                             break;
                         }
                         zip.write_all(&buf[..n])?;
-                        total += n as u64;
                     }
-                    let _ = size;
                 }
             }
         }
         zip.finish()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
     }
     Ok(std::fs::metadata(zip_path)?.len())
 }

@@ -46,7 +46,7 @@ fn read_payload(tag_type: u8, c: &mut Cursor<&[u8]>) -> Option<NbtValue> {
         6 => Some(NbtValue::Double(read_f64(c)?)),
         7 => {
             let len = read_i32(c)?;
-            if len < 0 || len > 1_000_000 {
+            if !(0..=1_000_000).contains(&len) {
                 return None;
             }
             let mut v = Vec::with_capacity(len as usize);
@@ -59,7 +59,7 @@ fn read_payload(tag_type: u8, c: &mut Cursor<&[u8]>) -> Option<NbtValue> {
         9 => {
             let elem = read_u8(c)?;
             let len = read_i32(c)?;
-            if len < 0 || len > 10_000_000 {
+            if !(0..=10_000_000).contains(&len) {
                 return None;
             }
             let mut v = Vec::with_capacity(len as usize);
@@ -83,7 +83,7 @@ fn read_payload(tag_type: u8, c: &mut Cursor<&[u8]>) -> Option<NbtValue> {
         }
         11 => {
             let len = read_i32(c)?;
-            if len < 0 || len > 1_000_000 {
+            if !(0..=1_000_000).contains(&len) {
                 return None;
             }
             let mut v = Vec::with_capacity(len as usize);
@@ -94,7 +94,7 @@ fn read_payload(tag_type: u8, c: &mut Cursor<&[u8]>) -> Option<NbtValue> {
         }
         12 => {
             let len = read_i32(c)?;
-            if len < 0 || len > 1_000_000 {
+            if !(0..=1_000_000).contains(&len) {
                 return None;
             }
             let mut v = Vec::with_capacity(len as usize);

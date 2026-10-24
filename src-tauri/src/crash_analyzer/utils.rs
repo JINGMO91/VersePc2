@@ -12,10 +12,7 @@ pub fn regex_seek(text: &str, pattern: &str) -> Option<String> {
         return None;
     }
     match Regex::new(pattern) {
-        Ok(re) => match re.find(text) {
-            Some(m) => Some(m.as_str().to_string()),
-            None => None,
-        },
+        Ok(re) => re.find(text).map(|m| m.as_str().to_string()),
         Err(_) => None,
     }
 }
@@ -134,6 +131,7 @@ pub fn append_reason(
 }
 
 /// 从单个附加信息构建 Vec
+#[allow(dead_code)]
 pub fn single_additional(s: Option<String>) -> Option<Vec<String>> {
     s.map(|v| vec![v])
 }

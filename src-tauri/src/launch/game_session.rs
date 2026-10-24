@@ -7,6 +7,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use serde_json::{json, Value};
 
 /// 游戏实例
+#[allow(dead_code)]
 pub struct GameInstance {
     pub session_id: String,
     pub version_id: String,
@@ -109,7 +110,7 @@ pub fn stop_all() -> Vec<u32> {
     let mut g = GAME_INSTANCES.lock().unwrap();
     let mut pids = Vec::new();
     if let Some(map) = g.as_mut() {
-        for (_, instance) in map.iter() {
+        for instance in map.values() {
             pids.push(instance.pid);
         }
         map.clear();
@@ -120,25 +121,23 @@ pub fn stop_all() -> Vec<u32> {
 /// 更新游戏实例（回调式）
 pub fn update_instance(session_id: &str, updater: impl FnOnce(&mut GameInstance)) {
     let mut g = GAME_INSTANCES.lock().unwrap();
-    if let Some(map) = g.as_mut() {
-        if let Some(instance) = map.get_mut(session_id) {
+    if let Some(map) = g.as_mut()
+        && let Some(instance) = map.get_mut(session_id) {
             updater(instance);
         }
-    }
 }
 
 /// 获取游戏日志
 pub fn get_logs(session_id: &str, count: usize, offset: usize) -> Vec<String> {
     let g = GAME_INSTANCES.lock().unwrap();
-    if let Some(map) = g.as_ref() {
-        if let Some(instance) = map.get(session_id) {
+    if let Some(map) = g.as_ref()
+        && let Some(instance) = map.get(session_id) {
             let logs = &instance.log_buffer;
             let total = logs.len();
             let start = if offset > total { return Vec::new(); } else { offset };
             let end = if count == 0 { total } else { (start + count).min(total) };
             return logs[start..end].to_vec();
         }
-    }
     Vec::new()
 }
 
@@ -189,6 +188,7 @@ pub fn get_persistent_logs(count: usize) -> Vec<String> {
 }
 
 /// 清空全局日志缓冲（所有游戏退出后调用，与 Electron 版行为一致）
+#[allow(dead_code)]
 pub fn clear_persistent_logs() {
     PERSISTENT_LOG_BUFFER.lock().unwrap().clear();
 }

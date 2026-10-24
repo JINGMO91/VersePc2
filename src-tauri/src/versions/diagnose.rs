@@ -3,7 +3,6 @@ use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
 use crate::storage;
-use crate::utils;
 
 
 /// 当前时间戳（毫秒），用于生成唯一会话 ID
@@ -40,7 +39,7 @@ pub(crate) fn handle_diagnose(params: &Option<Value>) -> crate::api::ApiResult {
     }
 
     // 解析版本 JSON
-    let version_json = match resolve_version_json_recursive(&version_id, &versions_dir) {
+    let version_json = match resolve_version_json_recursive(version_id, &versions_dir) {
         Some(j) => j,
         None => return ApiResult::err(400, "版本JSON文件缺失"),
     };
@@ -56,7 +55,7 @@ pub(crate) fn handle_diagnose(params: &Option<Value>) -> crate::api::ApiResult {
                 None => continue,
             };
 
-            let suffix = lib_name.split(':').last().unwrap_or("");
+            let suffix = lib_name.split(':').next_back().unwrap_or("");
             if suffix.starts_with("natives-") {
                 continue;
             }
@@ -77,11 +76,10 @@ pub(crate) fn handle_diagnose(params: &Option<Value>) -> crate::api::ApiResult {
                 missing_libs.push(lib_name);
             } else if lib_path.extension().and_then(|e| e.to_str()) == Some("jar") {
                 // 简单完整性检查：文件大小 > 1KB
-                if let Ok(meta) = std::fs::metadata(&lib_path) {
-                    if meta.len() < 1024 {
+                if let Ok(meta) = std::fs::metadata(&lib_path)
+                    && meta.len() < 1024 {
                         corrupt_libs.push(lib_name);
                     }
-                }
             }
         }
     }
@@ -116,8 +114,8 @@ pub(crate) fn resolve_version_json_recursive(version_id: &str, versions_dir: &Pa
     let mut json: Value = serde_json::from_str(&content).ok()?;
 
     // 合并 inheritsFrom 的 libraries
-    if let Some(parent_id) = json.get("inheritsFrom").and_then(|v| v.as_str()).map(|s| s.to_string()) {
-        if let Some(parent_json) = resolve_version_json_recursive(&parent_id, versions_dir) {
+    if let Some(parent_id) = json.get("inheritsFrom").and_then(|v| v.as_str()).map(|s| s.to_string())
+        && let Some(parent_json) = resolve_version_json_recursive(&parent_id, versions_dir) {
             if let (Some(parent_libs), Some(self_libs)) = (
                 parent_json.get("libraries").and_then(|v| v.as_array()).cloned(),
                 json.get("libraries").and_then(|v| v.as_array()).cloned(),
@@ -139,19 +137,16 @@ pub(crate) fn resolve_version_json_recursive(version_id: &str, versions_dir: &Pa
                 }
             }
             // 合并 downloads.client
-            if json.get("downloads").and_then(|d| d.get("client")).is_none() {
-                if let Some(parent_client) = parent_json.get("downloads").and_then(|d| d.get("client")) {
-                    if let Some(obj) = json.as_object_mut() {
+            if json.get("downloads").and_then(|d| d.get("client")).is_none()
+                && let Some(parent_client) = parent_json.get("downloads").and_then(|d| d.get("client"))
+                    && let Some(obj) = json.as_object_mut() {
                         let mut downloads = obj.get("downloads").cloned().unwrap_or(json!({}));
                         if let Some(d_obj) = downloads.as_object_mut() {
                             d_obj.insert("client".to_string(), parent_client.clone());
                         }
                         obj.insert("downloads".to_string(), downloads);
                     }
-                }
-            }
         }
-    }
 
     Some(json)
 }
@@ -246,8 +241,7 @@ pub(crate) fn send_to_recycle_bin(path: &Path) -> std::io::Result<()> {
     if status.success() {
         Ok(())
     } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        Err(std::io::Error::other(
             format!("回收站操作失败 (exit {:?})", status.code()),
         ))
     }

@@ -12,7 +12,11 @@ use tauri::Emitter;
 
 use crate::plugins;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 /// 运行中的插件进程表（懒加载，仅存 pid/启动时间，进程主体由后台任务持有）
+#[allow(dead_code)]
 struct PluginProc {
     pid: u32,
     start_ms: u64,
@@ -51,7 +55,6 @@ fn err(code: i32, msg: &str) -> Value {
 fn kill_pid(pid: u32) {
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let _ = std::process::Command::new("taskkill")
             .args(["/PID", &pid.to_string(), "/F", "/T"])
@@ -91,19 +94,18 @@ pub async fn plugin_process_exec(
     proc_init();
     {
         let g = PLUGIN_PROCS.lock().unwrap();
-        if let Some(map) = g.as_ref() {
-            if map.contains_key(&plugin_id) {
+        if let Some(map) = g.as_ref()
+            && map.contains_key(&plugin_id) {
                 return err(409, "该插件已有进程在运行");
             }
-        }
     }
 
     let mut launch_args: Vec<String> = args.unwrap_or_default();
 
     // 可选：把 frpc 配置写入插件自身目录，并自动注入 -c 参数
     let mut config_path: Option<String> = None;
-    if let Some(text) = ini {
-        if !text.trim().is_empty() {
+    if let Some(text) = ini
+        && !text.trim().is_empty() {
             let name = config_name
                 .filter(|n| !n.trim().is_empty())
                 .unwrap_or_else(|| "frpc.ini".to_string());
@@ -124,20 +126,17 @@ pub async fn plugin_process_exec(
             }
             config_path = Some(path_str);
         }
-    }
 
     let mut cmd = tokio::process::Command::new(&exe);
     cmd.args(&launch_args);
-    if let Some(dir) = cwd {
-        if !dir.trim().is_empty() {
+    if let Some(dir) = cwd
+        && !dir.trim().is_empty() {
             cmd.current_dir(dir);
         }
-    }
     cmd.stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
@@ -216,13 +215,11 @@ pub async fn plugin_process_exec(
 
         // 进程结束，从运行表移除
         let mut g = PLUGIN_PROCS.lock().unwrap();
-        if let Some(map) = g.as_mut() {
-            if let Some(p) = map.get(&plug_id2) {
-                if p.pid == pid {
+        if let Some(map) = g.as_mut()
+            && let Some(p) = map.get(&plug_id2)
+                && p.pid == pid {
                     map.remove(&plug_id2);
                 }
-            }
-        }
     });
 
     json!({ "ok": true, "pid": pid, "configPath": config_path })
@@ -252,10 +249,9 @@ pub fn plugin_process_stop(plugin_id: String) -> Value {
 pub fn plugin_process_status(plugin_id: String) -> Value {
     proc_init();
     let g = PLUGIN_PROCS.lock().unwrap();
-    if let Some(map) = g.as_ref() {
-        if let Some(p) = map.get(&plugin_id) {
+    if let Some(map) = g.as_ref()
+        && let Some(p) = map.get(&plugin_id) {
             return json!({ "ok": true, "running": true, "pid": p.pid });
         }
-    }
     json!({ "ok": true, "running": false })
 }

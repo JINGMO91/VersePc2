@@ -78,91 +78,78 @@ pub async fn api_proxy(
     }
 
     // 下载/安装相关路由（async，优先处理）
-    if path.starts_with("/api/install")
+    if (path.starts_with("/api/install")
         || path == "/api/check-version-name"
-        || path == "/api/install-cancel"
-    {
-        if let Some(r) = download::handle(&app, &method, &path, &params, &body).await {
+        || path == "/api/install-cancel")
+        && let Some(r) = download::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 启动相关路由（async，调用 do_launch 等异步函数）
-    if path.starts_with("/api/launch") {
-        if let Some(r) = launch::handle(&app, &method, &path, &params, &body).await {
+    if path.starts_with("/api/launch")
+        && let Some(r) = launch::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 游戏运行相关路由（同步，仅查询 game_session）
-    if path.starts_with("/api/game") {
-        if let Some(r) = game::handle(&method, &path, &params, &body) {
+    if path.starts_with("/api/game")
+        && let Some(r) = game::handle(&method, &path, &params, &body) {
             return r;
         }
-    }
 
     // 崩溃分析相关路由（async，可选手动导入分析）
-    if path.starts_with("/api/crash") {
-        if let Some(r) = crash::handle(&app, &method, &path, &params, &body).await {
+    if path.starts_with("/api/crash")
+        && let Some(r) = crash::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 微软账号认证路由（async，发起 OAuth 请求）
-    if path.starts_with("/api/msauth") {
-        if let Some(r) = msauth::handle(&app, &method, &path, &params, &body).await {
+    if path.starts_with("/api/msauth")
+        && let Some(r) = msauth::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // authlib-injector 第三方登录路由（async，HTTP 拉取+下载校验）
-    if path.starts_with("/api/authlib-injector") {
-        if let Some(r) = authlib::handle(&app, &method, &path, &params, &body).await {
+    if path.starts_with("/api/authlib-injector")
+        && let Some(r) = authlib::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // Verse 云盘路由（async，登录中继 + cloudapi 中继 + 存档打包/上传/下载）
-    if path.starts_with("/api/cloud") {
-        if let Some(r) = cloud::handle(&app, &method, &path, &params, &body).await {
+    if path.starts_with("/api/cloud")
+        && let Some(r) = cloud::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 账号路由（async，第三方登录涉及 Yggdrasil HTTP 请求 + authlib 下载）
-    if path.starts_with("/api/accounts") {
-        if let Some(r) = accounts::handle(&method, &path, &params, &body).await {
+    if path.starts_with("/api/accounts")
+        && let Some(r) = accounts::handle(&method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 整合包路由（async，Modrinth + CurseForge 双源 HTTP 搜索）
-    if path.starts_with("/api/modpacks") || path == "/api/modpack/import" {
-        if let Some(r) = modpacks::handle(&app, &method, &path, &params, &body).await {
+    if (path.starts_with("/api/modpacks") || path == "/api/modpack/import")
+        && let Some(r) = modpacks::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 杂项路由（async，含 TCP ping + PowerShell 子进程）
-    if path == "/api/current-context"
+    if (path == "/api/current-context"
         || path == "/api/create-shortcut"
         || path == "/api/screenshots"
         || path == "/api/screenshot"
         || path == "/api/server/ping"
         || path == "/api/save-background"
-        || path == "/api/clear-background"
-    {
-        if let Some(r) = misc::handle(&app, &method, &path, &params, &body).await {
+        || path == "/api/clear-background")
+        && let Some(r) = misc::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 资源搜索/下载路由（async，Modrinth/CurseForge HTTP 拉取 + 后台下载会话）
-    if path.starts_with("/api/resources") || path == "/api/resource-image" {
-        if let Some(r) = resources::handle(&app, &method, &path, &params, &body).await {
+    if (path.starts_with("/api/resources") || path == "/api/resource-image")
+        && let Some(r) = resources::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // LAN / EasyTier 路由（async，UPnP SSDP + EasyTier 子进程管理）
     if path.starts_with("/api/lan") || path.starts_with("/api/easytier") {
@@ -175,17 +162,15 @@ pub async fn api_proxy(
     }
 
     // 模组管理路由（async，Modrinth/CurseForge HTTP 搜索 + JAR 解析 + 下载会话）
-    if path == "/api/mods"
+    if (path == "/api/mods"
         || path == "/api/mod-icon"
-        || path.starts_with("/api/mods/")
-    {
-        if let Some(r) = mods::handle(&app, &method, &path, &params, &body).await {
+        || path.starts_with("/api/mods/"))
+        && let Some(r) = mods::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 皮肤管理路由（async，含远程拉取和上传到 Mojang）
-    if path.starts_with("/api/ms-skins")
+    if (path.starts_with("/api/ms-skins")
         || path == "/api/default-skins"
         || path == "/api/skin-head"
         || path == "/api/set-account-skin"
@@ -193,23 +178,19 @@ pub async fn api_proxy(
         || path == "/api/skin-texture"
         || path == "/api/save-avatar"
         || path == "/api/clear-avatar"
-        || path.starts_with("/api/capes")
-    {
-        if let Some(r) = skins::handle(&app, &method, &path, &params, &body).await {
+        || path.starts_with("/api/capes"))
+        && let Some(r) = skins::handle(&app, &method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 模组加载器路由（async，涉及 HTTP 请求拉取版本列表）
-    if path.starts_with("/api/fabric")
+    if (path.starts_with("/api/fabric")
         || path.starts_with("/api/forge")
         || path.starts_with("/api/neoforge")
-        || path.starts_with("/api/optifine")
-    {
-        if let Some(r) = modloaders::handle(&method, &path, &params, &body).await {
+        || path.starts_with("/api/optifine"))
+        && let Some(r) = modloaders::handle(&method, &path, &params, &body).await {
             return r;
         }
-    }
 
     // 按路径前缀分发到对应模块
     let result = if path.starts_with("/api/settings") {

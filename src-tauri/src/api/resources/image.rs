@@ -1,23 +1,12 @@
 // api/resources/image.rs — 资源图片代理
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 use sha1::Digest;
-use tauri::{AppHandle, Listener};
-use tokio::sync::Mutex;
 
 use crate::api::ApiResult;
-use crate::download::{download_with_mirror, download_with_mirror_cancellable, resources_session};
-use crate::modpack;
-use crate::resource::{matcher, mcversion, wiki};
-use crate::resource::matcher::SearchSource;
 use crate::storage;
 
-use super::{MODRINTH_API, MODRINTH_API_MIRROR, CURSEFORGE_API, CURSEFORGE_API_MIRROR, DEFAULT_CF_API_KEY, shared_client, cached_fetch_json, fetch_json_with_mirror};
-use super::detail::to_modrinth_cdn_mirror;
+use super::shared_client;
 
 /// 从图片 URL 中推断扩展名与 MIME（默认 png）
 pub(crate) fn image_ext_and_mime(url: &str) -> (&'static str, &'static str) {
@@ -62,11 +51,10 @@ pub(crate) async fn handle_resource_image(params: &Option<Value>) -> ApiResult {
     let cache_dir = storage::resolve_data_dir().join("image-cache");
     let cache_path = cache_dir.join(format!("{}.{}", hash, ext));
 
-    if cache_path.exists() {
-        if let Ok(data) = std::fs::read(&cache_path) {
+    if cache_path.exists()
+        && let Ok(data) = std::fs::read(&cache_path) {
             return ApiResult::ok(json!({ "dataUrl": crate::utils::bytes_to_data_url(&data, mime) }));
         }
-    }
 
     let client = shared_client();
     let resp = match client.get(url).send().await {

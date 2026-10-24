@@ -33,6 +33,7 @@ pub struct XblUhs {
 
 /// XSTS 响应（步骤 5）
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct XstsResponse {
     #[serde(rename = "Token")]
     pub token: Option<String>,

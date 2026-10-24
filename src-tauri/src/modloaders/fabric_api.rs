@@ -51,12 +51,11 @@ pub async fn get_fabric_api_versions(game_version: &str) -> (Vec<Value>, String)
         match shared::fetch_json(url).await {
             Ok(data) => {
                 eprintln!("[fabric_api] 源{} 返回成功", i);
-                if let Some(arr) = data.as_array() {
-                    if !arr.is_empty() {
+                if let Some(arr) = data.as_array()
+                    && !arr.is_empty() {
                         raw_versions = Some(arr.clone());
                         break;
                     }
-                }
             }
             Err(e) => {
                 eprintln!("[fabric_api] 源{} 失败: {}", i, e);
@@ -65,7 +64,7 @@ pub async fn get_fabric_api_versions(game_version: &str) -> (Vec<Value>, String)
     }
 
     // 降级：不带过滤条件查询
-    if raw_versions.as_ref().map_or(true, |v| v.is_empty()) {
+    if raw_versions.as_ref().is_none_or(|v| v.is_empty()) {
         eprintln!("[fabric_api] 过滤查询无结果，降级到不带过滤条件的全量查询");
         let fallback_url = format!("{}/project/{}/version", MODRINTH_API, FABRIC_API_PROJECT_ID);
         let mirror_fallback_url = format!("{}/project/{}/version", MODRINTH_API_MIRROR, FABRIC_API_PROJECT_ID);
@@ -74,12 +73,11 @@ pub async fn get_fabric_api_versions(game_version: &str) -> (Vec<Value>, String)
             match shared::fetch_json(url).await {
                 Ok(data) => {
                     eprintln!("[fabric_api] 降级源{} 返回成功", i);
-                    if let Some(arr) = data.as_array() {
-                        if !arr.is_empty() {
+                    if let Some(arr) = data.as_array()
+                        && !arr.is_empty() {
                             raw_versions = Some(arr.clone());
                             break;
                         }
-                    }
                 }
                 Err(e) => {
                     eprintln!("[fabric_api] 降级源{} 失败: {}", i, e);
@@ -224,11 +222,10 @@ pub async fn install_fabric_api(
     };
 
     // 确保 mods 目录存在
-    if !mods_dir.exists() {
-        if std::fs::create_dir_all(&mods_dir).is_err() {
+    if !mods_dir.exists()
+        && std::fs::create_dir_all(&mods_dir).is_err() {
             return json!({ "success": false, "error": "无法创建 mods 目录" });
         }
-    }
 
     // 3. 清理旧版本 Fabric API（fabric-api-*.jar）
     if let Ok(existing) = std::fs::read_dir(&mods_dir) {

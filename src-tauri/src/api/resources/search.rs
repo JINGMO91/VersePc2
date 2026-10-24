@@ -1,22 +1,14 @@
 // api/resources/search.rs — 双源聚合搜索
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
+use std::collections::HashSet;
 
 use serde_json::{json, Value};
-use sha1::Digest;
-use tauri::{AppHandle, Listener};
-use tokio::sync::Mutex;
 
 use crate::api::ApiResult;
-use crate::download::{download_with_mirror, download_with_mirror_cancellable, resources_session};
-use crate::modpack;
 use crate::resource::{matcher, mcversion, wiki};
 use crate::resource::matcher::SearchSource;
 use crate::storage;
 
-use super::{MODRINTH_API, MODRINTH_API_MIRROR, CURSEFORGE_API, CURSEFORGE_API_MIRROR, DEFAULT_CF_API_KEY, shared_client, cached_fetch_json, fetch_json_with_mirror};
+use super::{MODRINTH_API, CURSEFORGE_API, DEFAULT_CF_API_KEY, cached_fetch_json};
 use super::detail::to_modrinth_cdn_mirror;
 
 /// GET /api/resources/search — Modrinth + CurseForge 双源聚合搜索
@@ -31,6 +23,8 @@ use super::detail::to_modrinth_cdn_mirror;
 ///   - limit: 返回数量（默认 15）
 ///   - offset: 偏移量（默认 0）
 ///   - source: 数据源（空/modrinth/curseforge）
+type SearchResults = (Result<Vec<Value>, String>, Result<Vec<Value>, String>, Result<Vec<Value>, String>);
+
 pub(crate) async fn handle_search(params: &Option<Value>) -> ApiResult {
     let query = params
         .as_ref()
@@ -131,7 +125,7 @@ pub(crate) async fn handle_search(params: &Option<Value>) -> ApiResult {
         None
     };
 
-    let (cf_res, mr_res, direct_res): (Result<Vec<Value>, String>, Result<Vec<Value>, String>, Result<Vec<Value>, String>) =
+    let (cf_res, mr_res, direct_res): SearchResults =
         match (cf_fut, mr_fut, direct_fut) {
             (Some(c), Some(m), Some(d)) => {
                 let (a, b, c2) = tokio::join!(c, m, d);
@@ -260,7 +254,7 @@ pub(crate) fn build_modrinth_hit(proj: &Value, res_type: &str) -> Value {
         "title": proj.get("title").and_then(|v| v.as_str()).unwrap_or(""),
         "description": proj.get("description").and_then(|v| v.as_str()).unwrap_or(""),
         "author": proj.get("author").and_then(|v| v.as_str()).unwrap_or("").replace('_', ""),
-        "icon": to_modrinth_cdn_mirror(&proj.get("icon_url").and_then(|v| v.as_str()).unwrap_or("")),
+        "icon": to_modrinth_cdn_mirror(proj.get("icon_url").and_then(|v| v.as_str()).unwrap_or("")),
         "downloads": proj.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0),
         "followers": proj.get("followers").and_then(|v| v.as_u64()).unwrap_or(0),
         "categories": proj.get("categories").and_then(|v| v.as_array()).cloned().unwrap_or_default(),
@@ -292,7 +286,7 @@ pub(crate) async fn fetch_modrinth_by_slugs(
     for proj in &arr {
         if !version.is_empty() {
             let gv = proj.get("game_versions").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-            let ok = gv.iter().any(|v| v.as_str().map_or(false, |s| s == version));
+            let ok = gv.iter().any(|v| v.as_str() == Some(version));
             if !ok {
                 continue;
             }
@@ -306,7 +300,7 @@ pub(crate) async fn fetch_modrinth_by_slugs(
         }
         if !category.is_empty() {
             let cats = proj.get("categories").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-            let ok = cats.iter().any(|c| c.as_str().map_or(false, |s| s == category));
+            let ok = cats.iter().any(|c| c.as_str() == Some(category));
             if !ok {
                 continue;
             }
@@ -419,6 +413,7 @@ pub(crate) fn sort_hits(hits: Vec<Value>, raw_query: &str, is_chinese: bool, res
 }
 
 /// 从 Modrinth 搜索资源
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn search_modrinth(
     query: &str,
     res_type: &str,
@@ -536,11 +531,10 @@ pub(crate) async fn search_curseforge(
         class_id
     );
 
-    if !loader.is_empty() && !ignore_loader {
-        if let Some(id) = cf_loader_type_id(&loader.to_lowercase()) {
+    if !loader.is_empty() && !ignore_loader
+        && let Some(id) = cf_loader_type_id(&loader.to_lowercase()) {
             url.push_str(&format!("&modLoaderType={}", id));
         }
-    }
 
     if !version.is_empty() {
         url.push_str(&format!("&gameVersion={}", urlencoding::encode(version)));
@@ -554,7 +548,7 @@ pub(crate) async fn search_curseforge(
 
     // 构造 CurseForge 请求头（需要 x-api-key）
     let mut headers = reqwest::header::HeaderMap::new();
-    if let Ok(v) = reqwest::header::HeaderValue::from_str(&cf_api_key) {
+    if let Ok(v) = reqwest::header::HeaderValue::from_str(cf_api_key) {
         headers.insert("x-api-key", v);
     }
     headers.insert("Accept", reqwest::header::HeaderValue::from_static("application/json"));
@@ -623,16 +617,14 @@ pub(crate) async fn search_curseforge(
 pub(crate) fn has_datapack_category(m: &Value) -> bool {
     if let Some(arr) = m.get("categories").and_then(|c| c.as_array()) {
         for c in arr {
-            if let Some(name) = c.get("name").and_then(|n| n.as_str()) {
-                if name.to_lowercase().contains("data pack") {
+            if let Some(name) = c.get("name").and_then(|n| n.as_str())
+                && name.to_lowercase().contains("data pack") {
                     return true;
                 }
-            }
-            if let Some(id) = c.get("id").and_then(|i| i.as_u64()) {
-                if id == 5193 {
+            if let Some(id) = c.get("id").and_then(|i| i.as_u64())
+                && id == 5193 {
                     return true;
                 }
-            }
         }
     }
     false

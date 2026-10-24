@@ -67,6 +67,7 @@ fn cleanup_failed_version_dir(version_dir: &std::path::Path, version_dir_was_new
 }
 
 /// 安装入口
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_installation(
     app: AppHandle,
     session_id: String,
@@ -243,7 +244,7 @@ pub async fn perform_installation(
     // 阶段 3：下载 libraries（并发，最多 16 个）
     update!(session::InstallStage::Libraries, 0, "下载依赖库...");
     let libraries = merge_inherited_libraries(&version_details, &versions_dir);
-    let valid_libs: Vec<Value> = libraries.into_iter().filter(|lib| evaluate_rules(lib)).collect();
+    let valid_libs: Vec<Value> = libraries.into_iter().filter(evaluate_rules).collect();
     let total_libs = valid_libs.len() as u32;
 
     use std::sync::atomic::{AtomicU32, Ordering as AtomicOrdering};
@@ -251,7 +252,7 @@ pub async fn perform_installation(
     let completed_libs = Arc::new(AtomicU32::new(0));
     let failed_libs = Arc::new(AtomicU32::new(0));
 
-    let lib_results: Vec<_> = stream::iter(valid_libs.into_iter())
+    let lib_results: Vec<_> = stream::iter(valid_libs)
         .map(|lib| {
             let libraries_dir = libraries_dir.clone();
             let download_source = download_source.clone();
@@ -338,9 +339,9 @@ pub async fn perform_installation(
             }
 
             // 解析并批量下载缺失资源
-            if let Ok(index_content) = tokio::fs::read_to_string(&asset_index_path).await {
-                if let Ok(index_json) = serde_json::from_str::<Value>(&index_content) {
-                    if let Some(objects) = index_json.get("objects").and_then(|v| v.as_object()) {
+            if let Ok(index_content) = tokio::fs::read_to_string(&asset_index_path).await
+                && let Ok(index_json) = serde_json::from_str::<Value>(&index_content)
+                    && let Some(objects) = index_json.get("objects").and_then(|v| v.as_object()) {
                         let mut asset_objects: Vec<download::AssetObject> = Vec::with_capacity(objects.len());
                         for (name, info) in objects {
                             let hash = info.get("hash").and_then(|v| v.as_str()).unwrap_or("");
@@ -364,14 +365,12 @@ pub async fn perform_installation(
                                 .get("maxThreads")
                                 .and_then(|v| v.as_u64())
                                 .map(|n| n as usize)
-                                .unwrap_or(32)
-                                .min(64)
-                                .max(8);
+                                .unwrap_or(32).clamp(8, 64);
 
                             let app_progress = app.clone();
                             let session_id_progress = session_id.clone();
                             let total_assets_usize = total_assets as usize;
-                            let (done, failed) = download::download_asset_objects(
+                            let (_done, failed) = download::download_asset_objects(
                                 asset_objects,
                                 &assets_dir,
                                 &sources,
@@ -394,8 +393,6 @@ pub async fn perform_installation(
                             }
                         }
                     }
-                }
-            }
         }
     }
     update!(session::InstallStage::Assets, 100, "资源文件已下载");
@@ -424,28 +421,28 @@ pub async fn perform_installation(
                 "forge" => {
                     result = modloaders::forge::install_forge(
                         &game_version,
-                        &loader_version,
+                        loader_version,
                         Some(&actual_version_id),
                     ).await;
                 }
                 "neoforge" => {
                     result = modloaders::neoforge::install_neoforge(
                         &game_version,
-                        &loader_version,
+                        loader_version,
                         Some(&actual_version_id),
                     ).await;
                 }
                 "fabric" => {
                     result = modloaders::fabric::install_fabric_with_target(
                         &game_version,
-                        &loader_version,
+                        loader_version,
                         &actual_version_id,
                     ).await;
                 }
                 "optifine" => {
                     result = modloaders::optifine::install_optifine(
                         &game_version,
-                        &loader_version,
+                        loader_version,
                         Some(&actual_version_id),
                     ).await;
                 }
@@ -601,13 +598,11 @@ fn collect_libraries(
             }
         }
     }
-    if let Some(parent_id) = json.get("inheritsFrom").and_then(|v| v.as_str()) {
-        if visited.insert(parent_id.to_string()) {
-            if let Some(parent) = load_local_version_json(parent_id, versions_dir) {
+    if let Some(parent_id) = json.get("inheritsFrom").and_then(|v| v.as_str())
+        && visited.insert(parent_id.to_string())
+            && let Some(parent) = load_local_version_json(parent_id, versions_dir) {
                 collect_libraries(&parent, versions_dir, out, seen, visited);
             }
-        }
-    }
 }
 
 /// 从本地版本目录读取某版本的 json

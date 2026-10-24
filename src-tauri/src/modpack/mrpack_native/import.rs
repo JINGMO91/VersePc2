@@ -1,4 +1,4 @@
-﻿// modpack/mrpack_native/import.rs — .mrpack 导入主流程
+// modpack/mrpack_native/import.rs — .mrpack 导入主流程
 use std::collections::HashSet;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -6,17 +6,15 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::{Mutex, Semaphore};
 
 use crate::modpack::curseforge_shared as cf_shared;
-use super::{emit_progress, emit_progress_with_files, normalize_version_id, versions_dir};
-use crate::modloaders::shared as ml_shared;
+use super::{emit_progress, emit_progress_with_files, versions_dir};
 use crate::storage;
 
-use super::{MrpackManifest, MrpackDependencies, MrpackFile, CleanupAbort, LoaderKind, MAX_DOWNLOAD_ROUNDS};
+use super::{MrpackManifest, MrpackDependencies, MrpackFile, MAX_DOWNLOAD_ROUNDS};
 
 /// 主导入流程：overrides 解压 + mods 下载 + 验证 + 资源下载
 #[allow(clippy::too_many_arguments)]
@@ -49,7 +47,7 @@ pub(crate) async fn run_import_main(
 
     // 3.7 overrides 解压（路径遍历保护 + 5 次重试 + 50 文件 yield + 实时进度）
     emit_progress(app, 40, "解压覆盖文件...", "extract");
-    let override_files = extract_overrides_with_progress(archive, version_dir, app)?;
+    let _override_files = extract_overrides_with_progress(archive, version_dir, app)?;
 
     // 3.8 client_overrides 解压（如果存在，在 overrides 之后解压）
     extract_client_overrides(archive, version_dir, app)?;
@@ -106,15 +104,14 @@ pub(crate) async fn run_import_main(
         .iter()
         .filter(|f| {
             // env.client === 'unsupported' 跳过
-            if let Some(ref env) = f.env {
-                if env.client.as_deref() == Some("unsupported") {
+            if let Some(ref env) = f.env
+                && env.client.as_deref() == Some("unsupported") {
                     return false;
                 }
-            }
             // loaders 字段过滤
-            if !target_loaders.is_empty() {
-                if let Some(ref file_loaders) = f.loaders {
-                    if !file_loaders.is_empty() {
+            if !target_loaders.is_empty()
+                && let Some(ref file_loaders) = f.loaders
+                    && !file_loaders.is_empty() {
                         let compatible = file_loaders.iter().any(|l| {
                             let lower = l.to_lowercase();
                             target_loaders.contains(&lower)
@@ -124,8 +121,6 @@ pub(crate) async fn run_import_main(
                             return false;
                         }
                     }
-                }
-            }
             true
         })
         .collect();
@@ -143,7 +138,7 @@ pub(crate) async fn run_import_main(
     let total_mods = files_list.len();
 
     // 构造 mod 文件状态列表
-    let mod_file_states: Vec<ModFileState> = files_list
+    let _mod_file_states: Vec<ModFileState> = files_list
         .iter()
         .map(|f| {
             let file_name = extract_file_name(f);
@@ -266,7 +261,6 @@ pub(crate) async fn run_import_main(
         let failed_count = failed_count.clone();
         let abort_flag = abort_flag.clone();
         let version_dir_arc = version_dir_arc.clone();
-        let total_mods = total_mods;
         let progress_tx = progress_tx.clone();
 
         tasks.spawn(async move {
@@ -414,8 +408,8 @@ pub(crate) async fn run_import_main(
     }
 
     // 3.18 加载器兼容性检查 ensure_loader_compat
-    if let Some(lv_id) = loader_version_id {
-        if !mc_version.is_empty() {
+    if let Some(_lv_id) = loader_version_id
+        && !mc_version.is_empty() {
             let loader_type = if !fabric_ver.is_empty() {
                 "fabric"
             } else if !forge_ver.is_empty() || !neoforge_ver.is_empty() {
@@ -441,7 +435,6 @@ pub(crate) async fn run_import_main(
                 .await;
             }
         }
-    }
 
     // 3.19 库文件验证 verify_import_libs
     emit_progress(app, 90, "正在验证整合包完整性...", "verify");
@@ -458,14 +451,13 @@ pub(crate) async fn run_import_main(
     // 3.20 资源索引下载（解析 assetIndex + 缺资源并发下载 64 线程）
     let settings = storage::load_settings();
     let merged_json = cf_shared::resolve_version_json(version_id);
-    if let Some(ref merged) = merged_json {
-        if let Some(asset_index) = merged.get("assetIndex") {
+    if let Some(ref merged) = merged_json
+        && let Some(asset_index) = merged.get("assetIndex") {
             emit_progress(app, 93, "正在下载游戏资源...", "assets");
             if let Err(e) = download_assets(app, asset_index, &settings).await {
                 eprintln!("[mrpack] 资源下载异常(非致命): {}", e);
             }
         }
-    }
 
     // 3.21 客户端 JAR 下载（3 次重试 + 失败非致命）
     // 目标主 jar：优先 jar/继承版本，自包含合并版本则用自身版本目录。
@@ -495,8 +487,8 @@ pub(crate) async fn run_import_main(
                     if main_jar_id != version_id {
                         let base_json_path =
                             versions_dir().join(&main_jar_id).join(format!("{}.json", main_jar_id));
-                        if let Ok(content) = std::fs::read_to_string(&base_json_path) {
-                            if let Ok(json) = serde_json::from_str::<Value>(&content) {
+                        if let Ok(content) = std::fs::read_to_string(&base_json_path)
+                            && let Ok(json) = serde_json::from_str::<Value>(&content) {
                                 return json
                                     .get("downloads")
                                     .and_then(|d| d.get("client"))
@@ -504,7 +496,6 @@ pub(crate) async fn run_import_main(
                                     .and_then(|v| v.as_str())
                                     .map(|s| s.to_string());
                             }
-                        }
                     }
                     None
                 });
@@ -548,14 +539,12 @@ pub(crate) async fn run_import_main(
     }
 
     // 3.22 Forge 核心文件验证（forge-client.jar / client-srg.jar / client-extra.jar）
-    if let Some(ref merged) = merged_json {
-        if !forge_ver.is_empty() {
-            if let Err(e) = check_forge_core_files(merged) {
+    if let Some(ref merged) = merged_json
+        && !forge_ver.is_empty()
+            && let Err(e) = check_forge_core_files(merged) {
                 cf_shared::cleanup_version_chain(version_id);
                 return Err(e);
             }
-        }
-    }
 
     // 3.23 pack-info.json 写入
     let pack_info = json!({
@@ -589,7 +578,7 @@ pub(crate) async fn run_import_main(
         && !mc_version.is_empty()
         && mc_version != version_id
     {
-        let vanilla_dir = versions_dir().join(&mc_version);
+        let vanilla_dir = versions_dir().join(mc_version);
         if vanilla_dir.exists() {
             if let Err(e) = std::fs::remove_dir_all(&vanilla_dir) {
                 eprintln!("[mrpack] 清理临时原版目录失败: {}", e);
@@ -808,11 +797,7 @@ pub(crate) async fn download_one_mod(
                     if !expected_sha1.is_empty() {
                         match crate::download::single::compute_sha1(dest_path).await {
                             Ok(actual) => {
-                                if actual.to_lowercase() == expected_sha1.to_lowercase() {
-                                    true
-                                } else {
-                                    false
-                                }
+                                actual.to_lowercase() == expected_sha1.to_lowercase()
                             }
                             Err(_) => false,
                         }
@@ -1088,8 +1073,7 @@ pub(crate) async fn download_assets(
         .and_then(|v| v.as_u64())
         .map(|n| n as usize)
         .unwrap_or(32)
-        .min(64)
-        .max(8);
+        .clamp(8, 64);
 
     emit_progress(
         app,
@@ -1155,14 +1139,13 @@ pub(crate) fn check_forge_core_files(merged_json: &Value) -> Result<(), String> 
         .unwrap_or_default();
 
     let forge_client_lib = libs.iter().find(|l| {
-        if let Some(name) = l.get("name").and_then(|v| v.as_str()) {
-            if regex::Regex::new(r"^net\.minecraftforge:forge:\d")
+        if let Some(name) = l.get("name").and_then(|v| v.as_str())
+            && regex::Regex::new(r"^net\.minecraftforge:forge:\d")
                 .unwrap()
                 .is_match(name)
             {
                 return name.ends_with(":client") || name.split(':').count() == 3;
             }
-        }
         false
     });
 
@@ -1328,6 +1311,7 @@ pub(crate) fn manifest_deps_to_json(deps: &MrpackDependencies) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::modpack::mrpack_native::group_jvm_tokens;
 
     #[test]
     fn group_preserves_pair_flags() {
@@ -1449,7 +1433,7 @@ pub(crate) fn extract_overrides_with_progress(
 
         // 实时进度反馈：每 50 个文件更新一次进度（40% → 50% 区间）
         yield_counter += 1;
-        if override_total > 0 && yield_counter % 50 == 0 {
+        if override_total > 0 && yield_counter.is_multiple_of(50) {
             let pct = 40 + (extract_count * 10 / override_total);
             emit_progress(
                 app,
@@ -1558,7 +1542,7 @@ pub(crate) fn extract_client_overrides(
         }
 
         yield_counter += 1;
-        if total > 0 && yield_counter % 50 == 0 {
+        if total > 0 && yield_counter.is_multiple_of(50) {
             let pct = 40 + (extract_count * 10 / total);
             emit_progress(
                 app,
@@ -1607,19 +1591,17 @@ pub(crate) fn extract_root_icon(archive: &mut zip::ZipArchive<std::fs::File>, ve
 pub(crate) fn extract_file_name(f: &MrpackFile) -> String {
     if let Some(ref p) = f.path {
         let normalized = p.replace('\\', "/");
-        if let Some(name) = normalized.rsplit('/').next() {
-            if !name.is_empty() {
+        if let Some(name) = normalized.rsplit('/').next()
+            && !name.is_empty() {
                 return name.to_string();
             }
-        }
     }
     if let Some(first) = f.downloads.first() {
         let path = first.split('?').next().unwrap_or(first);
-        if let Some(name) = path.rsplit('/').next() {
-            if !name.is_empty() {
+        if let Some(name) = path.rsplit('/').next()
+            && !name.is_empty() {
                 return name.to_string();
             }
-        }
     }
     "unknown".to_string()
 }

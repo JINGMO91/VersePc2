@@ -1,7 +1,5 @@
 // versions/export.rs — 启动脚本与整合包导出
 use serde_json::{json, Value};
-use std::collections::HashSet;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::storage;
@@ -298,7 +296,7 @@ pub(crate) fn create_modpack_zip(
         "overrides": "overrides"
     });
     zip.start_file("modpack.json", options)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     zip.write_all(serde_json::to_string_pretty(&meta).unwrap_or_default().as_bytes())?;
 
     // 递归遍历 src_dir，把符合规则的内容写入 overrides/ 下
@@ -341,7 +339,7 @@ pub(crate) fn create_modpack_zip(
                     continue;
                 }
                 zip.start_file(&overrides_name, options)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+                    .map_err(|e| std::io::Error::other(e.to_string()))?;
                 let mut f = File::open(&path)?;
                 let mut buf = Vec::new();
                 f.read_to_end(&mut buf)?;
@@ -351,7 +349,7 @@ pub(crate) fn create_modpack_zip(
     }
 
     zip.finish()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     Ok(())
 }
 

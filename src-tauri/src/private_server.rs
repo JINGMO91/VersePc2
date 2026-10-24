@@ -36,13 +36,11 @@ fn ensure_data_file() {
 
 fn load_servers_local() -> Vec<Value> {
     let file = servers_file_path();
-    if let Ok(content) = std::fs::read_to_string(&file) {
-        if let Ok(v) = serde_json::from_str::<Value>(&content) {
-            if let Some(arr) = v.as_array() {
+    if let Ok(content) = std::fs::read_to_string(&file)
+        && let Ok(v) = serde_json::from_str::<Value>(&content)
+            && let Some(arr) = v.as_array() {
                 return arr.clone();
             }
-        }
-    }
     Vec::new()
 }
 
@@ -88,8 +86,8 @@ async fn fetch_remote_servers() -> Value {
         Err(e) => return json!({ "ok": false, "error": format!("JSON 解析失败: {}", e) }),
     };
 
-    if let Some(arr) = parsed.as_array() {
-        if !arr.is_empty() {
+    if let Some(arr) = parsed.as_array()
+        && !arr.is_empty() {
             let now_ms = chrono::Utc::now().timestamp_millis();
             let servers: Vec<Value> = arr
                 .iter()
@@ -115,7 +113,6 @@ async fn fetch_remote_servers() -> Value {
                 .collect();
             return json!({ "ok": true, "servers": servers });
         }
-    }
     json!({ "ok": false, "error": "数据格式错误" })
 }
 
@@ -132,8 +129,8 @@ fn parse_address(address: &str) -> Option<(String, u16)> {
         let end = trimmed.find(']')?;
         let host = trimmed[1..end].to_string();
         let port_part = &trimmed[end + 1..];
-        let port = if port_part.starts_with(':') {
-            port_part[1..].parse::<u16>().unwrap_or(25565)
+        let port = if let Some(rest) = port_part.strip_prefix(':') {
+            rest.parse::<u16>().unwrap_or(25565)
         } else {
             25565
         };
@@ -142,12 +139,11 @@ fn parse_address(address: &str) -> Option<(String, u16)> {
     // 普通 host:port
     let last_colon = trimmed.rfind(':');
     let first_colon = trimmed.find(':');
-    if let (Some(last), Some(first)) = (last_colon, first_colon) {
-        if last > first {
+    if let (Some(last), Some(first)) = (last_colon, first_colon)
+        && last > first {
             // 多个冒号且无方括号，按 IPv6 无括号处理，暂不支持
             return None;
         }
-    }
     if let Some(idx) = last_colon {
         let host = &trimmed[..idx];
         let port_str = &trimmed[idx + 1..];
@@ -624,15 +620,13 @@ pub async fn private_server_icon(_app: AppHandle, icon: String) -> Value {
 
     // 1. 本地文件路径
     let path = std::path::Path::new(&icon);
-    if path.exists() && path.is_file() {
-        if let Ok(bytes) = std::fs::read(&icon) {
-            if !bytes.is_empty() {
+    if path.exists() && path.is_file()
+        && let Ok(bytes) = std::fs::read(&icon)
+            && !bytes.is_empty() {
                 let mime = mime_from_path(&icon);
                 let b64 = BASE64.encode(&bytes);
                 return json!({ "ok": true, "dataUrl": format!("data:{};base64,{}", mime, b64) });
             }
-        }
-    }
 
     // 2. 网络 URL（http/https）
     if icon.starts_with("http://") || icon.starts_with("https://") {
@@ -646,13 +640,12 @@ pub async fn private_server_icon(_app: AppHandle, icon: String) -> Value {
         };
         match client.get(&icon).send().await {
             Ok(resp) if resp.status().is_success() => {
-                if let Ok(bytes) = resp.bytes().await {
-                    if !bytes.is_empty() {
+                if let Ok(bytes) = resp.bytes().await
+                    && !bytes.is_empty() {
                         let mime = mime_from_content(&bytes);
                         let b64 = BASE64.encode(&bytes);
                         return json!({ "ok": true, "dataUrl": format!("data:{};base64,{}", mime, b64) });
                     }
-                }
             }
             _ => {}
         }

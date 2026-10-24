@@ -107,7 +107,7 @@ fn parse_nodes(text: &str) -> Vec<Value> {
         if id_part.is_empty() {
             continue;
         }
-        let rest = raw.splitn(3, '#').nth(1).unwrap_or("").trim();
+        let rest = raw.split('#').nth(1).unwrap_or("").trim();
         let (b_start, b_end) = (rest.find('['), rest.rfind(']'));
         let info = match (b_start, b_end) {
             (Some(s), Some(e)) if e > s => &rest[s + 1..e],
@@ -218,7 +218,7 @@ fn write_config(node: &Value, remote_port: u16, local_port: u16, token: &str) ->
         let _ = writeln!(s, "auth.method = \"token\"");
         let _ = writeln!(s, "auth.token = \"{}\"", token);
     }
-    let _ = writeln!(s, "");
+    let _ = writeln!(s);
     let _ = writeln!(s, "[[proxies]]");
     let _ = writeln!(s, "name = \"MC_C_{}\"", remote_port);
     let _ = writeln!(s, "type = \"tcp\"");

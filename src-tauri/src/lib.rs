@@ -243,7 +243,7 @@ async fn window_close(window: tauri::WebviewWindow) {
 
     // 自动更新：若已有下载完成的更新包，直接进入"替换+重启"流程（安装脚本会退出进程并重启新版本），
     // 不再播放关闭动画，避免旧进程占用 exe 导致替换失败。
-    if crate::updater::auto_install_on_close(&window.app_handle()) {
+    if crate::updater::auto_install_on_close(window.app_handle()) {
         return;
     }
 
@@ -378,8 +378,8 @@ fn apply_saved_window_state(window: &tauri::WebviewWindow) {
     let remember_size = window_flag_enabled(&store, WINDOW_REMEMBER_SIZE_KEY, true);
     let start_fullscreen = window_flag_enabled(&store, WINDOW_START_FULLSCREEN_KEY, false);
 
-    if remember_size {
-        if let Some(state) = store.get(WINDOW_STATE_KEY) {
+    if remember_size
+        && let Some(state) = store.get(WINDOW_STATE_KEY) {
             let width = state.get("width").and_then(|v| v.as_f64()).unwrap_or(0.0);
             let height = state.get("height").and_then(|v| v.as_f64()).unwrap_or(0.0);
             if width >= MIN_SAVED_WINDOW_WIDTH && height >= MIN_SAVED_WINDOW_HEIGHT {
@@ -393,7 +393,6 @@ fn apply_saved_window_state(window: &tauri::WebviewWindow) {
                 let _ = window.maximize();
             }
         }
-    }
 
     // 启动全屏优先于尺寸记忆：窗口仍隐藏时设置，避免显示后再切换造成闪烁
     if start_fullscreen {
@@ -417,15 +416,14 @@ fn save_window_state(window: &tauri::WebviewWindow) {
     let prev = store.get(WINDOW_STATE_KEY).unwrap_or_else(|| json!({}));
     let mut width = prev.get("width").and_then(|v| v.as_f64()).unwrap_or(0.0);
     let mut height = prev.get("height").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    if !maximized && !fullscreen && !minimized {
-        if let (Ok(size), Ok(scale)) = (window.inner_size(), window.scale_factor()) {
+    if !maximized && !fullscreen && !minimized
+        && let (Ok(size), Ok(scale)) = (window.inner_size(), window.scale_factor()) {
             let logical = size.to_logical::<f64>(scale);
             if logical.width >= MIN_SAVED_WINDOW_WIDTH && logical.height >= MIN_SAVED_WINDOW_HEIGHT {
                 width = logical.width;
                 height = logical.height;
             }
         }
-    }
     let _ = store.set(
         WINDOW_STATE_KEY.into(),
         json!({ "width": width, "height": height, "maximized": maximized }),
@@ -498,18 +496,16 @@ fn get_default_mod_path(
         .to_string();
 
     // 没有选中版本则取 versions 目录下第一个子目录
-    if version_id.is_empty() {
-        if let Ok(entries) = std::fs::read_dir(&versions_dir) {
+    if version_id.is_empty()
+        && let Ok(entries) = std::fs::read_dir(&versions_dir) {
             for entry in entries.flatten() {
-                if entry.path().is_dir() {
-                    if let Some(name) = entry.file_name().to_str() {
+                if entry.path().is_dir()
+                    && let Some(name) = entry.file_name().to_str() {
                         version_id = name.to_string();
                         break;
                     }
-                }
             }
         }
-    }
 
     // 显式传入且为已安装版本目录时，以传入版本为准
     if !requested.is_empty() {
@@ -555,15 +551,14 @@ fn get_default_mod_path(
         // 读取版本设置判断隔离
         let ver_settings_file = versions_dir.join(&version_id).join("version-settings.json");
         let mut effective_isolation: Option<bool> = None;
-        if let Ok(content) = std::fs::read_to_string(&ver_settings_file) {
-            if let Ok(vs) = serde_json::from_str::<Value>(&content) {
+        if let Ok(content) = std::fs::read_to_string(&ver_settings_file)
+            && let Ok(vs) = serde_json::from_str::<Value>(&content) {
                 match vs.get("isolation").and_then(|v| v.as_str()) {
                     Some("on") => effective_isolation = Some(true),
                     Some("off") => effective_isolation = Some(false),
                     _ => {}
                 }
             }
-        }
         if effective_isolation.is_none() {
             effective_isolation = Some(
                 settings
@@ -1067,11 +1062,10 @@ pub fn run() {
                         let win = window.app_handle().get_webview_window("main");
                         tauri::async_runtime::spawn(async move {
                             tokio::time::sleep(std::time::Duration::from_millis(400)).await;
-                            if WINDOW_RESIZE_GEN.load(AtomicOrdering::SeqCst) == seq {
-                                if let Some(win) = win {
+                            if WINDOW_RESIZE_GEN.load(AtomicOrdering::SeqCst) == seq
+                                && let Some(win) = win {
                                     save_window_state(&win);
                                 }
-                            }
                         });
                     }
                     // 系统关闭（Alt+F4 / 任务栏关闭）前记录最终尺寸
@@ -1090,13 +1084,12 @@ pub fn run() {
             }
             // 自动更新：主窗口被系统关闭（Alt+F4 / 任务栏关闭）时，若已有下载完成的更新包，
             // 阻止默认关闭并进入"替换+重启"流程（安装脚本负责退出进程并重启新版本）。
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main"
-                    && crate::updater::auto_install_on_close(&window.app_handle())
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+                    && crate::updater::auto_install_on_close(window.app_handle())
                 {
                     api.prevent_close();
                 }
-            }
         })
         .on_page_load(|_window, _payload| {
             println!("[boot] page_load {}", chrono::Local::now().format("%H:%M:%S%.3f"));

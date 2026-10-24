@@ -169,8 +169,8 @@ pub fn get_mirror_urls(original: &str, download_source: &str) -> Vec<String> {
         return urls;
     }
 
-    if let Some(mirror) = to_mirror_url(original) {
-        if mirror != original {
+    if let Some(mirror) = to_mirror_url(original)
+        && mirror != original {
             if download_source == "china-first" {
                 // 镜像优先，但熔断时跳过
                 if is_mirror_available() {
@@ -181,7 +181,6 @@ pub fn get_mirror_urls(original: &str, download_source: &str) -> Vec<String> {
                 urls.push(mirror);
             }
         }
-    }
 
     // libraries.minecraft.net 额外补 Forge maven 镜像，作为兜底候选
     if original.starts_with("https://libraries.minecraft.net/") {

@@ -93,6 +93,7 @@ pub fn xerr_message(xerr: u64) -> &'static str {
 }
 
 /// 判断是否是速率限制（HTTP 429）
+#[allow(dead_code)]
 pub fn parse_rate_limit_retry_after(retry_after_header: &str) -> u64 {
     retry_after_header
         .parse::<u64>()

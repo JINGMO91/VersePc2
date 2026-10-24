@@ -101,6 +101,7 @@ struct TOKEN_ELEVATION_STRUCT {
 
 // ShellExecuteExW 透传结构（x64 布局）
 #[repr(C)]
+#[allow(clippy::upper_case_acronyms)]
 struct SHELLEXECUTEINFOW {
     cb_size: u32,
     f_mask: u32,

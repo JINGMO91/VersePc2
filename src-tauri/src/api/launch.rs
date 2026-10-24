@@ -19,7 +19,7 @@
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 use tauri::AppHandle;
 
@@ -28,11 +28,11 @@ use crate::launch::{self, dep_check};
 use crate::storage;
 use crate::utils;
 
-use serde::{Deserialize, Serialize};
 
 // ============== 启动/下载会话：launchSessions ==============
 // 支持前端轮询 GET /api/launch/session-status，避免 download-deps HTTP 超时
 #[derive(Default, Clone)]
+#[allow(dead_code)]
 struct LaunchSession {
     status: String,           // downloading / completed / failed / launched / launch_failed
     progress: u32,            // 0~100
@@ -102,11 +102,10 @@ static LAUNCH_LOCK: Mutex<Option<Instant>> = Mutex::new(None);
 
 fn try_acquire_launch_lock() -> bool {
     let mut guard = LAUNCH_LOCK.lock().unwrap();
-    if let Some(t) = *guard {
-        if t.elapsed().as_secs() < 30 {
+    if let Some(t) = *guard
+        && t.elapsed().as_secs() < 30 {
             return false;
         }
-    }
     *guard = Some(Instant::now());
     true
 }
@@ -258,11 +257,10 @@ async fn handle_launch(app: &AppHandle, body: &Option<Value>) -> ApiResult {
     // 前端启动时直接传入的分辨率（如 "1920x1080" 或 "854x480"）优先，
     // 确保用户当前在"启动设置"里选择的窗口大小一定生效，不依赖 store 往返。
     let req_res = utils::get_str(&data, "resolution");
-    if !req_res.is_empty() {
-        if let Some(obj) = settings.as_object_mut() {
+    if !req_res.is_empty()
+        && let Some(obj) = settings.as_object_mut() {
             obj.insert("resolution".to_string(), json!(req_res));
         }
-    }
 
     // 加载账号列表
     let accounts = storage::load_accounts();
@@ -699,9 +697,9 @@ fn apply_launch_settings_overrides(settings: &mut Value) {
         Err(_) => return,
     };
 
-    if let Some(launch_str) = store.get("versepc_launch_settings").and_then(|v| v.as_str()) {
-        if let Ok(ls) = serde_json::from_str::<Value>(launch_str) {
-            if let Some(obj) = settings.as_object_mut() {
+    if let Some(launch_str) = store.get("versepc_launch_settings").and_then(|v| v.as_str())
+        && let Ok(ls) = serde_json::from_str::<Value>(launch_str)
+            && let Some(obj) = settings.as_object_mut() {
                 if let Some(window_size) = ls.get("windowSize").and_then(|v| v.as_str()) {
                     let res = if window_size == "default" {
                         "854x480".to_string()
@@ -713,25 +711,20 @@ fn apply_launch_settings_overrides(settings: &mut Value) {
                 if let Some(fullscreen) = ls.get("fullscreen").and_then(|v| v.as_bool()) {
                     obj.insert("fullscreen".to_string(), json!(fullscreen));
                 }
-                if let Some(custom_info) = ls.get("customInfo").and_then(|v| v.as_str()) {
-                    if !custom_info.is_empty() {
+                if let Some(custom_info) = ls.get("customInfo").and_then(|v| v.as_str())
+                    && !custom_info.is_empty() {
                         obj.insert("customInfo".to_string(), json!(custom_info));
                     }
-                }
-                if let Some(window_title) = ls.get("windowTitle").and_then(|v| v.as_str()) {
-                    if !window_title.is_empty() {
+                if let Some(window_title) = ls.get("windowTitle").and_then(|v| v.as_str())
+                    && !window_title.is_empty() {
                         obj.insert("windowTitle".to_string(), json!(window_title));
                     }
-                }
                 // 全局自定义 JVM 参数：前端存 key 为 jvmArgs，启动参数构建读取 javaArgs，需映射
-                if let Some(jvm_args) = ls.get("jvmArgs").and_then(|v| v.as_str()) {
-                    if !jvm_args.trim().is_empty() {
+                if let Some(jvm_args) = ls.get("jvmArgs").and_then(|v| v.as_str())
+                    && !jvm_args.trim().is_empty() {
                         obj.insert("javaArgs".to_string(), json!(jvm_args));
                     }
-                }
             }
-        }
-    }
 }
 
 /// 应用版本级设置覆盖（customInfo、windowTitle、fullscreen、resolution、memory）
@@ -739,27 +732,23 @@ fn apply_version_settings(settings: &mut Value, version_id: &str) {
     let ver_settings = storage::load_version_settings(version_id, false);
 
     if let Some(obj) = settings.as_object_mut() {
-        if let Some(custom_info) = ver_settings.get("customInfo").and_then(|v| v.as_str()) {
-            if !custom_info.is_empty() {
+        if let Some(custom_info) = ver_settings.get("customInfo").and_then(|v| v.as_str())
+            && !custom_info.is_empty() {
                 obj.insert("customInfo".to_string(), json!(custom_info));
             }
-        }
-        if let Some(window_title) = ver_settings.get("windowTitle").and_then(|v| v.as_str()) {
-            if !window_title.is_empty() {
+        if let Some(window_title) = ver_settings.get("windowTitle").and_then(|v| v.as_str())
+            && !window_title.is_empty() {
                 obj.insert("windowTitle".to_string(), json!(window_title));
             }
-        }
-        if let Some(fullscreen) = ver_settings.get("fullscreen").and_then(|v| v.as_str()) {
-            if fullscreen != "global" {
+        if let Some(fullscreen) = ver_settings.get("fullscreen").and_then(|v| v.as_str())
+            && fullscreen != "global" {
                 let fs = fullscreen == "true" || fullscreen == "on";
                 obj.insert("fullscreen".to_string(), json!(fs));
             }
-        }
-        if let Some(resolution) = ver_settings.get("resolution").and_then(|v| v.as_str()) {
-            if !resolution.is_empty() {
+        if let Some(resolution) = ver_settings.get("resolution").and_then(|v| v.as_str())
+            && !resolution.is_empty() {
                 obj.insert("resolution".to_string(), json!(resolution));
             }
-        }
         // 版本级内存设置优先级最高
         if let Some(memory_mode) = ver_settings.get("memoryMode").and_then(|v| v.as_str()) {
             if memory_mode == "custom" {
@@ -944,9 +933,9 @@ async fn handle_download_deps(app: &AppHandle, body: &Option<Value>) -> ApiResul
                         return;
                     }
                     // 创建父目录
-                    if let Some(parent) = dest.parent() {
-                        if !parent.exists() {
-                            if let Err(e) = std::fs::create_dir_all(parent) {
+                    if let Some(parent) = dest.parent()
+                        && !parent.exists()
+                            && let Err(e) = std::fs::create_dir_all(parent) {
                                 eprintln!("[launch/download-deps] 创建目录失败 {}: {}", parent.display(), e);
                                 let mut st = stats_cur.lock().unwrap();
                                 st.failed += 1;
@@ -954,8 +943,6 @@ async fn handle_download_deps(app: &AppHandle, body: &Option<Value>) -> ApiResul
                                 st.errors.push(format!("创建目录失败: {}", e));
                                 return;
                             }
-                        }
-                    }
                     let sha1 = if file.sha1.is_empty() { None } else { Some(file.sha1.clone()) };
                     let size = if file.size > 0 { Some(file.size) } else { None };
                     match crate::download::download_with_mirror_retry(

@@ -219,11 +219,10 @@ fn validate_folder_name(name: &str, versions_dir: &std::path::Path) -> String {
             if !entry.path().is_dir() {
                 continue;
             }
-            if let Some(fname) = entry.file_name().to_str() {
-                if fname.eq_ignore_ascii_case(name) {
+            if let Some(fname) = entry.file_name().to_str()
+                && fname.eq_ignore_ascii_case(name) {
                     return "不可与现有文件夹重名！".to_string();
                 }
-            }
         }
     }
     String::new()

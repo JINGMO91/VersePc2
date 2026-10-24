@@ -69,12 +69,11 @@ pub fn prepare(raw_files: &[RawLogFile]) -> PreparedLogs {
     }
 
     // 2. 没有 MinecraftLog 时用 ExtraLogFile 顶替
-    if !all_files.contains_key(&FileType::MinecraftLog) {
-        if let Some(extra) = all_files.get(&FileType::ExtraLogFile).copied() {
+    if !all_files.contains_key(&FileType::MinecraftLog)
+        && let Some(extra) = all_files.get(&FileType::ExtraLogFile).copied() {
             all_files.insert(FileType::MinecraftLog, extra);
             all_files.remove(&FileType::ExtraLogFile);
         }
-    }
 
     // 3. 按类型截取
     for (file_type, file) in &all_files {
@@ -95,7 +94,7 @@ pub fn prepare(raw_files: &[RawLogFile]) -> PreparedLogs {
 
                 // 建立文件名 → 文件对象的映射
                 let mut file_name_dict: HashMap<String, &RawLogFile> = HashMap::new();
-                for (_, f) in &all_files {
+                for f in all_files.values() {
                     let name = std::path::Path::new(&f.path)
                         .file_name()
                         .and_then(|n| n.to_str())

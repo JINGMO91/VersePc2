@@ -23,6 +23,7 @@ pub(crate) static REPAIR_SESSIONS: LazyLock<Mutex<HashMap<String, RepairSession>
 
 /// 单个修复会话的状态
 #[derive(Clone)]
+#[allow(dead_code)]
 pub(crate) struct RepairSession {
     version_id: String,
     status: String, // preparing | running | completed | failed | cancelled
@@ -87,13 +88,12 @@ pub(crate) async fn handle_repair(body: &Option<Value>) -> crate::api::ApiResult
         }
 
         let dest = std::path::PathBuf::from(&file.path);
-        if let Some(parent) = dest.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
+        if let Some(parent) = dest.parent()
+            && let Err(e) = std::fs::create_dir_all(parent) {
                 eprintln!("[repair] 创建目录失败 {}: {}", parent.display(), e);
                 missing.push(file.name.clone());
                 continue;
             }
-        }
 
         let sha1 = if file.sha1.is_empty() { None } else { Some(file.sha1.as_str()) };
         let size = if file.size > 0 { Some(file.size) } else { None };
@@ -186,7 +186,7 @@ pub(crate) fn handle_repair_progress(params: &Option<Value>) -> crate::api::ApiR
     use crate::api::ApiResult;
 
     let params = params.as_ref().unwrap_or(&Value::Null);
-    let session_id = utils::get_str(&params, "sessionId");
+    let session_id = utils::get_str(params, "sessionId");
     if session_id.is_empty() {
         return ApiResult::err(400, "Missing sessionId");
     }
@@ -216,7 +216,7 @@ pub(crate) async fn handle_repair_cancel(params: &Option<Value>) -> crate::api::
     use crate::api::ApiResult;
 
     let params = params.as_ref().unwrap_or(&Value::Null);
-    let session_id = utils::get_str(&params, "sessionId");
+    let session_id = utils::get_str(params, "sessionId");
     if session_id.is_empty() {
         return ApiResult::err(400, "Missing sessionId");
     }
@@ -303,12 +303,11 @@ pub(crate) async fn run_repair_session(session_id: &str, version_id: &str, abort
                 if abort_cur.load(Ordering::SeqCst) {
                     return;
                 }
-                if let Some(parent) = dest.parent() {
-                    if let Err(e) = std::fs::create_dir_all(parent) {
+                if let Some(parent) = dest.parent()
+                    && let Err(e) = std::fs::create_dir_all(parent) {
                         eprintln!("[repair] 创建目录失败 {}: {}", parent.display(), e);
                         return;
                     }
-                }
                 let sha1 = if file.sha1.is_empty() { None } else { Some(file.sha1.clone()) };
                 let size = if file.size > 0 { Some(file.size) } else { None };
                 match crate::download::download_with_mirror_retry(

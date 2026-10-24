@@ -103,13 +103,11 @@ pub async fn get_neoforge_versions_for_game(game_version: &str) -> Vec<Value> {
     // 旧方案时，匹配 Forge 版本（如 "1.20.1-47.x"）
     if !is_new_scheme {
         for ver in &all_forge_versions {
-            if ver.starts_with(&format!("{}-", game_version))
-                || ver.starts_with(&format!("{}.", game_version))
-            {
-                if !matched.contains(ver) {
+            if (ver.starts_with(&format!("{}-", game_version))
+                || ver.starts_with(&format!("{}.", game_version)))
+                && !matched.contains(ver) {
                     matched.push(ver.clone());
                 }
-            }
         }
     }
 
@@ -120,12 +118,11 @@ pub async fn get_neoforge_versions_for_game(game_version: &str) -> Vec<Value> {
 
     // 找一个稳定版本（不含 -beta/-alpha）放到第一位作为"推荐"
     let stable_idx = matched.iter().position(|v| !v.contains("-beta") && !v.contains("-alpha"));
-    if let Some(idx) = stable_idx {
-        if idx > 0 {
+    if let Some(idx) = stable_idx
+        && idx > 0 {
             let stable = matched.remove(idx);
             matched.insert(0, stable);
         }
-    }
 
     // 最多 10 条
     matched.truncate(10);
@@ -296,8 +293,8 @@ pub async fn install_neoforge(
             }
         }
 
-        if downloaded_ok {
-            if let Ok(meta) = std::fs::metadata(&installer_path) {
+        if downloaded_ok
+            && let Ok(meta) = std::fs::metadata(&installer_path) {
                 if meta.len() < 64 * 1024 {
                     eprintln!("[NeoForge] installer 文件过小 ({} bytes)", meta.len());
                     let _ = std::fs::remove_file(&installer_path);
@@ -313,7 +310,6 @@ pub async fn install_neoforge(
                     continue;
                 }
             }
-        }
     }
 
     if !installer_ok {
@@ -377,14 +373,13 @@ pub async fn install_neoforge(
     }
 
     for &mirror_round in &rounds {
-        if !mirror_round {
-            if use_mirror {
+        if !mirror_round
+            && use_mirror {
                 if std::fs::copy(&orig_path, &installer_path).is_err() {
                     continue;
                 }
                 eprintln!("[NeoForge] 镜像下载失败，回退官方源重试");
             }
-        }
 
         for (idx, java_path) in java_candidates.iter().enumerate() {
             eprintln!(
@@ -491,7 +486,7 @@ pub async fn install_neoforge(
                     // 匹配规则：
                     // - 名字包含 neo_version（如 "1.21.1-NeoForge-21.1.1" 或 "neoforge-21.1.1"）
                     // - 名字包含 "neoforge"
-                    if name.contains(&neo_version) || name.to_lowercase().contains("neoforge") {
+                    if name.contains(neo_version) || name.to_lowercase().contains("neoforge") {
                         found_id = Some(name.to_string());
                         break;
                     }

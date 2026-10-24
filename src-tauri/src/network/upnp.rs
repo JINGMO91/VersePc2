@@ -54,7 +54,7 @@ ST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n\
         .lines()
         .find_map(|line| {
             if line.to_lowercase().starts_with("location:") {
-                let value = line.splitn(2, ':').nth(1).unwrap_or("");
+                let value = line.split_once(':').map(|x| x.1).unwrap_or("");
                 Some(value.trim().to_string())
             } else {
                 None
@@ -223,7 +223,7 @@ async fn get_wanip_control_url(location: &str) -> Result<String, String> {
 
     // 在 st_pos 附近找 controlURL（注意：实际 XML 中 controlURL 可能在 serviceType 之前，
     // 所以扩大搜索范围到该 service 节点的开头）
-    let search_start = if st_pos > 500 { st_pos - 500 } else { 0 };
+    let search_start = st_pos.saturating_sub(500);
     let search_end = (st_pos + 2000).min(xml.len());
     let search_region = &xml[search_start..search_end];
 

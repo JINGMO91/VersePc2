@@ -59,46 +59,37 @@ fn extract_reply(format: &str, data: &Value) -> String {
     let empty = "(空回复)";
     match format {
         "anthropic" => {
-            if let Some(content) = data.get("content").and_then(|v| v.as_array()) {
-                if let Some(first) = content.first() {
-                    if let Some(text) = first.get("text").and_then(|v| v.as_str()) {
+            if let Some(content) = data.get("content").and_then(|v| v.as_array())
+                && let Some(first) = content.first()
+                    && let Some(text) = first.get("text").and_then(|v| v.as_str()) {
                         return text.to_string();
                     }
-                }
-            }
             empty.to_string()
         }
         "google" => {
-            if let Some(candidates) = data.get("candidates").and_then(|v| v.as_array()) {
-                if let Some(first) = candidates.first() {
-                    if let Some(parts) = first
+            if let Some(candidates) = data.get("candidates").and_then(|v| v.as_array())
+                && let Some(first) = candidates.first()
+                    && let Some(parts) = first
                         .get("content")
                         .and_then(|v| v.get("parts"))
                         .and_then(|v| v.as_array())
-                    {
-                        if let Some(p) = parts.first() {
-                            if let Some(text) = p.get("text").and_then(|v| v.as_str()) {
+                        && let Some(p) = parts.first()
+                            && let Some(text) = p.get("text").and_then(|v| v.as_str()) {
                                 return text.to_string();
                             }
-                        }
-                    }
-                }
-            }
             empty.to_string()
         }
         _ => {
             // openai 格式
-            if let Some(choices) = data.get("choices").and_then(|v| v.as_array()) {
-                if let Some(first) = choices.first() {
-                    if let Some(text) = first
+            if let Some(choices) = data.get("choices").and_then(|v| v.as_array())
+                && let Some(first) = choices.first()
+                    && let Some(text) = first
                         .get("message")
                         .and_then(|v| v.get("content"))
                         .and_then(|v| v.as_str())
                     {
                         return text.to_string();
                     }
-                }
-            }
             empty.to_string()
         }
     }
@@ -217,7 +208,7 @@ pub async fn ai_chat(config: Value) -> Value {
     }
 
     // 构造 URL 与请求头
-    let mut url = String::new();
+    let mut url;
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         reqwest::header::CONTENT_TYPE,
@@ -269,7 +260,7 @@ pub async fn ai_chat(config: Value) -> Value {
     let body = build_body(&format, model, &messages, max_tokens);
 
     let client = match reqwest::Client::builder()
-        .timeout(Duration::from_millis(timeout.min(180_000).max(5_000)))
+        .timeout(Duration::from_millis(timeout.clamp(5_000, 180_000)))
         .danger_accept_invalid_certs(true)
         .build()
     {

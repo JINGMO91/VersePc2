@@ -280,7 +280,7 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                 .and_then(|v| v.as_str());
 
             // 无 path：返回 quickAccess
-            if target_path.is_none() || target_path.unwrap().is_empty() {
+            if target_path.is_none_or(|s| s.is_empty()) {
                 let data_dir = storage::resolve_data_dir();
                 let settings = storage::load_settings();
                 let version_id = utils::get_str(&settings, "selectedVersion");
@@ -316,7 +316,7 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                 return Some(ApiResult::ok(json!({ "success": true, "quickAccess": quick_access })));
             }
 
-            let target_path = target_path.unwrap();
+            let target_path = target_path.unwrap_or_default();
             let path_buf = PathBuf::from(target_path);
 
             // 白名单校验
@@ -469,15 +469,12 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
             } else {
                 data_dir.clone()
             };
-            if !subfolder.is_empty() {
-                if let Some(mods_dir) =
+            if !subfolder.is_empty()
+                && let Some(mods_dir) =
                     crate::api::mods::resolve_mods_dir(&settings, "", "")
-                {
-                    if let Some(game_dir) = mods_dir.parent() {
+                    && let Some(game_dir) = mods_dir.parent() {
                         target = game_dir.join(subfolder);
                     }
-                }
-            }
             let _ = std::fs::create_dir_all(&target);
             Some(ApiResult::ok(json!({
                 "success": true,

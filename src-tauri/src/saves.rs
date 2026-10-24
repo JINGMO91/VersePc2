@@ -73,13 +73,12 @@ pub fn version_list_saves(version_id: String) -> Value {
         let mut last_played: i64 = 0;
         let mut rules: BTreeMap<String, String> = BTreeMap::new();
 
-        if let Some((_, root)) = read_data(&level_dat) {
-            if let Some(data) = nbt::get_compound(&root, "Data") {
-                if let Some(s) = nbt::compound_string(data, "LevelName") {
-                    if !s.is_empty() {
+        if let Some((_, root)) = read_data(&level_dat)
+            && let Some(data) = nbt::get_compound(&root, "Data") {
+                if let Some(s) = nbt::compound_string(data, "LevelName")
+                    && !s.is_empty() {
                         display_name = s;
                     }
-                }
                 if let Some(b) = nbt::compound_byte(data, "Difficulty") {
                     difficulty = b;
                 }
@@ -97,7 +96,6 @@ pub fn version_list_saves(version_id: String) -> Value {
                     }
                 }
             }
-        }
 
         let icon_path = path.join("icon.png");
         let icon = if icon_path.is_file() {
@@ -163,29 +161,26 @@ pub fn version_save_update(
     }
 
     // 修改难度（0 和平 / 1 简单 / 2 普通 / 3 困难）
-    if let Some(d) = difficulty {
-        if (0..=3).contains(&d) {
+    if let Some(d) = difficulty
+        && (0..=3).contains(&d) {
             data.insert("Difficulty".to_string(), nbt::NbtValue::Byte(d as i8));
         }
-    }
 
     // 合并游戏规则（只覆盖传入的键）
-    if let Some(r) = rules {
-        if let Some(obj) = r.as_object() {
+    if let Some(r) = rules
+        && let Some(obj) = r.as_object() {
             let gr = data.entry("GameRules".to_string()).or_insert_with(|| {
                 nbt::NbtValue::Compound(BTreeMap::new())
             });
             if let Some(grmap) = nbt::as_compound_mut(gr) {
                 for (k, v) in obj {
-                    if let Some(s) = v.as_str() {
-                        if !k.is_empty() {
+                    if let Some(s) = v.as_str()
+                        && !k.is_empty() {
                             grmap.insert(k.clone(), nbt::NbtValue::String(s.to_string()));
                         }
-                    }
                 }
             }
         }
-    }
 
     match nbt::write_level_dat(&level_dat, &root_name, &root) {
         Ok(_) => json!({ "success": true }),

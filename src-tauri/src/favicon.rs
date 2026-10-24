@@ -7,10 +7,10 @@ use std::time::Duration;
 
 /// 尝试从指定 URL 获取图标，成功返回 base64 data URL，失败返回 None
 async fn try_fetch_favicon(client: &reqwest::Client, url: &str) -> Option<String> {
-    if let Ok(resp) = client.get(url).send().await {
-        if resp.status().is_success() {
-            if let Ok(bytes) = resp.bytes().await {
-                if !bytes.is_empty() && bytes.len() > 100 {
+    if let Ok(resp) = client.get(url).send().await
+        && resp.status().is_success()
+            && let Ok(bytes) = resp.bytes().await
+                && !bytes.is_empty() && bytes.len() > 100 {
                     let mime = if bytes.len() > 3 && bytes[..3] == [0x47, 0x49, 0x46] {
                         "image/gif"
                     } else if bytes.len() > 2 && bytes[..2] == [0xFF, 0xD8] {
@@ -23,9 +23,6 @@ async fn try_fetch_favicon(client: &reqwest::Client, url: &str) -> Option<String
                         return Some(data_url);
                     }
                 }
-            }
-        }
-    }
     None
 }
 
@@ -69,16 +66,13 @@ pub async fn get_favicon(domain: String) -> serde_json::Value {
 
     // 最后尝试直接拉取域名的 favicon.ico
     let direct_url = format!("https://{}/favicon.ico", domain);
-    if let Ok(resp) = client.get(&direct_url).send().await {
-        if resp.status().is_success() {
-            if let Ok(bytes) = resp.bytes().await {
-                if !bytes.is_empty() {
+    if let Ok(resp) = client.get(&direct_url).send().await
+        && resp.status().is_success()
+            && let Ok(bytes) = resp.bytes().await
+                && !bytes.is_empty() {
                     let data_url = crate::utils::bytes_to_data_url(&bytes, "image/x-icon");
                     return json!({ "data_url": data_url });
                 }
-            }
-        }
-    }
 
     // 全部失败，返回空
     json!({ "data_url": "" })

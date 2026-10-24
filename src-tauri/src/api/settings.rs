@@ -126,8 +126,8 @@ pub fn handle(method: &str, path: &str, _params: &Option<Value>, body: &Option<V
             // 把旧 data 目录注册成外部文件夹（旧版本保留可见）
             {
                 let old_versions_dir = old_data_dir.join("versions");
-                if old_versions_dir.exists() && old_versions_dir.is_dir() {
-                    if let Ok(entries) = std::fs::read_dir(&old_versions_dir) {
+                if old_versions_dir.exists() && old_versions_dir.is_dir()
+                    && let Ok(entries) = std::fs::read_dir(&old_versions_dir) {
                         let has_versions = entries.filter_map(|e| e.ok())
                             .any(|e| e.path().is_dir());
                         if has_versions {
@@ -150,7 +150,6 @@ pub fn handle(method: &str, path: &str, _params: &Option<Value>, body: &Option<V
                             }
                         }
                     }
-                }
             }
 
             Some(ApiResult::ok(json!({

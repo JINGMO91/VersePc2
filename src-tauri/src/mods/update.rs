@@ -138,17 +138,15 @@ pub async fn check_mod_updates(version_id: &str) -> Value {
             MODRINTH_API,
             urlencoding::encode(&serde_json::to_string(&project_ids_unique).unwrap_or_default())
         );
-        if let Ok(resp) = client.get(&projects_url).send().await {
-            if resp.status().is_success() {
-                if let Ok(projects) = resp.json::<Vec<Value>>().await {
+        if let Ok(resp) = client.get(&projects_url).send().await
+            && resp.status().is_success()
+                && let Ok(projects) = resp.json::<Vec<Value>>().await {
                     for p in projects {
                         if let Some(id) = p.get("id").and_then(|i| i.as_str()) {
                             project_map.insert(id.to_string(), p);
                         }
                     }
                 }
-            }
-        }
     }
 
     // 组装更新列表
@@ -274,9 +272,9 @@ pub async fn resolve_project_icons(jar_paths: &[PathBuf]) -> HashMap<String, Str
         urlencoding::encode(&serde_json::to_string(&project_ids).unwrap_or_default())
     );
     let mut icon_by_project: HashMap<String, String> = HashMap::new();
-    if let Ok(resp) = client.get(&projects_url).send().await {
-        if resp.status().is_success() {
-            if let Ok(projects) = resp.json::<Vec<Value>>().await {
+    if let Ok(resp) = client.get(&projects_url).send().await
+        && resp.status().is_success()
+            && let Ok(projects) = resp.json::<Vec<Value>>().await {
                 for p in projects {
                     let id = p.get("id").and_then(|i| i.as_str()).unwrap_or("");
                     let icon = p.get("icon_url").and_then(|i| i.as_str()).unwrap_or("");
@@ -285,8 +283,6 @@ pub async fn resolve_project_icons(jar_paths: &[PathBuf]) -> HashMap<String, Str
                     }
                 }
             }
-        }
-    }
 
     // 组装：sha1 → 项目图标
     for (hash, path) in hash_to_path.iter() {

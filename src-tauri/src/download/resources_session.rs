@@ -185,38 +185,35 @@ pub fn update_session(app: &AppHandle, session_id: &str, updater: impl FnOnce(&m
 /// 仅更新会话状态（不推送事件，用于后台频繁进度更新）
 pub fn update_session_silent(session_id: &str, updater: impl FnOnce(&mut ResourceSession)) {
     let g = SESSIONS.lock().unwrap();
-    if let Some(map) = g.as_ref() {
-        if let Some(session_arc) = map.get(session_id) {
+    if let Some(map) = g.as_ref()
+        && let Some(session_arc) = map.get(session_id) {
             let mut session = session_arc.lock().unwrap();
             updater(&mut session);
         }
-    }
 }
 
 /// 获取会话当前状态
 pub fn get_session_status(session_id: &str) -> Option<Value> {
     let g = SESSIONS.lock().unwrap();
-    if let Some(map) = g.as_ref() {
-        if let Some(session_arc) = map.get(session_id) {
+    if let Some(map) = g.as_ref()
+        && let Some(session_arc) = map.get(session_id) {
             let session = session_arc.lock().unwrap();
             return Some(session.to_json());
         }
-    }
     None
 }
 
 /// 取消会话
 pub fn cancel_session(session_id: &str) -> bool {
     let g = SESSIONS.lock().unwrap();
-    if let Some(map) = g.as_ref() {
-        if let Some(session_arc) = map.get(session_id) {
+    if let Some(map) = g.as_ref()
+        && let Some(session_arc) = map.get(session_id) {
             let mut session = session_arc.lock().unwrap();
             session.cancel_flag.store(true, Ordering::SeqCst);
             session.status = ResourceStage::Cancelled;
             session.message = "已取消".to_string();
             return true;
         }
-    }
     false
 }
 

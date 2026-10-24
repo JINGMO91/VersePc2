@@ -63,6 +63,7 @@ pub fn javac_bin_name() -> &'static str {
 }
 
 /// 可执行文件后缀
+#[allow(dead_code)]
 pub fn exe_suffix() -> &'static str {
     if cfg!(target_os = "windows") {
         ".exe"

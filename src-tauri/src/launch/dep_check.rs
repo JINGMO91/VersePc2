@@ -447,11 +447,10 @@ pub fn check_dependencies(version_id: &str, settings: &Value, external_version_d
 
     for lib in &libraries {
         // rules 筛选
-        if let Some(rules) = lib.get("rules").and_then(|v| v.as_array()) {
-            if !evaluate_rules(rules, false, false) {
+        if let Some(rules) = lib.get("rules").and_then(|v| v.as_array())
+            && !evaluate_rules(rules, false, false) {
                 continue;
             }
-        }
 
         let name = utils::get_str(lib, "name");
 
@@ -471,7 +470,7 @@ pub fn check_dependencies(version_id: &str, settings: &Value, external_version_d
         }
 
         // 新格式 native（classifier 以 natives- 开头）
-        let name_suffix = name.split(':').last().unwrap_or("");
+        let name_suffix = name.split(':').next_back().unwrap_or("");
         let has_natives_field = lib
             .get("natives")
             .and_then(|v| v.as_object())
@@ -502,12 +501,11 @@ pub fn check_dependencies(version_id: &str, settings: &Value, external_version_d
         }
 
         // 旧格式 natives（lib.natives 字典）
-        if has_natives_field {
-            if let Some(missing) = check_legacy_native(lib, &libraries_dir, external_version_dir, &current_platform) {
+        if has_natives_field
+            && let Some(missing) = check_legacy_native(lib, &libraries_dir, external_version_dir, &current_platform) {
                 lib_total += 1;
                 result.natives.missing.push(missing);
             }
-        }
     }
 
     result.libraries.total = lib_total;
@@ -540,14 +538,13 @@ pub fn check_dependencies(version_id: &str, settings: &Value, external_version_d
         let local_index_path = assets_dir.join("indexes").join(format!("{}.json", asset_index_id));
         let mut index_path = local_index_path.clone();
 
-        if !index_path.exists() {
-            if let Some(ext_assets) = &external_assets_dir {
+        if !index_path.exists()
+            && let Some(ext_assets) = &external_assets_dir {
                 let ext_index = ext_assets.join("indexes").join(format!("{}.json", asset_index_id));
                 if ext_index.exists() {
                     index_path = ext_index;
                 }
             }
-        }
 
         if !index_path.exists() {
             result.assets.ok = false;
@@ -580,14 +577,13 @@ pub fn check_dependencies(version_id: &str, settings: &Value, external_version_d
                                 let asset_path = assets_dir.join("objects").join(sub_dir).join(&hash);
 
                                 let mut found = asset_exists_ok(&asset_path, expected_size);
-                                if !found {
-                                    if let Some(ext_assets) = &external_assets_dir {
+                                if !found
+                                    && let Some(ext_assets) = &external_assets_dir {
                                         let ext_asset = ext_assets.join("objects").join(sub_dir).join(&hash);
                                         if asset_exists_ok(&ext_asset, expected_size) {
                                             found = true;
                                         }
                                     }
-                                }
 
                                 if !found {
                                     missing_count += 1;
@@ -707,16 +703,15 @@ pub(crate) fn resolve_version_json(version_id: &str, external_version_dir: Optio
             if p.extension().and_then(|e| e.to_str()) != Some("json") {
                 continue;
             }
-            if let Ok(content) = std::fs::read_to_string(&p) {
-                if content.contains("mainClass")
+            if let Ok(content) = std::fs::read_to_string(&p)
+                && (content.contains("mainClass")
                     || content.contains("libraries")
                     || content.contains("inheritsFrom")
                     || content.contains("minecraftArguments")
-                    || content.contains("arguments")
+                    || content.contains("arguments"))
                 {
                     return Some(p);
                 }
-            }
         }
     }
     None
@@ -738,11 +733,10 @@ pub(crate) fn merge_version_json_chain(
     let mut current: Value = serde_json::from_str(&content).ok()?;
 
     // 先把 id 设对（有些 inheritsFrom 子 JSON 没 id）
-    if current.get("id").is_none() {
-        if let Value::Object(ref mut m) = current {
+    if current.get("id").is_none()
+        && let Value::Object(ref mut m) = current {
             m.insert("id".to_string(), Value::String(version_id.to_string()));
         }
-    }
 
     let inherits_from = utils::get_str(&current, "inheritsFrom");
     if inherits_from.is_empty() {
@@ -820,7 +814,7 @@ pub(crate) fn find_main_jar(version_json: &Value, version_id: &str, external_ver
     };
     let jar_field = utils::get_str(version_json, "jar");
     let inherits_from = utils::get_str(version_json, "inheritsFrom");
-    let jar_name = if !jar_field.is_empty() {
+    let _jar_name = if !jar_field.is_empty() {
         jar_field.clone()
     } else if !inherits_from.is_empty() {
         inherits_from.clone()
@@ -848,11 +842,10 @@ pub(crate) fn find_main_jar(version_json: &Value, version_id: &str, external_ver
             search_paths.push(ext_dir.join(format!("{}.jar", actual_id)));
             let dir_name = ext_dir.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
             search_paths.push(ext_dir.join(format!("{}.jar", dir_name)));
-            if let Some(root) = &external_root {
-                if dir_name != actual_id {
+            if let Some(root) = &external_root
+                && dir_name != actual_id {
                     search_paths.push(root.join("versions").join(&dir_name).join(format!("{}.jar", dir_name)));
                 }
-            }
         }
     }
 
@@ -862,11 +855,10 @@ pub(crate) fn find_main_jar(version_json: &Value, version_id: &str, external_ver
         if let Some(root) = &external_root {
             search_paths.push(root.join("versions").join(&inherits_from).join(format!("{}.jar", inherits_from)));
         }
-        if let Some(ext_dir) = external_version_dir {
-            if let Some(parent) = ext_dir.parent() {
+        if let Some(ext_dir) = external_version_dir
+            && let Some(parent) = ext_dir.parent() {
                 search_paths.push(parent.join(&inherits_from).join(format!("{}.jar", inherits_from)));
             }
-        }
         search_paths.push(versions_dir.join(&inherits_from).join(format!("{}.jar", inherits_from)));
     }
 
@@ -883,8 +875,8 @@ pub(crate) fn find_main_jar(version_json: &Value, version_id: &str, external_ver
                 continue;
             }
             let ver_dir = root.join("versions").join(jar_id);
-            if ver_dir.exists() {
-                if let Ok(entries) = std::fs::read_dir(&ver_dir) {
+            if ver_dir.exists()
+                && let Ok(entries) = std::fs::read_dir(&ver_dir) {
                     for entry in entries.flatten() {
                         let p = entry.path();
                         if p.extension().and_then(|e| e.to_str()) == Some("jar") {
@@ -892,7 +884,6 @@ pub(crate) fn find_main_jar(version_json: &Value, version_id: &str, external_ver
                         }
                     }
                 }
-            }
         }
     }
 
@@ -922,9 +913,9 @@ pub(crate) fn find_main_jar(version_json: &Value, version_id: &str, external_ver
         }
 
         // 读取父版本 JSON，跟随其 jar / inheritsFrom
-        if let Some(json_path) = resolve_version_json(&chain_id, external_version_dir) {
-            if let Ok(content) = std::fs::read_to_string(&json_path) {
-                if let Ok(parent_json) = serde_json::from_str::<Value>(&content) {
+        if let Some(json_path) = resolve_version_json(&chain_id, external_version_dir)
+            && let Ok(content) = std::fs::read_to_string(&json_path)
+                && let Ok(parent_json) = serde_json::from_str::<Value>(&content) {
                     let parent_jar = utils::get_str(&parent_json, "jar");
                     let parent_inherits = utils::get_str(&parent_json, "inheritsFrom");
                     // 若父版本显式声明 jar，则下一层级直接检查该 jar
@@ -943,8 +934,6 @@ pub(crate) fn find_main_jar(version_json: &Value, version_id: &str, external_ver
                     chain_id = parent_inherits;
                     continue;
                 }
-            }
-        }
         break;
     }
 
@@ -980,11 +969,10 @@ pub(crate) fn evaluate_rules(
             if let Some(os_arch) = os.get("arch").and_then(|v| v.as_str()) {
                 rule_matched = rule_matched && os_arch == current_arch;
             }
-            if let Some(os_ver) = os.get("version").and_then(|v| v.as_str()) {
-                if !os_ver.is_empty() {
+            if let Some(os_ver) = os.get("version").and_then(|v| v.as_str())
+                && !os_ver.is_empty() {
                     rule_matched = rule_matched && os_version_matches(os_ver);
                 }
-            }
         }
 
         if let Some(features) = rule.get("features").and_then(|v| v.as_object()) {
@@ -1035,14 +1023,13 @@ pub(crate) fn get_java_version_range_from_json(version_id: &str, version_json: &
     };
 
     // 1. JSON 明确要求的 javaVersion.majorVersion（优先级最高，作为下限）
-    if let Some(jv) = version_json.get("javaVersion") {
-        if let Some(major) = jv.get("majorVersion").and_then(|v| v.as_u64()) {
+    if let Some(jv) = version_json.get("javaVersion")
+        && let Some(major) = jv.get("majorVersion").and_then(|v| v.as_u64()) {
             let major = major as u32;
             if major > 8 {
                 min = min.max(major);
             }
         }
-    }
 
     // 2. 解析基础 MC 版本：优先 inheritsFrom，其次版本 id / version_id
     let inherits_from = utils::get_str(version_json, "inheritsFrom");
@@ -1105,11 +1092,10 @@ pub(crate) fn get_java_version_range_from_json(version_id: &str, version_json: &
 pub(crate) fn extract_mc_version(version_id: &str) -> String {
     for part in version_id.split('-') {
         let segs: Vec<&str> = part.split('.').collect();
-        if segs.len() >= 2 {
-            if segs[0].parse::<u32>().is_ok() && segs[1].parse::<u32>().is_ok() {
+        if segs.len() >= 2
+            && segs[0].parse::<u32>().is_ok() && segs[1].parse::<u32>().is_ok() {
                 return part.to_string();
             }
-        }
     }
     String::new()
 }
@@ -1117,7 +1103,7 @@ pub(crate) fn extract_mc_version(version_id: &str) -> String {
 /// 解析版本号三元组 (major, minor, patch)，缺省为 0
 pub(crate) fn parse_version_triple(version: &str) -> (u32, u32, u32) {
     let parts: Vec<&str> = version.split('.').collect();
-    let major = parts.get(0).and_then(|s| s.parse().ok()).unwrap_or(0);
+    let major = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
     let minor = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
     let patch = parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0);
     (major, minor, patch)
@@ -1143,22 +1129,18 @@ pub(crate) fn select_java_for_version(version_id: &str, settings: &Value, versio
     };
     let ver_settings = storage::load_version_settings(&clean_id, is_external);
     let ver_java = utils::get_str(&ver_settings, "javaPath");
-    if !ver_java.is_empty() {
-        if let Some((_, major)) = inspect_java_version(&ver_java) {
-            if major >= req_min && major <= req_max {
+    if !ver_java.is_empty()
+        && let Some((_, major)) = inspect_java_version(&ver_java)
+            && major >= req_min && major <= req_max {
                 return ver_java;
             }
-        }
-    }
     // 全局设置：指定的 Java 必须满足版本要求，否则回退
     let global_java = utils::get_str(settings, "javaPath");
-    if !global_java.is_empty() {
-        if let Some((_, major)) = inspect_java_version(&global_java) {
-            if major >= req_min && major <= req_max {
+    if !global_java.is_empty()
+        && let Some((_, major)) = inspect_java_version(&global_java)
+            && major >= req_min && major <= req_max {
                 return global_java;
             }
-        }
-    }
     // 检测列表中找满足范围的最高版本 Java
     let java_list = java::detect_all();
     eprintln!(
@@ -1195,7 +1177,7 @@ pub(crate) fn select_java_for_version(version_id: &str, settings: &Value, versio
             break;
         }
         let dist = (mv as i64 - target_major as i64).abs();
-        if nearest.is_none() || dist < nearest.unwrap().1 {
+        if nearest.as_ref().map(|(_, d)| dist < *d).unwrap_or(true) {
             nearest = Some((j, dist));
         }
     }
@@ -1258,14 +1240,12 @@ pub(crate) fn inspect_java_version(java_path: &str) -> Option<(String, u32)> {
     // 解析 version "x.y.z"
     let mut version = String::new();
     for line in combined.lines() {
-        if line.contains("version") {
-            if let Some(start) = line.find('"') {
-                if let Some(end) = line[start + 1..].find('"') {
+        if line.contains("version")
+            && let Some(start) = line.find('"')
+                && let Some(end) = line[start + 1..].find('"') {
                     version = line[start + 1..start + 1 + end].to_string();
                     break;
                 }
-            }
-        }
     }
     if version.is_empty() {
         return None;
@@ -1314,16 +1294,14 @@ fn check_native_lib(
         let p = safe_lib_path(artifact_path, libraries_dir);
         if let Some(p) = p {
             if !p.exists() {
-                if let Some(ext_dir) = external_version_dir {
-                    if let Some(root) = find_external_root(ext_dir) {
+                if let Some(ext_dir) = external_version_dir
+                    && let Some(root) = find_external_root(ext_dir) {
                         let ext_p = safe_lib_path(artifact_path, &root.join("libraries"));
-                        if let Some(ext_p) = ext_p {
-                            if ext_p.exists() {
+                        if let Some(ext_p) = ext_p
+                            && ext_p.exists() {
                                 native_path = Some(ext_p);
                             }
-                        }
                     }
-                }
             } else {
                 native_path = Some(p);
             }
@@ -1337,23 +1315,22 @@ fn check_native_lib(
         let local_path = libraries_dir.join(&group_path).join(parts[1]).join(parts[2]).join(&jar_name);
         if local_path.exists() {
             native_path = Some(local_path);
-        } else if let Some(ext_dir) = external_version_dir {
-            if let Some(root) = find_external_root(ext_dir) {
+        } else if let Some(ext_dir) = external_version_dir
+            && let Some(root) = find_external_root(ext_dir) {
                 let ext_path = root.join("libraries").join(&group_path).join(parts[1]).join(parts[2]).join(&jar_name);
                 if ext_path.exists() {
                     native_path = Some(ext_path);
                 }
             }
-        }
     }
 
     match native_path {
         Some(p) if p.exists() => {
             // 校验 SHA1（如果提供）
             let sha1 = lib.get("downloads").and_then(|v| v.get("artifact")).and_then(|v| v.get("sha1")).and_then(|v| v.as_str()).unwrap_or("");
-            if !sha1.is_empty() {
-                if let Some(actual) = utils::calculate_sha1(&p) {
-                    if actual != sha1 {
+            if !sha1.is_empty()
+                && let Some(actual) = utils::calculate_sha1(&p)
+                    && actual != sha1 {
                         let url = lib.get("downloads").and_then(|v| v.get("artifact")).and_then(|v| v.get("url")).and_then(|v| v.as_str()).unwrap_or("");
                         let size = lib.get("downloads").and_then(|v| v.get("artifact")).and_then(|v| v.get("size")).and_then(|v| v.as_u64()).unwrap_or(0);
                         return Some(MissingFile {
@@ -1367,8 +1344,6 @@ fn check_native_lib(
                             message: String::new(),
                         });
                     }
-                }
-            }
             None
         }
         _ => {
@@ -1423,36 +1398,30 @@ fn check_legacy_native(
         native_key.replace("${arch}", "32")
     };
     let native_download = lib.get("downloads").and_then(|v| v.get("classifiers")).and_then(|v| v.get(&classifier));
-    let native_download = match native_download {
-        Some(d) => d,
-        None => return None,
-    };
+    let native_download = native_download?;
 
     let path_str = utils::get_str(native_download, "path");
     if path_str.is_empty() {
         return None;
     }
     let mut native_path = libraries_dir.join(&path_str);
-    if !native_path.exists() {
-        if let Some(ext_dir) = external_version_dir {
-            if let Some(root) = find_external_root(ext_dir) {
+    if !native_path.exists()
+        && let Some(ext_dir) = external_version_dir
+            && let Some(root) = find_external_root(ext_dir) {
                 let ext_path = root.join("libraries").join(&path_str);
                 if ext_path.exists() {
                     native_path = ext_path;
                 }
             }
-        }
-    }
 
     if native_path.exists() {
         // 校验 SHA1
         let sha1 = utils::get_str(native_download, "sha1");
         if !sha1.is_empty() {
-            if let Some(actual) = utils::calculate_sha1(&native_path) {
-                if actual == sha1 {
+            if let Some(actual) = utils::calculate_sha1(&native_path)
+                && actual == sha1 {
                     return None;
                 }
-            }
         } else {
             return None;
         }
@@ -1494,15 +1463,12 @@ fn check_standard_library(
 
     if !lib_path.exists() {
         // 外部目录回退
-        if let Some(ext_dir) = external_version_dir {
-            if let Some(root) = find_external_root(ext_dir) {
-                if let Some(ext_p) = safe_lib_path(&path_str, &root.join("libraries")) {
-                    if ext_p.exists() {
+        if let Some(ext_dir) = external_version_dir
+            && let Some(root) = find_external_root(ext_dir)
+                && let Some(ext_p) = safe_lib_path(&path_str, &root.join("libraries"))
+                    && ext_p.exists() {
                         lib_path = ext_p;
                     }
-                }
-            }
-        }
     }
 
     let sha1 = utils::get_str(artifact, "sha1");
@@ -1516,11 +1482,10 @@ fn check_standard_library(
 
     if lib_path.exists() {
         if !sha1.is_empty() {
-            if let Some(actual) = utils::calculate_sha1(&lib_path) {
-                if actual == sha1 {
+            if let Some(actual) = utils::calculate_sha1(&lib_path)
+                && actual == sha1 {
                     return;
                 }
-            }
         } else {
             return;
         }
@@ -1590,16 +1555,14 @@ fn check_maven_library(
     };
 
     let mut lib_path = libraries_dir.join(&group_path).join(name_part).join(version).join(&jar_name);
-    if !lib_path.exists() {
-        if let Some(ext_dir) = external_version_dir {
-            if let Some(root) = find_external_root(ext_dir) {
+    if !lib_path.exists()
+        && let Some(ext_dir) = external_version_dir
+            && let Some(root) = find_external_root(ext_dir) {
                 let ext_p = root.join("libraries").join(&group_path).join(name_part).join(version).join(&jar_name);
                 if ext_p.exists() {
                     lib_path = ext_p;
                 }
             }
-        }
-    }
 
     if lib_path.exists() {
         return None;
@@ -1709,8 +1672,8 @@ fn push_missing_main_jar_with_fallback(result: &mut DepCheckResult, version_json
         if !pj_path.exists() {
             break;
         }
-        if let Ok(content) = std::fs::read_to_string(&pj_path) {
-            if let Ok(pj) = serde_json::from_str::<Value>(&content) {
+        if let Ok(content) = std::fs::read_to_string(&pj_path)
+            && let Ok(pj) = serde_json::from_str::<Value>(&content) {
                 if let Some(client) = pj.get("downloads").and_then(|v| v.get("client")) {
                     let url = utils::get_str(client, "url");
                     if !url.is_empty() {
@@ -1725,7 +1688,6 @@ fn push_missing_main_jar_with_fallback(result: &mut DepCheckResult, version_json
                 cur_inherits = utils::get_str(&cur_json, "inheritsFrom");
                 continue;
             }
-        }
         break;
     }
 
@@ -1763,14 +1725,13 @@ fn scan_inherits_forge(version_id: &str, visited: &mut std::collections::HashSet
     if !vj_path.exists() {
         return false;
     }
-    if let Ok(content) = std::fs::read_to_string(&vj_path) {
-        if let Ok(vj) = serde_json::from_str::<Value>(&content) {
+    if let Ok(content) = std::fs::read_to_string(&vj_path)
+        && let Ok(vj) = serde_json::from_str::<Value>(&content) {
             let inherits = utils::get_str(&vj, "inheritsFrom");
             if !inherits.is_empty() && !visited.contains(&inherits) {
                 return scan_inherits_forge(&inherits, visited);
             }
         }
-    }
     false
 }
 
@@ -1871,14 +1832,13 @@ fn check_forge_core(
         let jar_name = format!("{}-{}{}.jar", fp[1], fp[2], cl);
         forge_core_libs.push((name.clone(), find_forge_core_file(&fp, &jar_name), "Forge客户端核心".to_string()));
     }
-    if let Some(lib) = forge_main_lib {
-        if Some(lib) != forge_client_lib {
+    if let Some(lib) = forge_main_lib
+        && Some(lib) != forge_client_lib {
             let name = utils::get_str(lib, "name");
             let fp: Vec<&str> = name.split(':').collect();
             let jar_name = format!("{}-{}.jar", fp[1], fp[2]);
             forge_core_libs.push((name.clone(), find_forge_core_file(&fp, &jar_name), "Forge主核心".to_string()));
         }
-    }
     if let Some(lib) = srg_lib {
         let name = utils::get_str(lib, "name");
         let sp: Vec<&str> = name.split(':').collect();
@@ -1926,24 +1886,22 @@ fn check_forge_core(
         let mut fallback_mc_ver: Option<String> = None;
         let mut fallback_f_ver: Option<String> = None;
 
-        if let Some(fv_idx) = game_args.iter().position(|a| a.as_str() == Some("--fml.forgeVersion")) {
-            if let Some(v) = game_args.get(fv_idx + 1).and_then(|v| v.as_str()) {
+        if let Some(fv_idx) = game_args.iter().position(|a| a.as_str() == Some("--fml.forgeVersion"))
+            && let Some(v) = game_args.get(fv_idx + 1).and_then(|v| v.as_str()) {
                 fallback_f_ver = Some(v.to_string());
             }
-        }
-        if let Some(mv_idx) = game_args.iter().position(|a| a.as_str() == Some("--fml.mcVersion")) {
-            if let Some(v) = game_args.get(mv_idx + 1).and_then(|v| v.as_str()) {
+        if let Some(mv_idx) = game_args.iter().position(|a| a.as_str() == Some("--fml.mcVersion"))
+            && let Some(v) = game_args.get(mv_idx + 1).and_then(|v| v.as_str()) {
                 fallback_mc_ver = Some(v.to_string());
             }
-        }
         if fallback_mc_ver.is_none() {
             let cv = utils::get_str(version_json, "clientVersion");
             if !cv.is_empty() {
                 fallback_mc_ver = Some(cv);
             }
         }
-        if fallback_f_ver.is_none() || fallback_mc_ver.is_none() {
-            if let Some(fml_lib) = forge_libs.iter().find(|l| {
+        if (fallback_f_ver.is_none() || fallback_mc_ver.is_none())
+            && let Some(fml_lib) = forge_libs.iter().find(|l| {
                 let name = utils::get_str(l, "name");
                 name.starts_with("net.minecraftforge:fmlloader:") || name.starts_with("net.minecraftforge:forge:")
             }) {
@@ -1951,8 +1909,8 @@ fn check_forge_core(
                 let parts: Vec<&str> = fml_name.split(':').collect();
                 if parts.len() >= 3 {
                     let ver_part = parts[2];
-                    if let Some(dash_idx) = ver_part.rfind('-') {
-                        if dash_idx > 0 {
+                    if let Some(dash_idx) = ver_part.rfind('-')
+                        && dash_idx > 0 {
                             if fallback_mc_ver.is_none() {
                                 fallback_mc_ver = Some(ver_part[..dash_idx].to_string());
                             }
@@ -1960,20 +1918,17 @@ fn check_forge_core(
                                 fallback_f_ver = Some(ver_part[dash_idx + 1..].to_string());
                             }
                         }
-                    }
                 }
             }
-        }
 
         if fallback_mc_ver.is_none() || fallback_f_ver.is_none() {
             // 正则匹配版本 ID
             if let Some(m) = regex_match_forge_version(version_id) {
                 forge_ver_match = Some(m);
-            } else if !inherits_from_field(version_json).is_empty() {
-                if let Some(m) = regex_match_forge_version(&inherits_from_field(version_json)) {
+            } else if !inherits_from_field(version_json).is_empty()
+                && let Some(m) = regex_match_forge_version(&inherits_from_field(version_json)) {
                     forge_ver_match = Some(m);
                 }
-            }
         }
 
         let mc_ver = fallback_mc_ver.clone().or_else(|| forge_ver_match.as_ref().map(|m| m.0.clone()));
@@ -2078,8 +2033,8 @@ fn check_forge_core(
 
                     let client_base_dir = libraries_dir.join("net").join("minecraft").join("client");
                     let mut mcp_dir_name: Option<String> = None;
-                    if client_base_dir.exists() {
-                        if let Ok(entries) = std::fs::read_dir(&client_base_dir) {
+                    if client_base_dir.exists()
+                        && let Ok(entries) = std::fs::read_dir(&client_base_dir) {
                             for entry in entries.flatten() {
                                 let d = entry.file_name().to_string_lossy().to_string();
                                 if d.starts_with(&format!("{}-", mc_ver)) && entry.path().is_dir() {
@@ -2088,7 +2043,6 @@ fn check_forge_core(
                                 }
                             }
                         }
-                    }
                     if let Some(mcp) = mcp_dir_name {
                         let srg_path = client_base_dir.join(&mcp).join(format!("client-{}-srg.jar", mcp));
                         let extra_path = client_base_dir.join(&mcp).join(format!("client-{}-extra.jar", mcp));
@@ -2240,18 +2194,15 @@ fn check_mrpack_mods(version_id: &str, external_version_dir: Option<&Path>, resu
                     need_recheck = true;
                 }
             }
-            if !need_recheck && dest_path.extension().and_then(|e| e.to_str()) == Some("jar") {
-                if !utils::is_jar_intact(&dest_path) {
+            if !need_recheck && dest_path.extension().and_then(|e| e.to_str()) == Some("jar")
+                && !utils::is_jar_intact(&dest_path) {
                     need_recheck = true;
                 }
-            }
-            if !need_recheck && !expected_sha1.is_empty() {
-                if let Some(actual) = utils::calculate_sha1(&dest_path) {
-                    if actual != expected_sha1 {
+            if !need_recheck && !expected_sha1.is_empty()
+                && let Some(actual) = utils::calculate_sha1(&dest_path)
+                    && actual != expected_sha1 {
                         need_recheck = true;
                     }
-                }
-            }
         }
 
         if need_recheck {

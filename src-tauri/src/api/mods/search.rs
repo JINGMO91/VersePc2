@@ -1,18 +1,15 @@
 // api/mods/search.rs — 模组列表、图标、分类、推荐与双源搜索
-use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 use std::time::Duration;
 
 use serde_json::{json, Value};
-use tauri::AppHandle;
 
 use crate::api::ApiResult;
-use crate::download::{download_with_mirror, download_with_mirror_cancellable, resources_session};
 use crate::mods;
 use crate::resource::wiki;
 use crate::storage;
 
-use super::{MODRINTH_API, CURSEFORGE_API, DEFAULT_CF_API_KEY, MAX_DEPENDENCY_DEPTH, MODRINTH_BUNDLED_DEPS, CURSEFORGE_BUNDLED_DEPS};
+use super::{MODRINTH_API, CURSEFORGE_API, DEFAULT_CF_API_KEY};
 
 /// GET /api/mods — 已安装模组列表
 pub(crate) async fn handle_list() -> ApiResult {
@@ -149,11 +146,10 @@ pub(crate) async fn enrich_online_icons(mods: &mut Value) {
     }
     for m in arr.iter_mut() {
         let jp = m.get("_jarPath").and_then(|v| v.as_str()).unwrap_or("");
-        if let Some(icon) = icon_by_path.get(jp) {
-            if let Some(obj) = m.as_object_mut() {
+        if let Some(icon) = icon_by_path.get(jp)
+            && let Some(obj) = m.as_object_mut() {
                 obj.insert("icon".to_string(), Value::String(icon.clone()));
             }
-        }
     }
 }
 
@@ -332,19 +328,15 @@ pub(crate) async fn handle_search(params: &Option<Value>) -> ApiResult {
         source == "any" || source == "curseforge",
         source == "any" || source == "modrinth",
     );
-    match &plan_debug {
-        Ok(plan) => {
-            if plan.is_chinese {
-                if let Some(alt) = &plan.cf_alt {
-                    cf_query = alt.clone();
-                }
-                if let Some(alt) = &plan.mr_alt {
-                    mr_query = alt.clone();
-                }
+    if let Ok(plan) = &plan_debug
+        && plan.is_chinese {
+            if let Some(alt) = &plan.cf_alt {
+                cf_query = alt.clone();
+            }
+            if let Some(alt) = &plan.mr_alt {
+                mr_query = alt.clone();
             }
         }
-        Err(_) => {}
-    }
 
     // 1.14 以下的 Forge 搜索忽略加载器筛选：
     // 老模组经常没有写 Forge 标记，强制过滤会导致搜不到。
@@ -358,7 +350,7 @@ pub(crate) async fn handle_search(params: &Option<Value>) -> ApiResult {
     };
 
     let mut all_hits: Vec<Value> = Vec::new();
-    let mut total_hits: u64 = 0;
+    let total_hits: u64;
 
     // 双源混合时不能各自只取 limit 条再合并，否则第二页会缺结果、顺序也会漂移。
     // 与 PCL CE 一致：固定取回一批候选（CurseForge pageSize 上限 50），合并排序后再切片分页。
@@ -368,20 +360,18 @@ pub(crate) async fn handle_search(params: &Option<Value>) -> ApiResult {
     let mut cf_total: u64 = 0;
 
     // Modrinth 源
-    if source == "any" || source == "modrinth" {
-        if let Ok((hits, total)) = search_modrinth_mods(&client, &mr_query, &search_loader, &mc_version, &category, &sort, fetch_limit, fetch_offset).await {
+    if (source == "any" || source == "modrinth")
+        && let Ok((hits, total)) = search_modrinth_mods(&client, &mr_query, &search_loader, &mc_version, &category, &sort, fetch_limit, fetch_offset).await {
             all_hits.extend(hits);
             mr_total = total;
         }
-    }
 
     // CurseForge 源
-    if source == "any" || source == "curseforge" {
-        if let Ok((hits, total)) = search_curseforge_mods(&client, &cf_query, &search_loader, &mc_version, &sort, fetch_limit, fetch_offset).await {
+    if (source == "any" || source == "curseforge")
+        && let Ok((hits, total)) = search_curseforge_mods(&client, &cf_query, &search_loader, &mc_version, &sort, fetch_limit, fetch_offset).await {
             all_hits.extend(hits);
             cf_total = total;
         }
-    }
 
     if source == "any" {
         // 双源混合时按下载量排序，再按当前页切片。
@@ -427,6 +417,7 @@ pub(crate) async fn handle_search(params: &Option<Value>) -> ApiResult {
 }
 
 /// Modrinth 搜索模组
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn search_modrinth_mods(
     client: &reqwest::Client,
     query: &str,

@@ -32,7 +32,7 @@ pub fn name_to_version(name: &str) -> (i32, i32, i32) {
         return name_to_version("26.1.1");
     }
 
-    let segs: Vec<&str> = n.split(|c: char| c == ' ' || c == '_' || c == '-' || c == '.').collect();
+    let segs: Vec<&str> = n.split([' ', '_', '-', '.']).collect();
     let num = |s: &str| s.parse::<i32>().unwrap_or(0);
 
     if n.starts_with("1.") {
@@ -45,7 +45,7 @@ pub fn name_to_version(name: &str) -> (i32, i32, i32) {
     if b.len() >= 3 {
         let c0 = b[0];
         if (2..=9).contains(&(c0 - b'0')) && b[1].is_ascii_digit() && b[2] == b'.' {
-            let major = (segs.get(0).map(|s| num(s)).unwrap_or(0));
+            let major = segs.first().map(|s| num(s)).unwrap_or(0);
             let minor = if segs.len() >= 2 { num(segs[1]) } else { 0 };
             let build = if segs.len() >= 3 { num(segs[2]) } else { 0 };
             return (major, minor, build);
@@ -64,12 +64,13 @@ pub fn version_to_drop(name: &str) -> i32 {
     }
 }
 
+#[allow(dead_code)]
 pub fn is_format_fit(version: &str) -> bool {
     if version.is_empty() {
         return false;
     }
     let b = version.as_bytes();
-    if b.len() >= 2 && b[0] == b'1' && b[1] == b'.' && b.get(2).map_or(false, |c| c.is_ascii_digit()) {
+    if b.len() >= 2 && b[0] == b'1' && b[1] == b'.' && b.get(2).is_some_and(|c| c.is_ascii_digit()) {
         return true;
     }
     if b.len() >= 3 && (2..=9).contains(&(b[0] - b'0')) && b[1].is_ascii_digit() && b[2] == b'.' {
@@ -117,7 +118,7 @@ pub fn version_prefix_match(file_version: &str, instance_vanilla: &str) -> bool 
         fn num(x: &str) -> i32 {
             x.trim_end_matches(|c: char| !c.is_ascii_digit()).parse::<i32>().unwrap_or(0)
         }
-        (num(p.get(0).unwrap_or(&"")), p.get(1).map(|x| num(x)).unwrap_or(0))
+        (num(p.first().unwrap_or(&"")), p.get(1).map(|x| num(x)).unwrap_or(0))
     }
     let (fm, fmi) = seg(file_version);
     let (im, imi) = seg(instance_vanilla);

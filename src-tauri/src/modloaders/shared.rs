@@ -9,6 +9,9 @@
 use serde_json::{json, Value};
 use std::time::Duration;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 /// 共享 HTTP 客户端（懒加载）
 static HTTP_CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
 
@@ -197,9 +200,7 @@ use std::path::{Path, PathBuf};
 pub fn file_log(s: &str) {
     eprintln!("{}", s);
     use std::io::Write;
-    if let Ok(dir) = std::fs::create_dir_all(data_dir().join("logs")) {
-        let _ = dir;
-    }
+    let _ = std::fs::create_dir_all(data_dir().join("logs"));
     let path = data_dir().join("logs").join("loader-install.log");
     let line = format!(
         "[{}] {}",
@@ -278,34 +279,29 @@ pub fn extract_installer_version_json(
         let mut ip_obj: Option<Value> = None;
         if let Ok(mut ip_entry) = archive.by_name("install_profile.json") {
             let mut ip_str = String::new();
-            if ip_entry.read_to_string(&mut ip_str).is_ok() {
-                if let Ok(ip) = serde_json::from_str::<Value>(&ip_str) {
+            if ip_entry.read_to_string(&mut ip_str).is_ok()
+                && let Ok(ip) = serde_json::from_str::<Value>(&ip_str) {
                     ip_obj = Some(ip.clone());
                     rel = jstr(&ip, "json").trim_start_matches('/').to_string();
                     file_log(&format!("[extract] install_profile.json 的 json 字段指向: {}", rel));
                 }
-            }
         }
-        if !rel.is_empty() {
-            if let Ok(mut entry2) = archive.by_name(&rel) {
+        if !rel.is_empty()
+            && let Ok(mut entry2) = archive.by_name(&rel) {
                 let mut buf = String::new();
-                if entry2.read_to_string(&mut buf).is_ok() {
-                    if let Ok(v) = serde_json::from_str::<Value>(&buf) {
+                if entry2.read_to_string(&mut buf).is_ok()
+                    && let Ok(v) = serde_json::from_str::<Value>(&buf) {
                         file_log(&format!("[extract] 从 install_profile.json 的 json 路径读取成功: {}", rel));
                         version_json = Some(v);
                     }
-                }
             }
-        }
         // 兜底 B：新版 Forge/NeoForge 把版本 JSON 直接内嵌在 install_profile.json 的 versionInfo 字段
-        if version_json.is_none() {
-            if let Some(ip) = ip_obj {
-                if let Some(vi) = ip.get("versionInfo") {
+        if version_json.is_none()
+            && let Some(ip) = ip_obj
+                && let Some(vi) = ip.get("versionInfo") {
                     file_log("[extract] 从 install_profile.json 的 versionInfo 字段读取");
                     version_json = Some(vi.clone());
                 }
-            }
-        }
     }
 
     if let Some(mut vj) = version_json {
@@ -352,20 +348,17 @@ pub fn ensure_launcher_profile(game_version: &str) {
         "selectedProfile": game_version,
         "clientToken": format!("versepc-{}", std::process::id()),
     });
-    if let Ok(content) = serde_json::to_string_pretty(&profile) {
-        if let Ok(mut f) = std::fs::File::create(&path) {
+    if let Ok(content) = serde_json::to_string_pretty(&profile)
+        && let Ok(mut f) = std::fs::File::create(&path) {
             let _ = writeln!(f, "{}", content);
         }
-    }
 }
 
 /// 把加载器安装器的完整 stdout/stderr 写入 logs 目录下的独立文件
 /// 便于在不截断的情况下查看安装器真实的失败原因
 pub fn dump_installer_output(name: &str, stdout: &str, stderr: &str) {
     use std::io::Write;
-    if let Ok(dir) = std::fs::create_dir_all(data_dir().join("logs")) {
-        let _ = dir;
-    }
+    let _ = std::fs::create_dir_all(data_dir().join("logs"));
     let path = data_dir().join("logs").join(name);
     let content = format!(
         "===== STDOUT =====\n{}\n===== STDERR =====\n{}\n",
@@ -409,11 +402,10 @@ pub fn read_version_json(version_id: &str) -> Option<Value> {
 /// 写入版本 JSON
 pub fn write_version_json(version_id: &str, json: &Value) -> bool {
     let dir = versions_dir().join(version_id);
-    if !dir.exists() {
-        if std::fs::create_dir_all(&dir).is_err() {
+    if !dir.exists()
+        && std::fs::create_dir_all(&dir).is_err() {
             return false;
         }
-    }
     let path = dir.join(format!("{}.json", version_id));
     let content = serde_json::to_string_pretty(json).unwrap_or_default();
     std::fs::write(&path, content).is_ok()
@@ -452,14 +444,13 @@ pub fn normalize_version_dir(
         let new_json = target_dir.join(format!("{}.json", target_id));
         let _ = std::fs::rename(&old_json, &new_json);
         // 更新 JSON 内的 id 字段
-        if let Ok(content) = std::fs::read_to_string(&new_json) {
-            if let Ok(mut json) = serde_json::from_str::<Value>(&content) {
+        if let Ok(content) = std::fs::read_to_string(&new_json)
+            && let Ok(mut json) = serde_json::from_str::<Value>(&content) {
                 if let Some(obj) = json.as_object_mut() {
                     obj.insert("id".to_string(), serde_json::json!(target_id));
                 }
                 let _ = std::fs::write(&new_json, serde_json::to_string_pretty(&json).unwrap_or_default());
             }
-        }
     } else {
         file_log(&format!(
             "[version] 版本目录规范化失败: {} -> {}",
@@ -555,6 +546,7 @@ pub async fn download_libraries_concurrent(
 }
 
 /// 判断 JAR 文件是否完整（大小 > 1KB）
+#[allow(dead_code)]
 pub fn is_jar_intact(path: &Path) -> bool {
     if !path.exists() {
         return false;
@@ -576,6 +568,7 @@ use crate::storage;
 /// 1. settings.json 中的 javaPath
 /// 2. 系统扫描的 Java 列表中第一个 major >= 8 的
 /// 3. 系统 PATH 中的 java
+#[allow(dead_code)]
 pub fn find_java_for_install(min_major: u32) -> Option<std::path::PathBuf> {
     // 1. settings.javaPath
     let settings = storage::load_settings();
@@ -583,11 +576,10 @@ pub fn find_java_for_install(min_major: u32) -> Option<std::path::PathBuf> {
     if !java_path.is_empty() {
         let p = std::path::PathBuf::from(&java_path);
         if p.exists() {
-            if let Some(major) = inspect_java_major(&p) {
-                if major >= min_major {
+            if let Some(major) = inspect_java_major(&p)
+                && major >= min_major {
                     return Some(p);
                 }
-            }
             // 即使版本检测失败也允许使用（兜底）
             return Some(p);
         }
@@ -629,10 +621,10 @@ pub fn find_java_for_install(min_major: u32) -> Option<std::path::PathBuf> {
 }
 
 /// 检测 Java 主版本号（执行 java -version）
+#[allow(dead_code)]
 fn inspect_java_major(java_path: &Path) -> Option<u32> {
     #[cfg(target_os = "windows")]
     let mut cmd = {
-        use std::os::windows::process::CommandExt;
         let mut c = std::process::Command::new(java_path);
         c.arg("-version");
         c.creation_flags(0x08000000);
@@ -804,9 +796,9 @@ pub async fn ensure_base_version_installed(
     let base_jar_path = base_dir.join(format!("{}.jar", game_version));
 
     // 1. 已存在版本 JSON 时，校验 client.jar 是否完整（带 SHA1 就校验，无 SHA1 视为通过）
-    if base_json_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&base_json_path) {
-            if let Ok(json) = serde_json::from_str::<Value>(&content) {
+    if base_json_path.exists()
+        && let Ok(content) = std::fs::read_to_string(&base_json_path)
+            && let Ok(json) = serde_json::from_str::<Value>(&content) {
                 let sha1 = json.pointer("/downloads/client/sha1").and_then(|v| v.as_str()).unwrap_or("");
                 let jar_ok = if base_jar_path.exists() {
                     if sha1.is_empty() {
@@ -826,13 +818,11 @@ pub async fn ensure_base_version_installed(
                 }
                 file_log(&format!("[base] {} JAR 缺失或损坏，重新下载", game_version));
             }
-        }
-    }
 
     // 2. 开始自动安装
     report(5, "获取版本清单...".to_string());
     let manifest = crate::versions::fetch_remote_manifest(false)
-        .ok_or_else(|| format!("无法获取版本清单，请检查网络后重试"))?;
+        .ok_or_else(|| "无法获取版本清单，请检查网络后重试".to_string())?;
     let version_info = manifest
         .get("versions")
         .and_then(|v| v.as_array())
@@ -894,9 +884,8 @@ pub async fn ensure_base_version_installed(
 /// 结果删除 inheritsFrom 与 jar，自含原版全部内容与加载器内容，id 替换为目标版本名。
 fn merge_version_json(vanilla: &Value, loader: &Value, output_id: &str) -> Value {
     let mut out = vanilla.clone();
-    let vanilla = vanilla; // 复用原始引用
 
-    let vanilla_libs: Vec<Value> = vanilla
+    let _vanilla_libs: Vec<Value> = vanilla
         .get("libraries")
         .and_then(|v| v.as_array())
         .cloned()
@@ -947,8 +936,8 @@ fn merge_version_json(vanilla: &Value, loader: &Value, output_id: &str) -> Value
         loader.get("arguments").and_then(|v| v.as_object()),
     ) {
         for (k, v) in ld_args {
-            if let Some(ld_arr) = v.as_array() {
-                if k == "game" || k == "jvm" {
+            if let Some(ld_arr) = v.as_array()
+                && (k == "game" || k == "jvm") {
                     let existing = out_args
                         .get(k)
                         .and_then(|e| e.as_array())
@@ -971,7 +960,6 @@ fn merge_version_json(vanilla: &Value, loader: &Value, output_id: &str) -> Value
                     }
                     out_args.insert(k.clone(), json!(merged));
                 }
-            }
         }
     }
 
@@ -1016,7 +1004,7 @@ pub async fn install_merged_loader(
     // 1. 拉取原版版本清单，找到详情地址
     report(5, "获取版本清单...".to_string());
     let manifest = crate::versions::fetch_remote_manifest(false)
-        .ok_or_else(|| format!("无法获取版本清单，请检查网络后重试"))?;
+        .ok_or_else(|| "无法获取版本清单，请检查网络后重试".to_string())?;
     let version_info = manifest
         .get("versions")
         .and_then(|v| v.as_array())
@@ -1102,14 +1090,12 @@ pub fn cleanup_orphan_vanilla(game_version: &str) {
                 Ok(c) => c,
                 Err(_) => continue,
             };
-            if content.contains("\"inheritsFrom\"") || content.contains("\"jar\"") {
-                if let Ok(v) = serde_json::from_str::<Value>(&content) {
-                    if jstr(&v, "inheritsFrom") == game_version || jstr(&v, "jar") == game_version {
+            if (content.contains("\"inheritsFrom\"") || content.contains("\"jar\""))
+                && let Ok(v) = serde_json::from_str::<Value>(&content)
+                    && (jstr(&v, "inheritsFrom") == game_version || jstr(&v, "jar") == game_version) {
                         referenced = true;
                         break;
                     }
-                }
-            }
         }
     }
     if referenced {
@@ -1150,8 +1136,8 @@ pub fn verify_zip_magic(path: &Path) -> bool {
 /// 拼接两个路径部分（处理分隔符）
 #[allow(dead_code)]
 pub fn join_paths(base: &str, relative: &str) -> String {
-    let base = base.trim_end_matches(|c| c == '/' || c == '\\');
-    let relative = relative.trim_start_matches(|c| c == '/' || c == '\\');
+    let base = base.trim_end_matches(['/', '\\']);
+    let relative = relative.trim_start_matches(['/', '\\']);
     format!("{}/{}", base, relative)
 }
 
@@ -1209,9 +1195,8 @@ pub async fn run_subprocess_with_timeout(
             if let Some(pid) = id {
                 #[cfg(target_os = "windows")]
                 {
-                    use std::os::windows::process::CommandExt;
                     let _ = std::process::Command::new("taskkill")
-                        .args(&["/F", "/T", "/PID"])
+                        .args(["/F", "/T", "/PID"])
                         .arg(pid.to_string())
                         .creation_flags(0x08000000)
                         .spawn();
@@ -1240,16 +1225,14 @@ pub async fn run_subprocess_with_timeout(
 /// # 返回
 /// Ok(()) 表示下载成功；Err(String) 表示失败
 pub async fn download_with_curl(url: &str, dest: &Path, timeout_secs: u64) -> Result<(), String> {
-    if let Some(parent) = dest.parent() {
-        if std::fs::create_dir_all(parent).is_err() {
+    if let Some(parent) = dest.parent()
+        && std::fs::create_dir_all(parent).is_err() {
             return Err("无法创建目录".to_string());
         }
-    }
     let _ = std::fs::remove_file(dest);
 
     #[cfg(target_os = "windows")]
     let mut cmd = {
-        use std::os::windows::process::CommandExt;
         let mut c = tokio::process::Command::new("curl.exe");
         c.creation_flags(0x08000000);
         c

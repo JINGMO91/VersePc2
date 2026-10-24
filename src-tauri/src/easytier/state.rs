@@ -119,7 +119,7 @@ fn init_status() {
 pub fn get_status() -> Value {
     init_status();
     let g = STATUS.lock().unwrap();
-    g.as_ref().unwrap().to_json()
+    g.as_ref().map(|s| s.to_json()).unwrap_or(Value::Null)
 }
 
 /// 是否正在运行（供后台轮询判断是否需要退出）

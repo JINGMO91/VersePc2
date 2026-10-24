@@ -1,18 +1,12 @@
 // api/mods/manage.rs — 模组启停、删除、更新与文件对话框
-use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
-use std::time::Duration;
 
 use serde_json::{json, Value};
-use tauri::AppHandle;
 
 use crate::api::ApiResult;
-use crate::download::{download_with_mirror, download_with_mirror_cancellable, resources_session};
 use crate::mods;
-use crate::resource::wiki;
 use crate::storage;
 
-use super::{MODRINTH_API, CURSEFORGE_API, DEFAULT_CF_API_KEY, MAX_DEPENDENCY_DEPTH, MODRINTH_BUNDLED_DEPS, CURSEFORGE_BUNDLED_DEPS};
 use super::project::resolve_mods_dir;
 
 /// POST /api/mods/toggle — 启用/禁用模组
@@ -53,17 +47,15 @@ pub(crate) fn handle_toggle(body: &Option<Value>) -> ApiResult {
     let disabled_path = mods_path.join(format!("{}.disabled", base_name));
 
     if enabled {
-        if disabled_path.exists() {
-            if let Err(e) = std::fs::rename(&disabled_path, &clean_path) {
+        if disabled_path.exists()
+            && let Err(e) = std::fs::rename(&disabled_path, &clean_path) {
                 return ApiResult::err(500, &format!("文件操作失败: {}", e));
             }
-        }
     } else {
-        if clean_path.exists() {
-            if let Err(e) = std::fs::rename(&clean_path, &disabled_path) {
+        if clean_path.exists()
+            && let Err(e) = std::fs::rename(&clean_path, &disabled_path) {
                 return ApiResult::err(500, &format!("文件操作失败: {}", e));
             }
-        }
     }
 
     ApiResult::ok(json!({ "success": true, "enabled": enabled }))
@@ -97,7 +89,7 @@ pub(crate) fn handle_delete(body: &Option<Value>) -> ApiResult {
             .and_then(|v| v.as_str())
             .filter(|s| !s.is_empty())
             .map(PathBuf::from)
-            .unwrap_or_else(|| storage::resolve_data_dir());
+            .unwrap_or_else(storage::resolve_data_dir);
         let shared_mods = game_dir.join("mods");
         if !search_dirs.contains(&shared_mods) {
             search_dirs.push(shared_mods);
@@ -120,11 +112,10 @@ pub(crate) fn handle_delete(body: &Option<Value>) -> ApiResult {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
                 let base = name.to_lowercase().replace(".disabled", "");
-                if base.contains(&mod_id_lower) {
-                    if std::fs::remove_file(entry.path()).is_ok() {
+                if base.contains(&mod_id_lower)
+                    && std::fs::remove_file(entry.path()).is_ok() {
                         deleted_count += 1;
                     }
-                }
             }
         }
     }
@@ -225,11 +216,10 @@ pub(crate) fn handle_remove(body: &Option<Value>) -> ApiResult {
         return ApiResult::err(400, "Invalid path");
     }
 
-    if rm_path.exists() {
-        if let Err(e) = std::fs::remove_file(&rm_path) {
+    if rm_path.exists()
+        && let Err(e) = std::fs::remove_file(&rm_path) {
             return ApiResult::ok(json!({ "success": false, "error": e.to_string() }));
         }
-    }
 
     ApiResult::ok(json!({ "success": true }))
 }

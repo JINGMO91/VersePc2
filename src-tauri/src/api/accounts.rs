@@ -273,8 +273,7 @@ async fn handle_thirdparty_login(body: &Option<Value>) -> ApiResult {
 
     let available_profiles: Vec<Value> = auth_result
         .get("availableProfiles")
-        .and_then(|v| v.as_array())
-        .map(|arr| arr.clone())
+        .and_then(|v| v.as_array()).cloned()
         .unwrap_or_default();
 
     // 没有角色
@@ -531,11 +530,11 @@ fn extract_skin_url_from_auth_result(auth_result: &Value) -> Option<String> {
     for properties in sources.iter().flatten() {
         if let Some(arr) = properties.as_array() {
             for prop in arr {
-                if prop.get("name").and_then(|v| v.as_str()) == Some("textures") {
-                    if let Some(value) = prop.get("value").and_then(|v| v.as_str()) {
-                        if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(value) {
-                            if let Ok(decoded_json) = serde_json::from_slice::<Value>(&decoded) {
-                                if let Some(url) = decoded_json
+                if prop.get("name").and_then(|v| v.as_str()) == Some("textures")
+                    && let Some(value) = prop.get("value").and_then(|v| v.as_str())
+                        && let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(value)
+                            && let Ok(decoded_json) = serde_json::from_slice::<Value>(&decoded)
+                                && let Some(url) = decoded_json
                                     .get("textures")
                                     .and_then(|t| t.get("SKIN"))
                                     .and_then(|s| s.get("url"))
@@ -543,10 +542,6 @@ fn extract_skin_url_from_auth_result(auth_result: &Value) -> Option<String> {
                                 {
                                     return Some(url.to_string());
                                 }
-                            }
-                        }
-                    }
-                }
             }
         }
     }
@@ -567,11 +562,11 @@ fn extract_skin_model_from_auth_result(auth_result: &Value) -> Option<String> {
     for properties in sources.iter().flatten() {
         if let Some(arr) = properties.as_array() {
             for prop in arr {
-                if prop.get("name").and_then(|v| v.as_str()) == Some("textures") {
-                    if let Some(value) = prop.get("value").and_then(|v| v.as_str()) {
-                        if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(value) {
-                            if let Ok(decoded_json) = serde_json::from_slice::<Value>(&decoded) {
-                                if let Some(model) = decoded_json
+                if prop.get("name").and_then(|v| v.as_str()) == Some("textures")
+                    && let Some(value) = prop.get("value").and_then(|v| v.as_str())
+                        && let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(value)
+                            && let Ok(decoded_json) = serde_json::from_slice::<Value>(&decoded)
+                                && let Some(model) = decoded_json
                                     .get("textures")
                                     .and_then(|t| t.get("SKIN"))
                                     .and_then(|s| s.get("metadata"))
@@ -586,10 +581,6 @@ fn extract_skin_model_from_auth_result(auth_result: &Value) -> Option<String> {
                                         },
                                     );
                                 }
-                            }
-                        }
-                    }
-                }
             }
         }
     }
@@ -635,11 +626,10 @@ fn upsert_thirdparty_account(new_account: &Value) {
                 // 保留原 createdAt
                 let created_at = utils::get_str(acc, "createdAt");
                 *acc = new_account.clone();
-                if !created_at.is_empty() {
-                    if let Some(obj) = acc.as_object_mut() {
+                if !created_at.is_empty()
+                    && let Some(obj) = acc.as_object_mut() {
                         obj.insert("createdAt".to_string(), json!(created_at));
                     }
-                }
                 found = true;
                 break;
             }

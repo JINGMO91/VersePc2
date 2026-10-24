@@ -70,14 +70,12 @@ fn device_id() -> String {
         use winreg::RegKey;
         if let Ok(hk) = RegKey::predef(HKEY_LOCAL_MACHINE)
             .open_subkey(r"SOFTWARE\Microsoft\Cryptography")
-        {
-            if let Ok(v) = hk.get_value::<String, _>("MachineGuid") {
+            && let Ok(v) = hk.get_value::<String, _>("MachineGuid") {
                 let v = v.trim().to_string();
                 if !v.is_empty() {
                     return format!("pc-{v}");
                 }
             }
-        }
     }
     let host = hostname::get()
         .map(|h| h.to_string_lossy().to_string())
@@ -128,11 +126,10 @@ pub async fn transfer_list_versions() -> Result<Vec<String>, String> {
         .map_err(|e| format!("无法读取版本目录: {e}"))?;
     while let Ok(Some(entry)) = rd.next_entry().await {
         let p = entry.path();
-        if p.is_dir() {
-            if let Some(name) = entry.file_name().to_str() {
+        if p.is_dir()
+            && let Some(name) = entry.file_name().to_str() {
                 out.push(name.to_string());
             }
-        }
     }
     out.sort();
     Ok(out)
@@ -180,11 +177,10 @@ pub async fn transfer_list_saves(version_id: String) -> Result<Vec<String>, Stri
         .await
         .map_err(|e| format!("无法读取存档目录: {e}"))?;
     while let Ok(Some(entry)) = rd.next_entry().await {
-        if entry.path().is_dir() {
-            if let Some(name) = entry.file_name().to_str() {
+        if entry.path().is_dir()
+            && let Some(name) = entry.file_name().to_str() {
                 out.push(name.to_string());
             }
-        }
     }
     out.sort();
     Ok(out)
@@ -206,14 +202,13 @@ fn walk(root: &Path, cur: &Path, out: &mut Vec<String>) {
             let p = entry.path();
             if p.is_dir() {
                 walk(root, &p, out);
-            } else if p.is_file() {
-                if let Ok(rel) = p.strip_prefix(root) {
+            } else if p.is_file()
+                && let Ok(rel) = p.strip_prefix(root) {
                     let rel = rel.to_string_lossy().replace('\\', "/");
                     if !rel.is_empty() {
                         out.push(rel);
                     }
                 }
-            }
         }
     }
 }
@@ -231,7 +226,7 @@ fn pack_zip(base: &Path, rel_files: &[String], dest: &Path) -> Result<usize, Str
         if !abs.is_file() {
             continue;
         }
-        zw.start_file(rel.as_str(), opts.clone())
+        zw.start_file(rel.as_str(), opts)
             .map_err(|e| format!("写入压缩包失败({rel}): {e}"))?;
         let mut f = std::fs::File::open(&abs).map_err(|e| format!("读取文件失败({rel}): {e}"))?;
         std::io::copy(&mut f, &mut zw).map_err(|e| format!("压缩写入失败({rel}): {e}"))?;
@@ -250,6 +245,7 @@ fn tmp_dir() -> PathBuf {
 
 // ============== 发送 ==============
 
+#[allow(clippy::too_many_arguments)]
 async fn register_session(
     file_name: String,
     size: u64,
@@ -419,7 +415,7 @@ pub async fn transfer_start_send_game(
     let packed = tokio::task::spawn_blocking(move || pack_zip(&base2, &rel2, &zip_path2))
         .await
         .map_err(|e| format!("打包任务失败: {e}"))?;
-    packed.map_err(|e| e)?;
+    packed?;
     if !zip_path.is_file() {
         return Err("打包失败".into());
     }
@@ -432,7 +428,7 @@ pub async fn transfer_start_send_game(
     let (offer, status) = insert_offer(&code, zip_path.clone(), zip_name, size, hash, Some(zip_path));
     tokio::spawn(serve_file(listener, offer, status));
 
-    Ok(SendSession { code, file_name: format!("{item}"), file_size: size })
+    Ok(SendSession { code, file_name: item.to_string(), file_size: size })
 }
 
 /// 发送方后台任务：监听 TCP。成功完成一次传输后停止监听并清理临时包。
@@ -530,7 +526,7 @@ async fn send_file_to(
 
     // 接收端确认（1 字节：0x01 校验通过）
     let mut ack = [0u8; 1];
-    use tokio::io::AsyncReadExt;
+    
     let read_res = tokio::time::timeout(
         std::time::Duration::from_secs(30),
         tokio::io::AsyncReadExt::read_exact(&mut stream, &mut ack),
@@ -579,12 +575,10 @@ async fn connect_sender(ip: &str, port: u16) -> Result<tokio::net::TcpStream, St
             tokio::net::TcpStream::connect(&target),
         )
         .await
-        {
-            if let Ok(sock) = s {
+            && let Ok(sock) = s {
                 stream = Some(sock);
                 break;
             }
-        }
     }
     stream.ok_or("无法连接到发送方（可能不在线或端口不可达）".into())
 }
@@ -675,8 +669,7 @@ pub async fn transfer_receive_game(
         let dp = dest.clone();
         tokio::task::spawn_blocking(move || unzip_to(&zp, &dp))
             .await
-            .map_err(|e| format!("解压任务失败: {e}"))?
-            .map_err(|e| e)?;
+            .map_err(|e| format!("解压任务失败: {e}"))??;
         let _ = tokio::fs::remove_file(zip_path).await;
         dest_desc
     } else {
@@ -748,7 +741,7 @@ async fn receive_to_path<F: Fn(u64, u64)>(
     save_path: PathBuf,
     progress: F,
 ) -> Result<(TransferResult, u64), String> {
-    use tokio::io::AsyncReadExt;
+    
     use tokio::io::AsyncWriteExt;
     // 头部
     let mut magic = [0u8; 8];
@@ -873,7 +866,7 @@ pub async fn transfer_receive(
 }
 
 fn hex_to_bytes(s: &str) -> Result<Vec<u8>, String> {
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err("哈希长度异常".into());
     }
     (0..s.len())

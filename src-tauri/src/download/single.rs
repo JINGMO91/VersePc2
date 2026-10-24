@@ -54,7 +54,7 @@ pub struct DownloadProgress {
 /// 兼容这类情况，并在失败时返回原始 URL 兜底。
 async fn resolve_final_url(url: &str, timeout_secs: u64) -> String {
     let client = match reqwest::Client::builder()
-        .timeout(Duration::from_secs(timeout_secs.min(15).max(5)))
+        .timeout(Duration::from_secs(timeout_secs.clamp(5, 15)))
         .danger_accept_invalid_certs(true) // 跳过证书验证：部分镜像证书链不完整
         .user_agent(mirror::BROWSER_UA) // 模拟浏览器 UA，绕过部分 CDN 拦截
         .redirect(reqwest::redirect::Policy::none()) // 手动跟随，避免自动重定向报错
@@ -111,7 +111,7 @@ async fn probe_speed_sort(urls: &[String], timeout_secs: u64) -> Vec<String> {
         return urls.to_vec();
     }
     let client = match reqwest::Client::builder()
-        .timeout(Duration::from_secs(timeout_secs.min(5).max(2)))
+        .timeout(Duration::from_secs(timeout_secs.clamp(2, 5)))
         .danger_accept_invalid_certs(true)
         .user_agent(mirror::BROWSER_UA)
         .build()
@@ -145,6 +145,7 @@ async fn probe_speed_sort(urls: &[String], timeout_secs: u64) -> Vec<String> {
 }
 
 /// 单流下载一个文件（带镜像回退 + SHA1 校验）
+#[allow(clippy::too_many_arguments)]
 async fn download_with_mirror_inner(
     original_url: &str,
     dest: &Path,
@@ -262,11 +263,10 @@ async fn download_with_mirror_inner(
     let mut last_err = String::new();
 
     for url in &urls {
-        if let Some(c) = cancel {
-            if c.load(Ordering::SeqCst) {
+        if let Some(c) = cancel
+            && c.load(Ordering::SeqCst) {
                 return Err("已取消".to_string());
             }
-        }
         match download_with_retry(url, dest, sha1, expected_size, timeout_secs, on_progress.clone(), cancel).await {
             Ok(()) => {
                 if url != original_url {
@@ -320,6 +320,7 @@ pub async fn download_with_mirror(
 
 /// 单流下载一个文件（带镜像回退 + SHA1 校验），支持通过 cancel 标志取消
 /// cancel 为 true 时立即中断，返回 Err("已取消")
+#[allow(clippy::too_many_arguments)]
 pub async fn download_with_mirror_cancellable(
     original_url: &str,
     dest: &Path,
@@ -488,8 +489,8 @@ pub async fn download_single(
 
 /// 判断文件是否可跳过（大小+SHA1 校验通过）
 async fn should_skip(dest: &Path, sha1: Option<&str>, expected_size: Option<u64>) -> bool {
-    if let Some(expected) = expected_size {
-        if expected > 0 {
+    if let Some(expected) = expected_size
+        && expected > 0 {
             if let Ok(meta) = tokio::fs::metadata(dest).await {
                 if meta.len() != expected {
                     return false;
@@ -498,15 +499,13 @@ async fn should_skip(dest: &Path, sha1: Option<&str>, expected_size: Option<u64>
                 return false;
             }
         }
-    }
-    if let Some(expected_sha1) = sha1 {
-        if !expected_sha1.is_empty() {
+    if let Some(expected_sha1) = sha1
+        && !expected_sha1.is_empty() {
             if let Ok(actual) = compute_sha1(dest).await {
                 return actual.to_lowercase() == expected_sha1.to_lowercase();
             }
             return false;
         }
-    }
     true
 }
 
@@ -523,16 +522,15 @@ async fn download_with_retry(
     let mut last_err = String::new();
 
     for attempt in 0..3u32 {
-        if let Some(c) = cancel {
-            if c.load(Ordering::SeqCst) {
+        if let Some(c) = cancel
+            && c.load(Ordering::SeqCst) {
                 return Err("已取消".to_string());
             }
-        }
         match download_once(url, dest, expected_size, timeout_secs, on_progress.clone(), cancel).await {
             Ok(actual_size) => {
                 // 校验大小
-                if let Some(expected) = expected_size {
-                    if expected > 0 && actual_size != expected {
+                if let Some(expected) = expected_size
+                    && expected > 0 && actual_size != expected {
                         last_err = format!("大小不匹配: 期望 {} 实际 {}", expected, actual_size);
                         let _ = tokio::fs::remove_file(dest).await;
                         if attempt < 2 {
@@ -541,10 +539,9 @@ async fn download_with_retry(
                         }
                         continue;
                     }
-                }
                 // 校验 SHA1
-                if let Some(expected_sha1) = sha1 {
-                    if !expected_sha1.is_empty() {
+                if let Some(expected_sha1) = sha1
+                    && !expected_sha1.is_empty() {
                         match compute_sha1(dest).await {
                             Ok(actual_sha1) => {
                                 if actual_sha1.to_lowercase() != expected_sha1.to_lowercase() {
@@ -566,7 +563,6 @@ async fn download_with_retry(
                             }
                         }
                     }
-                }
                 return Ok(());
             }
             Err(e) => {
@@ -605,11 +601,10 @@ async fn download_once(
     // 续传：检查已下载部分
     let tmp_path = dest.with_extension("downloading");
     let mut resume_offset = 0u64;
-    if tmp_path.exists() {
-        if let Ok(meta) = tokio::fs::metadata(&tmp_path).await {
+    if tmp_path.exists()
+        && let Ok(meta) = tokio::fs::metadata(&tmp_path).await {
             resume_offset = meta.len();
         }
-    }
 
     let mut req = client.get(url).timeout(Duration::from_secs(timeout_secs));
     if resume_offset > 0 {
@@ -681,9 +676,7 @@ async fn download_once(
     let mut downloaded = resume_offset;
     let start_time = Instant::now();
     let mut last_progress = Instant::now();
-    let mut last_bytes = resume_offset;
     // 单流读取同样加 stall 刹车：服务器卡住/滴漏时及时中断，避免永远卡在"下载中"
-    let mut finished = false;
 
     // 低速检测：镜像源若以极低速度"滴漏"式挤数据，
     // 30 秒 stall 超时永远不会触发（一直有数据进来），导致每个文件都慢慢爬、
@@ -696,18 +689,16 @@ async fn download_once(
     let mut speed_window_start = Instant::now();
     let low_speed_enabled = expected_size.map(|s| s > 1024 * 1024).unwrap_or(false);
 
-    while !finished {
-        if let Some(c) = cancel {
-            if c.load(Ordering::SeqCst) {
+    loop {
+        if let Some(c) = cancel
+            && c.load(Ordering::SeqCst) {
                 let _ = tokio::fs::remove_file(&tmp_path).await;
                 return Err("已取消".to_string());
             }
-        }
         let waited = tokio::time::timeout(Duration::from_secs(30), stream.next()).await;
         let chunk_result = match waited {
             Ok(Some(r)) => r,
             Ok(None) => {
-                finished = true;
                 break;
             }
             Err(_) => {
@@ -752,7 +743,6 @@ async fn download_once(
                 });
             }
             last_progress = now;
-            last_bytes = downloaded;
         }
     }
 

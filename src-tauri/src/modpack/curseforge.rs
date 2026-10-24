@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 use tokio::sync::Semaphore;
 
 use super::curseforge_shared as cf_shared;
@@ -39,6 +39,7 @@ const MAX_DOWNLOAD_ROUNDS: u32 = 3;
 
 // CurseForge manifest.json schema
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct CfManifest {
     minecraft: CfMinecraft,
     #[serde(default)]
@@ -58,6 +59,7 @@ struct CfMinecraft {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct CfModLoader {
     id: String,
     #[serde(default)]
@@ -65,6 +67,7 @@ struct CfModLoader {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct CfFile {
     // CurseForge manifest.json 使用大写 ID（projectID/fileID），需显式映射
     #[serde(rename = "projectID")]
@@ -76,6 +79,7 @@ struct CfFile {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct CfManifestMeta {
     version: Option<String>,
     name: Option<String>,
@@ -85,6 +89,7 @@ struct CfManifestMeta {
 // CurseForge API 响应
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct CfFileResponse {
     id: i64,
     #[serde(default)]
@@ -189,12 +194,11 @@ pub async fn import_curseforge(
     let manifest_idx = {
         let mut found: Option<usize> = None;
         for i in 0..archive.len() {
-            if let Ok(entry) = archive.by_index(i) {
-                if entry.name().to_lowercase() == "manifest.json" {
+            if let Ok(entry) = archive.by_index(i)
+                && entry.name().to_lowercase() == "manifest.json" {
                     found = Some(i);
                     break;
                 }
-            }
         }
         found
     };
@@ -245,8 +249,7 @@ pub async fn import_curseforge(
         .manifest
         .as_ref()
         .and_then(|m| m.name.as_ref())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.clone())
+        .filter(|s| !s.is_empty()).cloned()
         .unwrap_or_else(|| {
             Path::new(file_path)
                 .file_stem()
@@ -467,7 +470,7 @@ async fn run_import_main(
     pack_name: &str,
     mc_version: &str,
     mod_loader_id: &str,
-    loader_kind: &LoaderKind,
+    _loader_kind: &LoaderKind,
     forge_ver: &str,
     fabric_ver: &str,
     neoforge_ver: &str,
@@ -490,7 +493,7 @@ async fn run_import_main(
 
     // 2.7 overrides 解压
     emit_progress(app, 40, "解压覆盖文件...", "extract");
-    let override_files = extract_overrides_with_progress(archive, version_dir, app)?;
+    let _override_files = extract_overrides_with_progress(archive, version_dir, app)?;
 
     // 2.8 根目录图标提取
     extract_root_icon(archive, version_dir);
@@ -531,7 +534,7 @@ async fn run_import_main(
     cf_shared::clean_downloading_residue(version_dir);
 
     let total_mods = cf_files.len();
-    let cf_mod_files: Vec<ModFileState> = cf_files
+    let _cf_mod_files: Vec<ModFileState> = cf_files
         .iter()
         .map(|f| ModFileState {
             name: format!("Mod #{}", f.project_id),
@@ -670,13 +673,14 @@ async fn run_import_main(
                 if url.is_none() {
                     let id_str = file_id.to_string();
                     if id_str.len() >= 5 {
-                        url = Some(construct_cdn_url(file_id, &fi.file_name));
+                        let constructed = construct_cdn_url(file_id, &fi.file_name);
                         eprintln!(
                             "[CurseForge] downloadUrl 为空，已构造 CDN URL: {}:{} -> {}",
                             project_id,
                             file_id,
-                            url.as_ref().unwrap()
+                            constructed
                         );
+                        url = Some(constructed);
                     }
                 }
                 let sha1 = fi
@@ -824,8 +828,8 @@ async fn run_import_main(
     }
 
     // 2.19 加载器兼容性检查 ensureLoaderCompat
-    if let Some(lv_id) = loader_version_id {
-        if !mc_version.is_empty() {
+    if let Some(_lv_id) = loader_version_id
+        && !mc_version.is_empty() {
             let loader_type = if !fabric_ver.is_empty() {
                 "fabric"
             } else if !forge_ver.is_empty() || !neoforge_ver.is_empty() {
@@ -851,7 +855,6 @@ async fn run_import_main(
                 .await;
             }
         }
-    }
 
     // 2.20 库文件验证 verifyImportLibs
     emit_progress(app, 90, "正在验证整合包完整性...", "verify");
@@ -867,18 +870,17 @@ async fn run_import_main(
 
     // 2.21 资源索引下载
     let cf_merged_json = cf_shared::resolve_version_json(version_id);
-    if let Some(ref merged) = cf_merged_json {
-        if let Some(asset_index) = merged.get("assetIndex") {
+    if let Some(ref merged) = cf_merged_json
+        && let Some(asset_index) = merged.get("assetIndex") {
             emit_progress(app, 93, "正在下载游戏资源...", "assets");
             if let Err(e) = download_assets(app, asset_index, settings).await {
                 eprintln!("[CurseForge] 资源下载异常(非致命): {}", e);
             }
         }
-    }
 
     // 2.22 客户端 JAR 下载
-    if let Some(ref merged) = cf_merged_json {
-        if let Some(inherits_from) = merged.get("inheritsFrom").and_then(|v| v.as_str()) {
+    if let Some(ref merged) = cf_merged_json
+        && let Some(inherits_from) = merged.get("inheritsFrom").and_then(|v| v.as_str()) {
             let main_jar_id = merged
                 .get("jar")
                 .and_then(|v| v.as_str())
@@ -894,8 +896,8 @@ async fn run_import_main(
                     .or_else(|| {
                         // 从基础版本 JSON 读取 client url
                         let base_json_path = versions_dir().join(main_jar_id).join(format!("{}.json", main_jar_id));
-                        if let Ok(content) = std::fs::read_to_string(&base_json_path) {
-                            if let Ok(json) = serde_json::from_str::<Value>(&content) {
+                        if let Ok(content) = std::fs::read_to_string(&base_json_path)
+                            && let Ok(json) = serde_json::from_str::<Value>(&content) {
                                 return json
                                     .get("downloads")
                                     .and_then(|d| d.get("client"))
@@ -903,7 +905,6 @@ async fn run_import_main(
                                     .and_then(|v| v.as_str())
                                     .map(|s| s.to_string());
                             }
-                        }
                         None
                     });
                 if let Some(url) = jar_url {
@@ -944,17 +945,14 @@ async fn run_import_main(
                 }
             }
         }
-    }
 
     // 2.23 Forge 核心文件验证
-    if let Some(ref merged) = cf_merged_json {
-        if !forge_ver.is_empty() || !neoforge_ver.is_empty() {
-            if let Err(e) = check_forge_core_files(merged) {
+    if let Some(ref merged) = cf_merged_json
+        && (!forge_ver.is_empty() || !neoforge_ver.is_empty())
+            && let Err(e) = check_forge_core_files(merged) {
                 cf_shared::cleanup_version_chain(version_id);
                 return Err(e);
             }
-        }
-    }
 
     // 2.24 pack-info.json 写入
     let pending_mods: Vec<Value> = if cf_api_key.is_empty() {
@@ -1059,7 +1057,7 @@ async fn install_loader(
     forge_ver: &str,
     fabric_ver: &str,
     neoforge_ver: &str,
-    app: &AppHandle,
+    _app: &AppHandle,
 ) -> Result<String, String> {
     match loader_kind {
         LoaderKind::Forge => {
@@ -1346,7 +1344,7 @@ fn extract_overrides_with_progress(
 
         // 实时进度反馈：每 50 个文件更新一次进度（40% → 50% 区间）
         yield_counter += 1;
-        if override_total > 0 && yield_counter % 50 == 0 {
+        if override_total > 0 && yield_counter.is_multiple_of(50) {
             let pct = 40 + (extract_count * 10 / override_total);
             emit_progress(
                 app,
@@ -1497,11 +1495,10 @@ fn get_mirror_urls(url: &str) -> Vec<String> {
     // 先规整到统一的 overload 域名再展开变体，避免误替换
     let normalized: String = if url.contains("-service.overwolf.wtf") {
         url.replace("-service.overwolf.wtf", ".forgecdn.net")
-    } else if url.contains("edge.forgecdn.net") {
-        url.to_string()
-    } else if url.contains("mediafilez.forgecdn.net") {
-        url.to_string()
-    } else if url.contains("media.forgecdn.net") {
+    } else if url.contains("edge.forgecdn.net")
+        || url.contains("mediafilez.forgecdn.net")
+        || url.contains("media.forgecdn.net")
+    {
         url.to_string()
     } else {
         return vec![url.to_string()];
@@ -1565,6 +1562,7 @@ struct FileInfo {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct DownloadResult {
     success: bool,
     project_id: i64,
@@ -1579,6 +1577,7 @@ struct DownloadResult {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 enum ModStatus {
     Pending,
     Downloading,
@@ -2176,8 +2175,7 @@ async fn download_assets(
         .and_then(|v| v.as_u64())
         .map(|n| n as usize)
         .unwrap_or(32)
-        .min(64)
-        .max(8);
+        .clamp(8, 64);
 
     emit_progress(
         app,
@@ -2187,7 +2185,7 @@ async fn download_assets(
     );
 
     let app_progress = app.clone();
-    let (done, failed) = crate::download::download_asset_objects(
+    let (_done, failed) = crate::download::download_asset_objects(
         asset_objects,
         &assets_dir,
         &sources,

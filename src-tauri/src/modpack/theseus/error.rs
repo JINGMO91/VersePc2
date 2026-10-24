@@ -10,11 +10,13 @@
 use std::fmt;
 
 /// theseus 生态统一 Result 别名
+#[allow(dead_code)]
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// 共享实例不可用原因（theseus 兼容枚举，Copy 以支持解引用）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(dead_code)]
 pub enum SharedInstanceUnavailableReason {
     NotReady,
     Missing,
@@ -27,6 +29,7 @@ pub enum SharedInstanceUnavailableReason {
 /// model.rs 中 `ErrorKind::LabrinthError(error)` 解构出此结构体，
 /// 访问其 `error`/`status`/`method`/`url`/`route` 字段。
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct LabrinthError {
     pub error: String,
     pub status: Option<u16>,
@@ -49,6 +52,7 @@ impl std::error::Error for LabrinthError {}
 
 /// theseus 错误种类（涵盖 theseus 生态全部变体）
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum ErrorKind {
     /// 输入参数错误
     InputError(String),
@@ -126,6 +130,7 @@ pub enum ErrorKind {
     EventError(String),
 }
 
+#[allow(dead_code)]
 impl ErrorKind {
     pub fn as_input_error(s: impl Into<String>) -> Self {
         ErrorKind::InputError(s.into())
@@ -137,11 +142,13 @@ impl ErrorKind {
 /// `raw` 字段使用 `Box<ErrorKind>` 以兼容 theseus 代码中
 /// `error.raw.as_ref()` 的调用约定（返回 `&ErrorKind`）。
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Error {
     pub raw: Box<ErrorKind>,
     pub context: Option<String>,
 }
 
+#[allow(dead_code)]
 impl Error {
     pub fn from(kind: ErrorKind) -> Self {
         Self {

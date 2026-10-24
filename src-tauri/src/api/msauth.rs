@@ -189,14 +189,13 @@ async fn handle_refresh(body: &Option<Value>) -> ApiResult {
             let updated_account = auth::auth_result_to_account(&auth_result, account_id.clone());
 
             let mut accounts = storage::load_accounts();
-            if let Some(arr) = accounts.as_array_mut() {
-                if let Some(idx) = arr
+            if let Some(arr) = accounts.as_array_mut()
+                && let Some(idx) = arr
                     .iter()
                     .position(|a| utils::get_str(a, "id") == account_id)
                 {
                     arr[idx] = updated_account.clone();
                 }
-            }
             storage::save_accounts(&accounts);
 
             ApiResult::ok(json!({

@@ -40,7 +40,7 @@ jobs:
 
       - name: Architecture report
         shell: bash
-        run: node scripts/check-architecture.mjs
+        run: node scripts/check-architecture.mjs --strict
 
   rust-test:
     runs-on: windows-latest
@@ -79,3 +79,7 @@ jobs:
       - name: Cargo test
         shell: pwsh
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Cargo clippy
+        shell: pwsh
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings

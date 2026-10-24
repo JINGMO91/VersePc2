@@ -15,9 +15,13 @@ use super::args_builder::build_launch_arguments;
 use super::exit_code::analyze_exit_code;
 use super::game_session::{add_instance, remove_instance, GameInstance};
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 /// 启动游戏
 /// 参数：version_id、account、settings、custom_game_dir、external_version_dir
 /// `app` 用于通过 Tauri 事件向前端推送日志，前端监听 "game-log" 事件即可拿到实时日志
+#[allow(clippy::too_many_arguments)]
 pub async fn do_launch(
     app: AppHandle,
     version_id: String,
@@ -72,7 +76,6 @@ pub async fn do_launch(
     // Windows 上不要让子进程共享控制台
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
@@ -438,11 +441,10 @@ fn set_game_language_and_window(game_dir: &str, version_json: &Value, settings: 
         };
 
         let mut options_content = String::new();
-        if options_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(&options_path) {
+        if options_path.exists()
+            && let Ok(content) = std::fs::read_to_string(&options_path) {
                 options_content = content;
             }
-        }
         let current_lang = options_content
             .lines()
             .find(|l| l.starts_with("lang:"))
@@ -497,11 +499,10 @@ fn set_game_language_and_window(game_dir: &str, version_json: &Value, settings: 
     }
     for options_path in &targets {
         let mut content = String::new();
-        if options_path.exists() {
-            if let Ok(c) = std::fs::read_to_string(options_path) {
+        if options_path.exists()
+            && let Ok(c) = std::fs::read_to_string(options_path) {
                 content = c;
             }
-        }
         if content.lines().any(|l| l.starts_with("fullscreen:")) {
             let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
             for line in lines.iter_mut() {
@@ -577,11 +578,10 @@ fn extract_lan_port(line: &str) -> Option<u16> {
                 .skip_while(|c| c.is_whitespace() || *c == ':')
                 .take_while(|c| c.is_ascii_digit())
                 .collect();
-            if let Ok(port) = digits.parse::<u16>() {
-                if port >= 1000 {
+            if let Ok(port) = digits.parse::<u16>()
+                && port >= 1000 {
                     return Some(port);
                 }
-            }
         }
     }
     None
@@ -592,7 +592,6 @@ pub fn kill_game(session_id: &str) -> Result<(), String> {
     if let Some(instance) = remove_instance(session_id) {
         #[cfg(target_os = "windows")]
         {
-            use std::os::windows::process::CommandExt;
             const CREATE_NO_WINDOW: u32 = 0x08000000;
             let _ = std::process::Command::new("taskkill")
                 .args(["/PID", &instance.pid.to_string(), "/F", "/T"])
@@ -612,6 +611,7 @@ pub fn kill_game(session_id: &str) -> Result<(), String> {
 }
 
 /// 列出当前运行中的游戏
+#[allow(dead_code)]
 pub fn list_running_games() -> Vec<Value> {
     super::game_session::get_all_status()
 }

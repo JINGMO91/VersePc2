@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 use super::ApiResult;
 use crate::storage;
 
-pub fn handle(method: &str, path: &str, params: &Option<Value>, _body: &Option<Value>) -> Option<ApiResult> {
+pub fn handle(method: &str, path: &str, _params: &Option<Value>, _body: &Option<Value>) -> Option<ApiResult> {
     let key = format!("{} {}", method.to_uppercase(), path);
 
     match key.as_str() {

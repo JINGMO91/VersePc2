@@ -20,9 +20,9 @@ pub(crate) fn fetch_remote_manifest(refresh: bool) -> Option<Value> {
     let cache_path = storage::resolve_data_dir().join("cache").join("version-manifest.json");
 
     // 非强制刷新时先读缓存（10 分钟内有效）
-    if !refresh && cache_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&cache_path) {
-            if let Ok(cached) = serde_json::from_str::<Value>(&content) {
+    if !refresh && cache_path.exists()
+        && let Ok(content) = std::fs::read_to_string(&cache_path)
+            && let Ok(cached) = serde_json::from_str::<Value>(&content) {
                 let timestamp = cached.get("timestamp").and_then(|v| v.as_u64()).unwrap_or(0);
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -33,8 +33,6 @@ pub(crate) fn fetch_remote_manifest(refresh: bool) -> Option<Value> {
                     return cached.get("data").cloned();
                 }
             }
-        }
-    }
 
     // 决定 URL 顺序
     let urls: Vec<&str> = if source == "china-first" {
@@ -124,10 +122,8 @@ pub(crate) fn fetch_json_racing(urls: &[&str], per_url_timeout: Duration) -> Opt
     }
     drop(tx);
     // rx.iter() 在所有发送端关闭后结束；返回第一个成功结果，其余线程各自超时收尾
-    for received in rx.iter() {
-        if let Some(v) = received {
-            return Some(v);
-        }
+    if let Some(v) = rx.iter().flatten().next() {
+        return Some(v);
     }
     None
 }

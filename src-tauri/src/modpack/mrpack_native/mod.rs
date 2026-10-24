@@ -2,22 +2,16 @@
 //
 // 解析 modrinth.index.json，安装基础版本与模组加载器，下载 mods 与 overrides。
 
-use std::collections::HashSet;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
 
 use serde::Deserialize;
-use serde_json::{json, Map, Value};
-use tauri::{AppHandle, Emitter};
-use tokio::sync::{Mutex, Semaphore};
+use serde_json::{json, Value};
+use tauri::AppHandle;
 
 use super::curseforge_shared as cf_shared;
 use super::{emit_progress, emit_progress_with_files, normalize_version_id, versions_dir};
 use crate::modloaders::shared as ml_shared;
-use crate::storage;
 
 mod import;
 mod json;
@@ -46,6 +40,7 @@ impl Drop for CleanupAbort {
 
 // modrinth.index.json schema
 #[derive(Deserialize)]
+#[allow(dead_code)]
 pub(crate) struct MrpackManifest {
     #[serde(default)]
     format_version: Option<i64>,
@@ -109,6 +104,7 @@ pub(crate) struct MrpackEnv {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub(crate) enum LoaderKind {
     Forge,
     NeoForge,
@@ -182,12 +178,11 @@ pub async fn import_mrpack(
     let manifest_idx = {
         let mut found: Option<usize> = None;
         for i in 0..archive.len() {
-            if let Ok(entry) = archive.by_index(i) {
-                if entry.name().to_lowercase() == "modrinth.index.json" {
+            if let Ok(entry) = archive.by_index(i)
+                && entry.name().to_lowercase() == "modrinth.index.json" {
                     found = Some(i);
                     break;
                 }
-            }
         }
         found
     };
@@ -233,14 +228,13 @@ pub async fn import_mrpack(
     };
 
     // 3.1 game 字段校验（必须是 minecraft）
-    if let Some(ref game) = manifest.game {
-        if game != "minecraft" {
+    if let Some(ref game) = manifest.game
+        && game != "minecraft" {
             return json!({
                 "success": false,
                 "error": format!("不支持的 game 类型: {}（仅支持 minecraft）", game)
             });
         }
-    }
 
     // 3.1 提取 packName（过滤非法字符）
     let pack_name_raw = manifest
@@ -393,7 +387,7 @@ pub async fn import_mrpack(
             )
             .await
             {
-                Ok(lv_id) => {
+                Ok(_lv_id) => {
                     // lv_id 已经和 loader_version_id 一致
                 }
                 Err(e) => {
@@ -432,9 +426,9 @@ pub async fn import_mrpack(
             None
         };
 
-        if let Some(ref existing) = existing_json {
-            if existing.get("inheritsFrom").and_then(|v| v.as_str()).is_some() {
-                if let Some(ref lv_id) = loader_version_id {
+        if let Some(ref existing) = existing_json
+            && existing.get("inheritsFrom").and_then(|v| v.as_str()).is_some()
+                && let Some(ref lv_id) = loader_version_id {
                     emit_progress(
                         app,
                         5,
@@ -503,8 +497,6 @@ pub async fn import_mrpack(
                         let _ = std::fs::remove_dir_all(&loader_dir);
                     }
                 }
-            }
-        }
     }
 
     // fallback：如果 isNewVersionDir 但版本 JSON 仍不存在，创建 fallback

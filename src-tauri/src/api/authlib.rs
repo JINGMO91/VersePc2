@@ -50,11 +50,9 @@ async fn handle_info(params: &Option<Value>) -> ApiResult {
         .as_ref()
         .and_then(|p| p.get("serverUrl"))
         .and_then(|v| v.as_str())
-    {
-        if !server_url.is_empty() && !server_url.starts_with("https://") {
+        && !server_url.is_empty() && !server_url.starts_with("https://") {
             return ApiResult::err(400, "第三方登录服务器必须使用 HTTPS 协议");
         }
-    }
 
     // 拉取官方最新版本信息
     let client = reqwest::Client::builder()
@@ -93,11 +91,9 @@ async fn handle_download(params: &Option<Value>) -> ApiResult {
         .as_ref()
         .and_then(|p| p.get("serverUrl"))
         .and_then(|v| v.as_str())
-    {
-        if !server_url.is_empty() && !server_url.starts_with("https://") {
+        && !server_url.is_empty() && !server_url.starts_with("https://") {
             return ApiResult::err(400, "第三方登录服务器必须使用 HTTPS 协议");
         }
-    }
 
     // 2. 复用公共函数完成下载与校验
     match ensure_authlib_injector().await {

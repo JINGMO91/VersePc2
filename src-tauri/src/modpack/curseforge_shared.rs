@@ -53,13 +53,11 @@ pub fn clean_downloading_residue(version_dir: &Path) -> usize {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            if name.ends_with(".downloading") {
-                if fs::remove_file(&path).is_ok() {
+        if let Some(name) = path.file_name().and_then(|n| n.to_str())
+            && name.ends_with(".downloading")
+                && fs::remove_file(&path).is_ok() {
                     cleaned += 1;
                 }
-            }
-        }
     }
     if cleaned > 0 {
         eprintln!("[Modpack] 已清理 {} 个 .downloading 残留文件", cleaned);
@@ -159,12 +157,11 @@ pub fn relocate_misplaced_resource_packs(version_dir: &Path) -> RelocateResult {
             result.skipped.push(zip_name);
             continue;
         }
-        if !resourcepacks_dir.exists() {
-            if fs::create_dir_all(&resourcepacks_dir).is_err() {
+        if !resourcepacks_dir.exists()
+            && fs::create_dir_all(&resourcepacks_dir).is_err() {
                 result.skipped.push(zip_name);
                 continue;
             }
-        }
         let dst_path = resourcepacks_dir.join(&zip_name);
         if dst_path.exists() {
             result.skipped.push(zip_name);
@@ -215,10 +212,11 @@ pub fn resolve_concurrency(settings: &Value) -> usize {
         .and_then(|v| v.as_u64())
         .map(|n| n as usize)
         .unwrap_or(DEFAULT_MODPACK_CONCURRENCY);
-    max_threads.min(MAX_MODPACK_CONCURRENCY).max(1)
+    max_threads.clamp(1, MAX_MODPACK_CONCURRENCY)
 }
 
 /// 按文件大小返回单个模组下载超时（毫秒）
+#[allow(dead_code)]
 pub fn compute_mod_timeout(size_bytes: i64) -> u64 {
     if size_bytes > 50 * 1024 * 1024 {
         return 600_000;
@@ -389,6 +387,7 @@ pub fn repair_corrupted_mod_jars(version_dir: &Path) -> RepairResult {
 }
 
 #[derive(Default, Debug)]
+#[allow(dead_code)]
 pub struct RepairResult {
     pub repaired: usize,
     pub failed: usize,
@@ -617,7 +616,7 @@ pub fn cleanup_version_chain(version_id: &str) {
 
     let mut to_delete: Vec<String> = Vec::new();
     for id in &chain {
-        if vanilla_pattern.is_match(id) && id != &version_id {
+        if vanilla_pattern.is_match(id) && id != version_id {
             continue;
         }
         to_delete.push(id.clone());
@@ -696,8 +695,7 @@ fn resolve_version_json_recursive(version_id: &str, versions_dir: &Path) -> Opti
         .get("inheritsFrom")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
-    {
-        if let Some(parent_json) = resolve_version_json_recursive(&parent_id, versions_dir) {
+        && let Some(parent_json) = resolve_version_json_recursive(&parent_id, versions_dir) {
             // 合并 libraries（父版本在前，子版本在后，去重）
             if let (Some(parent_libs), Some(self_libs)) = (
                 parent_json.get("libraries").and_then(|v| v.as_array()).cloned(),
@@ -719,35 +717,28 @@ fn resolve_version_json_recursive(version_id: &str, versions_dir: &Path) -> Opti
                 }
             }
             // 合并 downloads.client
-            if json.get("downloads").and_then(|d| d.get("client")).is_none() {
-                if let Some(parent_client) = parent_json.get("downloads").and_then(|d| d.get("client")) {
-                    if let Some(obj) = json.as_object_mut() {
+            if json.get("downloads").and_then(|d| d.get("client")).is_none()
+                && let Some(parent_client) = parent_json.get("downloads").and_then(|d| d.get("client"))
+                    && let Some(obj) = json.as_object_mut() {
                         let mut downloads = obj.get("downloads").cloned().unwrap_or(json!({}));
                         if let Some(d_obj) = downloads.as_object_mut() {
                             d_obj.insert("client".to_string(), parent_client.clone());
                         }
                         obj.insert("downloads".to_string(), downloads);
                     }
-                }
-            }
             // 合并 assetIndex
-            if json.get("assetIndex").is_none() {
-                if let Some(parent_asset_index) = parent_json.get("assetIndex") {
-                    if let Some(obj) = json.as_object_mut() {
+            if json.get("assetIndex").is_none()
+                && let Some(parent_asset_index) = parent_json.get("assetIndex")
+                    && let Some(obj) = json.as_object_mut() {
                         obj.insert("assetIndex".to_string(), parent_asset_index.clone());
                     }
-                }
-            }
             // 合并 jar
-            if json.get("jar").is_none() {
-                if let Some(parent_jar) = parent_json.get("jar").and_then(|v| v.as_str()) {
-                    if let Some(obj) = json.as_object_mut() {
+            if json.get("jar").is_none()
+                && let Some(parent_jar) = parent_json.get("jar").and_then(|v| v.as_str())
+                    && let Some(obj) = json.as_object_mut() {
                         obj.insert("jar".to_string(), json!(parent_jar));
                     }
-                }
-            }
         }
-    }
     Some(json)
 }
 
@@ -802,13 +793,11 @@ pub fn verify_loader_libs(version_id: &str) -> bool {
 
 /// 从库 JSON 解析本地路径
 fn resolve_lib_path(lib: &Value) -> Option<PathBuf> {
-    if let Some(artifact) = lib.get("downloads").and_then(|d| d.get("artifact")) {
-        if let Some(path) = artifact.get("path").and_then(|v| v.as_str()) {
-            if !path.is_empty() {
+    if let Some(artifact) = lib.get("downloads").and_then(|d| d.get("artifact"))
+        && let Some(path) = artifact.get("path").and_then(|v| v.as_str())
+            && !path.is_empty() {
                 return Some(libraries_dir().join(path));
             }
-        }
-    }
     let name = lib.get("name").and_then(|v| v.as_str())?;
     let parts: Vec<&str> = name.split(':').collect();
     if parts.len() < 3 {
@@ -837,7 +826,7 @@ pub async fn verify_import_libs(version_id: &str) -> (bool, usize, usize) {
         .cloned()
         .unwrap_or_default();
 
-    let current_platform = if cfg!(target_os = "windows") {
+    let _current_platform = if cfg!(target_os = "windows") {
         "windows"
     } else if cfg!(target_os = "macos") {
         "osx"
@@ -920,7 +909,6 @@ pub async fn verify_import_libs(version_id: &str) -> (bool, usize, usize) {
             if fail > 0 {
                 return (false, lib_checked, fail);
             }
-            core_lib_missing = 0;
         }
     }
 
@@ -1011,9 +999,9 @@ pub async fn ensure_loader_compat(
 
     // 更新版本 JSON 的 inheritsFrom
     let old_json_path = version_dir.join(format!("{}.json", version_id));
-    if old_json_path.exists() {
-        if let Ok(content) = fs::read_to_string(&old_json_path) {
-            if let Ok(mut old_json) = serde_json::from_str::<Value>(&content) {
+    if old_json_path.exists()
+        && let Ok(content) = fs::read_to_string(&old_json_path)
+            && let Ok(mut old_json) = serde_json::from_str::<Value>(&content) {
                 if let Some(obj) = old_json.as_object_mut() {
                     obj.insert("inheritsFrom".to_string(), json!(new_loader_version_id));
                 }
@@ -1021,24 +1009,18 @@ pub async fn ensure_loader_compat(
                 let lv_json_path = versions_dir()
                     .join(&new_loader_version_id)
                     .join(format!("{}.json", new_loader_version_id));
-                if lv_json_path.exists() {
-                    if let Ok(lv_content) = fs::read_to_string(&lv_json_path) {
-                        if let Ok(lv_json) = serde_json::from_str::<Value>(&lv_content) {
-                            if let Some(mc) = lv_json.get("mainClass").and_then(|v| v.as_str()) {
-                                if let Some(obj) = old_json.as_object_mut() {
+                if lv_json_path.exists()
+                    && let Ok(lv_content) = fs::read_to_string(&lv_json_path)
+                        && let Ok(lv_json) = serde_json::from_str::<Value>(&lv_content)
+                            && let Some(mc) = lv_json.get("mainClass").and_then(|v| v.as_str())
+                                && let Some(obj) = old_json.as_object_mut() {
                                     obj.insert("mainClass".to_string(), json!(mc));
                                 }
-                            }
-                        }
-                    }
-                }
                 let _ = fs::write(
                     &old_json_path,
                     serde_json::to_string_pretty(&old_json).unwrap_or_default(),
                 );
             }
-        }
-    }
 
     EnsureLoaderCompatResult {
         upgraded: true,
@@ -1048,6 +1030,7 @@ pub async fn ensure_loader_compat(
 }
 
 #[derive(Default, Debug)]
+#[allow(dead_code)]
 pub struct EnsureLoaderCompatResult {
     pub upgraded: bool,
     pub new_version: Option<String>,
@@ -1179,11 +1162,10 @@ pub fn read_jar_mod_id(file_path: &Path) -> Option<String> {
         if std::io::Read::read_to_string(&mut reader, &mut text).is_ok() {
             // TOML 中 [[mods]] 段下的 modId = "xxx"
             let re = regex::Regex::new(r#"\[\[mods\]\][\s\S]*?modId\s*=\s*["']([^"']+)["']"#).ok()?;
-            if let Some(cap) = re.captures(&text) {
-                if let Some(m) = cap.get(1) {
+            if let Some(cap) = re.captures(&text)
+                && let Some(m) = cap.get(1) {
                     return Some(m.as_str().trim().to_string());
                 }
-            }
         }
     }
 
@@ -1191,33 +1173,28 @@ pub fn read_jar_mod_id(file_path: &Path) -> Option<String> {
     if let Ok(entry) = archive.by_name("mcmod.info") {
         let mut reader = entry;
         let mut text = String::new();
-        if std::io::Read::read_to_string(&mut reader, &mut text).is_ok() {
-            if let Ok(data) = serde_json::from_str::<Value>(&text) {
-                if let Some(arr) = data.as_array() {
-                    if let Some(first) = arr.first() {
-                        if let Some(modid) = first.get("modid").and_then(|v| v.as_str()) {
+        if std::io::Read::read_to_string(&mut reader, &mut text).is_ok()
+            && let Ok(data) = serde_json::from_str::<Value>(&text) {
+                if let Some(arr) = data.as_array()
+                    && let Some(first) = arr.first()
+                        && let Some(modid) = first.get("modid").and_then(|v| v.as_str()) {
                             return Some(modid.trim().to_string());
                         }
-                    }
-                }
                 if let Some(modid) = data.get("modid").and_then(|v| v.as_str()) {
                     return Some(modid.trim().to_string());
                 }
             }
-        }
     }
 
     // Fabric: fabric.mod.json
     if let Ok(entry) = archive.by_name("fabric.mod.json") {
         let mut reader = entry;
         let mut text = String::new();
-        if std::io::Read::read_to_string(&mut reader, &mut text).is_ok() {
-            if let Ok(data) = serde_json::from_str::<Value>(&text) {
-                if let Some(id) = data.get("id").and_then(|v| v.as_str()) {
+        if std::io::Read::read_to_string(&mut reader, &mut text).is_ok()
+            && let Ok(data) = serde_json::from_str::<Value>(&text)
+                && let Some(id) = data.get("id").and_then(|v| v.as_str()) {
                     return Some(id.trim().to_string());
                 }
-            }
-        }
     }
 
     None

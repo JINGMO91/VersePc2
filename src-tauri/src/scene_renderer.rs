@@ -56,12 +56,7 @@ fn renderer_exe_path() -> Option<PathBuf> {
         exe_dir.join("scene-renderer").join("verse-scene-renderer.exe"),
         exe_dir.join("verse-scene-renderer.exe"),
     ];
-    for candidate in candidates {
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-    }
-    None
+    candidates.into_iter().find(|c| c.is_file())
 }
 
 /// 挑一个空闲 TCP 端口（bind 0 探测）
@@ -257,6 +252,7 @@ pub fn shutdown_renderer() {
 }
 
 /// 等待渲染进程就绪（HTTP 监听），最多等 N 秒
+#[allow(dead_code)]
 pub fn wait_renderer_ready(timeout: Duration) -> bool {
     let port = RENDERER_PORT.load(Ordering::SeqCst);
     if port == 0 {

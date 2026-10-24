@@ -38,7 +38,7 @@ pub async fn handle(
     _app: &AppHandle,
     method: &str,
     path: &str,
-    params: &Option<Value>,
+    _params: &Option<Value>,
     body: &Option<Value>,
 ) -> Option<ApiResult> {
     let key = format!("{} {}", method.to_uppercase(), path);
@@ -231,7 +231,7 @@ async fn handle_upnp_diagnose() -> ApiResult {
     }
 
     // UPnP 网关发现（SSDP 同步阻塞，用 spawn_blocking 避免阻塞异步运行时）
-    let gateway_result = tokio::task::spawn_blocking(|| upnp::discover_gateway())
+    let gateway_result = tokio::task::spawn_blocking(upnp::discover_gateway)
         .await
         .map_err(|e| format!("任务调度失败: {}", e));
     match gateway_result {
@@ -507,7 +507,7 @@ async fn handle_et_diagnose() -> ApiResult {
 /// GET /api/easytier/peers — 查询节点列表
 async fn handle_et_peers() -> ApiResult {
     let status = et_state::get_status();
-    let http_port = status
+    let _http_port = status
         .get("httpPort")
         .and_then(|v| v.as_u64())
         .unwrap_or(0) as u16;

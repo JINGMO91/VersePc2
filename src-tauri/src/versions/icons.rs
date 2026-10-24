@@ -90,17 +90,16 @@ pub async fn get_version_icon(
 
     // PCL/Logo.png
     let pcl_path = internal_dir.join(&pcl_logo);
-    if pcl_path.exists() {
-        if let Ok(data) = std::fs::read(&pcl_path) {
+    if pcl_path.exists()
+        && let Ok(data) = std::fs::read(&pcl_path) {
             custom_icon = Some((data, "image/png".to_string()));
         }
-    }
     // icon.png / pack.png / logo.png
     if custom_icon.is_none() {
         for fn_name in &icon_file_names {
             let p = internal_dir.join(fn_name);
-            if p.exists() {
-                if let Ok(data) = std::fs::read(&p) {
+            if p.exists()
+                && let Ok(data) = std::fs::read(&p) {
                     let mime = if fn_name.ends_with(".jpg") || fn_name.ends_with(".jpeg") {
                         "image/jpeg"
                     } else {
@@ -109,27 +108,25 @@ pub async fn get_version_icon(
                     custom_icon = Some((data, mime.to_string()));
                     break;
                 }
-            }
         }
     }
 
     // 优先级 2：外部目录
-    if custom_icon.is_none() {
-        if let Some(ext) = &ext_dir {
-            if !ext.is_empty() {
+    if custom_icon.is_none()
+        && let Some(ext) = &ext_dir
+            && !ext.is_empty() {
                 let ext_path = std::path::Path::new(ext);
                 // extDir 自身
                 let pcl_path = ext_path.join(&pcl_logo);
-                if pcl_path.exists() {
-                    if let Ok(data) = std::fs::read(&pcl_path) {
+                if pcl_path.exists()
+                    && let Ok(data) = std::fs::read(&pcl_path) {
                         custom_icon = Some((data, "image/png".to_string()));
                     }
-                }
                 if custom_icon.is_none() {
                     for fn_name in &icon_file_names {
                         let p = ext_path.join(fn_name);
-                        if p.exists() {
-                            if let Ok(data) = std::fs::read(&p) {
+                        if p.exists()
+                            && let Ok(data) = std::fs::read(&p) {
                                 let mime = if fn_name.ends_with(".jpg") || fn_name.ends_with(".jpeg") {
                                     "image/jpeg"
                                 } else {
@@ -138,23 +135,21 @@ pub async fn get_version_icon(
                                 custom_icon = Some((data, mime.to_string()));
                                 break;
                             }
-                        }
                     }
                 }
                 // extDir 上两级
-                if custom_icon.is_none() {
-                    if let Some(grandparent) = ext_path.parent().and_then(|p| p.parent()) {
+                if custom_icon.is_none()
+                    && let Some(grandparent) = ext_path.parent().and_then(|p| p.parent()) {
                         let pcl_path = grandparent.join(&pcl_logo);
-                        if pcl_path.exists() {
-                            if let Ok(data) = std::fs::read(&pcl_path) {
+                        if pcl_path.exists()
+                            && let Ok(data) = std::fs::read(&pcl_path) {
                                 custom_icon = Some((data, "image/png".to_string()));
                             }
-                        }
                         if custom_icon.is_none() {
                             for fn_name in &icon_file_names {
                                 let p = grandparent.join(fn_name);
-                                if p.exists() {
-                                    if let Ok(data) = std::fs::read(&p) {
+                                if p.exists()
+                                    && let Ok(data) = std::fs::read(&p) {
                                         let mime = if fn_name.ends_with(".jpg") || fn_name.ends_with(".jpeg") {
                                             "image/jpeg"
                                         } else {
@@ -163,32 +158,27 @@ pub async fn get_version_icon(
                                         custom_icon = Some((data, mime.to_string()));
                                         break;
                                     }
-                                }
                             }
                         }
                     }
-                }
             }
-        }
-    }
 
     // 优先级 3：.minecraft/versions/<id>
-    if custom_icon.is_none() {
-        if let Some(home) = dirs::home_dir() {
+    if custom_icon.is_none()
+        && let Some(home) = dirs::home_dir() {
             let mc_versions_dir = storage::default_minecraft_dir(home.join(".minecraft"))
                 .join("versions")
                 .join(&clean_id);
             let pcl_path = mc_versions_dir.join(&pcl_logo);
-            if pcl_path.exists() {
-                if let Ok(data) = std::fs::read(&pcl_path) {
+            if pcl_path.exists()
+                && let Ok(data) = std::fs::read(&pcl_path) {
                     custom_icon = Some((data, "image/png".to_string()));
                 }
-            }
             if custom_icon.is_none() {
                 for fn_name in &icon_file_names {
                     let p = mc_versions_dir.join(fn_name);
-                    if p.exists() {
-                        if let Ok(data) = std::fs::read(&p) {
+                    if p.exists()
+                        && let Ok(data) = std::fs::read(&p) {
                             let mime = if fn_name.ends_with(".jpg") || fn_name.ends_with(".jpeg") {
                                 "image/jpeg"
                             } else {
@@ -197,11 +187,9 @@ pub async fn get_version_icon(
                             custom_icon = Some((data, mime.to_string()));
                             break;
                         }
-                    }
                 }
             }
         }
-    }
 
     // 4. 自定义图标：转 data URL 返回
     if let Some((data, mime)) = custom_icon {
@@ -259,7 +247,7 @@ pub(crate) fn handle_version_icon(params: &Option<Value>) -> crate::api::ApiResu
         .map(|s| s == "true" || s == "1")
         .unwrap_or(false);
 
-    let is_external = is_external_version(&version_id);
+    let is_external = is_external_version(version_id);
     let clean_id = if is_external {
         version_id.split(" [外部").next().unwrap_or(version_id).to_string()
     } else {
@@ -273,8 +261,8 @@ pub(crate) fn handle_version_icon(params: &Option<Value>) -> crate::api::ApiResu
     let icon_candidates = ["icon.png", "icon.jpg", "icon.jpeg", "pack.png", "logo.png"];
     for fname in &icon_candidates {
         let icon_path = version_dir.join(fname);
-        if icon_path.exists() {
-            if let Ok(data) = std::fs::read(&icon_path) {
+        if icon_path.exists()
+            && let Ok(data) = std::fs::read(&icon_path) {
                 let mime = if fname.ends_with(".jpg") || fname.ends_with(".jpeg") {
                     "image/jpeg"
                 } else {
@@ -286,7 +274,6 @@ pub(crate) fn handle_version_icon(params: &Option<Value>) -> crate::api::ApiResu
                     "dataUrl": data_url
                 }));
             }
-        }
     }
 
     // 2. 找不到自定义图标：根据版本 JSON 推断加载器类型

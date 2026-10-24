@@ -1,7 +1,7 @@
 // utils.rs — 通用工具函数
 // 包含：UUID 生成、ISO 时间戳、日期转换等
 
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// 生成简单 UUID v4（基于时间戳+计数器，足够离线使用）
@@ -86,7 +86,7 @@ pub fn now_millis() -> u64 {
 fn days_to_ymd(days: i64) -> (i64, u32, u32) {
     let z = days + 719468;
     let era = if z >= 0 { z } else { z - 146096 } / 146097;
-    let doe = (z - era * 146097) as i64;
+    let doe = z - era * 146097;
     let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
     let y = yoe + era * 400;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
@@ -138,6 +138,7 @@ pub fn get_str_trim(v: &Value, key: &str) -> String {
 }
 
 /// 从 Value 中安全取 u64 字段
+#[allow(dead_code)]
 pub fn get_u64(v: &Value, key: &str) -> Option<u64> {
     v.get(key).and_then(|x| x.as_u64())
 }

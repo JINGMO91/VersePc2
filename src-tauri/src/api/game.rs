@@ -571,8 +571,8 @@ fn handle_play_time(params: &Option<Value>) -> ApiResult {
     // 解析各存档的 level.dat 读取游戏时长
     let mut worlds: Vec<Value> = Vec::new();
     let saves_dir = version_dir.join("saves");
-    if saves_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(&saves_dir) {
+    if saves_dir.exists()
+        && let Ok(entries) = std::fs::read_dir(&saves_dir) {
             for entry in entries.flatten() {
                 let save_path = entry.path();
                 if !save_path.is_dir() {
@@ -606,7 +606,6 @@ fn handle_play_time(params: &Option<Value>) -> ApiResult {
                 }
             }
         }
-    }
 
     // 读取会话累计游戏时间
     let play_time_path = storage::resolve_data_dir().join("play-time.json");
@@ -716,8 +715,8 @@ fn handle_log_export(params: &Option<Value>) -> ApiResult {
             utils::get_str(j, "source")
         ));
     }
-    if java_dir.exists() {
-        if let Ok(entries) = std::fs::read_dir(&java_dir) {
+    if java_dir.exists()
+        && let Ok(entries) = std::fs::read_dir(&java_dir) {
             let names: Vec<String> = entries
                 .flatten()
                 .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
@@ -725,15 +724,14 @@ fn handle_log_export(params: &Option<Value>) -> ApiResult {
                 .collect();
             parts.push(format!("JAVA_DIR内容: {}", names.join(", ")));
         }
-    }
     let minecraft_dir = if !utils::get_str(&settings, "gameDir").is_empty() {
         PathBuf::from(utils::get_str(&settings, "gameDir"))
     } else {
         data_dir.clone()
     };
     let mc_runtime = minecraft_dir.join("runtime");
-    if mc_runtime.exists() {
-        if let Ok(entries) = std::fs::read_dir(&mc_runtime) {
+    if mc_runtime.exists()
+        && let Ok(entries) = std::fs::read_dir(&mc_runtime) {
             let names: Vec<String> = entries
                 .flatten()
                 .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
@@ -741,7 +739,6 @@ fn handle_log_export(params: &Option<Value>) -> ApiResult {
                 .collect();
             parts.push(format!(".minecraft/runtime内容: {}", names.join(", ")));
         }
-    }
     parts.push(String::new());
 
     // 上次退出分析（进程退出时由 process_manager 写入全局缓存）
@@ -755,15 +752,14 @@ fn handle_log_export(params: &Option<Value>) -> ApiResult {
         parts.push(format!("原因: {}", ea_reason));
         parts.push(format!("建议: {}", ea_sugg));
         parts.push(format!("是否崩溃: {}", if ea_crash { "是" } else { "否" }));
-        if let Some(ea_vid) = ea.get("versionId").and_then(|v| v.as_str()) {
-            if !ea_vid.is_empty() {
+        if let Some(ea_vid) = ea.get("versionId").and_then(|v| v.as_str())
+            && !ea_vid.is_empty() {
                 parts.push(format!("版本ID: {}", ea_vid));
             }
-        }
         parts.push(String::new());
         // 退出时的日志尾部（logBuffer，最多 50 行）
-        if let Some(buf) = ea.get("logBuffer").and_then(|v| v.as_array()) {
-            if !buf.is_empty() {
+        if let Some(buf) = ea.get("logBuffer").and_then(|v| v.as_array())
+            && !buf.is_empty() {
                 parts.push(format!("[退出日志尾部] (最近 {} 行)", buf.len()));
                 parts.push("-".repeat(40));
                 for line in buf {
@@ -773,7 +769,6 @@ fn handle_log_export(params: &Option<Value>) -> ApiResult {
                 }
                 parts.push(String::new());
             }
-        }
     }
 
     // 全局持久化游戏日志缓冲：游戏实例移除后仍保留（最多 2000 行）
@@ -810,8 +805,8 @@ fn handle_log_export(params: &Option<Value>) -> ApiResult {
         let version_dir = resolve_version_dir(&clean_id);
 
         let crash_dir = version_dir.join("crash-reports");
-        if crash_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&crash_dir) {
+        if crash_dir.exists()
+            && let Ok(entries) = std::fs::read_dir(&crash_dir) {
                 let mut crash_files: Vec<String> = entries
                     .flatten()
                     .filter_map(|e| e.file_name().to_str().map(|s| s.to_string()))
@@ -837,11 +832,10 @@ fn handle_log_export(params: &Option<Value>) -> ApiResult {
                     }
                 }
             }
-        }
 
         let latest_log = version_dir.join("logs").join("latest.log");
-        if latest_log.exists() {
-            if let Ok(content) = std::fs::read_to_string(&latest_log) {
+        if latest_log.exists()
+            && let Ok(content) = std::fs::read_to_string(&latest_log) {
                 parts.push("[latest.log] (最后 2000 行)".to_string());
                 parts.push("-".repeat(40));
                 let lines: Vec<&str> = content.split('\n').collect();
@@ -851,7 +845,6 @@ fn handle_log_export(params: &Option<Value>) -> ApiResult {
                 }
                 parts.push(String::new());
             }
-        }
     }
 
     let export_content = parts.join("\n");

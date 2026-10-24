@@ -79,11 +79,10 @@ pub fn override_data_dir(path: std::path::PathBuf) {
 
 pub fn resolve_data_dir() -> std::path::PathBuf {
     // 守护进程注入的覆盖优先：直接使用主程序解析出的数据目录
-    if let Some(m) = DATA_DIR_OVERRIDE.get() {
-        if let Some(p) = m.lock().unwrap().as_ref() {
+    if let Some(m) = DATA_DIR_OVERRIDE.get()
+        && let Some(p) = m.lock().unwrap().as_ref() {
             return p.clone();
         }
-    }
     let exe = std::env::current_exe()
         .unwrap_or_else(|_| std::path::PathBuf::from("verse-tauri.exe"));
     let app_dir = exe.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| std::path::PathBuf::from("."));
@@ -110,8 +109,8 @@ pub fn resolve_data_dir() -> std::path::PathBuf {
     let config_path = app_dir.join("data-config.json");
     if let Ok(raw) = std::fs::read_to_string(&config_path) {
         let raw = raw.trim_start_matches('\u{FEFF}');
-        if let Ok(cfg) = serde_json::from_str::<Value>(&raw) {
-            if let Some(data_dir_str) = cfg.get("dataDir").and_then(|v| v.as_str()) {
+        if let Ok(cfg) = serde_json::from_str::<Value>(raw)
+            && let Some(data_dir_str) = cfg.get("dataDir").and_then(|v| v.as_str()) {
                 let data_dir = std::path::PathBuf::from(data_dir_str);
                 // 支持相对路径：基于 exe 目录解析（"./data" 随文件夹移动自动跟随）
                 // 去掉开头的 "./" 或 ".\"，否则 PathBuf::join 会拼出 "app_dir\./data"
@@ -141,7 +140,6 @@ pub fn resolve_data_dir() -> std::path::PathBuf {
                     return fallback;
                 }
             }
-        }
     }
 
     // 优先级 2: exe 同目录/data（默认，紧跟 exe，纯便携）
@@ -177,11 +175,10 @@ pub fn resolve_data_dir() -> std::path::PathBuf {
 /// 读取 settings.json（便携数据目录），不存在则返回默认设置
 pub fn load_settings() -> Value {
     let settings_file = resolve_data_dir().join("settings.json");
-    if let Ok(content) = std::fs::read_to_string(&settings_file) {
-        if let Ok(v) = serde_json::from_str::<Value>(&content) {
+    if let Ok(content) = std::fs::read_to_string(&settings_file)
+        && let Ok(v) = serde_json::from_str::<Value>(&content) {
             return v;
         }
-    }
     default_settings()
 }
 
@@ -247,13 +244,11 @@ pub fn overwrite_settings(settings: &Value) -> bool {
 // accounts.json 存放所有账号（离线/微软/第三方）
 pub fn load_accounts() -> Value {
     let accounts_file = resolve_data_dir().join("accounts.json");
-    if let Ok(content) = std::fs::read_to_string(&accounts_file) {
-        if let Ok(v) = serde_json::from_str::<Value>(&content) {
-            if v.is_array() {
+    if let Ok(content) = std::fs::read_to_string(&accounts_file)
+        && let Ok(v) = serde_json::from_str::<Value>(&content)
+            && v.is_array() {
                 return v;
             }
-        }
-    }
     Value::Array(vec![])
 }
 
@@ -270,13 +265,11 @@ pub fn save_accounts(accounts: &Value) -> bool {
 // favorites.json 存放所有收藏夹
 pub fn load_favorites() -> Value {
     let favorites_file = resolve_data_dir().join("favorites.json");
-    if let Ok(content) = std::fs::read_to_string(&favorites_file) {
-        if let Ok(v) = serde_json::from_str::<Value>(&content) {
-            if v.is_array() {
+    if let Ok(content) = std::fs::read_to_string(&favorites_file)
+        && let Ok(v) = serde_json::from_str::<Value>(&content)
+            && v.is_array() {
                 return v;
             }
-        }
-    }
     // 默认：单个"默认"收藏夹
     json!([{ "name": "默认", "id": "default", "favs": [], "notes": {} }])
 }
@@ -295,13 +288,11 @@ pub fn save_favorites(favorites: &Value) -> bool {
 
 pub fn load_external_folders() -> Vec<Value> {
     let path = resolve_data_dir().join("external-folders.json");
-    if let Ok(content) = std::fs::read_to_string(&path) {
-        if let Ok(v) = serde_json::from_str::<Value>(&content) {
-            if let Some(arr) = v.as_array() {
+    if let Ok(content) = std::fs::read_to_string(&path)
+        && let Ok(v) = serde_json::from_str::<Value>(&content)
+            && let Some(arr) = v.as_array() {
                 return arr.clone();
             }
-        }
-    }
     Vec::new()
 }
 
@@ -325,12 +316,11 @@ pub fn load_version_settings(version_id: &str, is_external: bool) -> Value {
     if !path.exists() {
         return default_version_settings(version_id);
     }
-    if let Ok(content) = std::fs::read_to_string(&path) {
-        if let Ok(v) = serde_json::from_str::<Value>(&content) {
+    if let Ok(content) = std::fs::read_to_string(&path)
+        && let Ok(v) = serde_json::from_str::<Value>(&content) {
             // 合并默认值（缺失字段用默认值填充）
             return merge_version_settings(&v, version_id);
         }
-    }
     default_version_settings(version_id)
 }
 
@@ -422,13 +412,12 @@ fn merge_version_settings(saved: &Value, version_id: &str) -> Value {
         return defaults;
     }
     let mut result = defaults;
-    if let Some(dst) = result.as_object_mut() {
-        if let Some(src) = saved.as_object() {
+    if let Some(dst) = result.as_object_mut()
+        && let Some(src) = saved.as_object() {
             for (k, v) in src {
                 dst.insert(k.clone(), v.clone());
             }
         }
-    }
     result
 }
 
@@ -454,13 +443,11 @@ fn legacy_data_dir_candidates() -> Vec<std::path::PathBuf> {
     let exe = std::env::current_exe().unwrap_or_default();
     if let Some(app_dir) = exe.parent() {
         let cfg = app_dir.join("data-config.json");
-        if let Ok(raw) = std::fs::read_to_string(&cfg) {
-            if let Ok(c) = serde_json::from_str::<Value>(raw.trim_start_matches('\u{FEFF}')) {
-                if let Some(d) = c.get("dataDir").and_then(|v| v.as_str()) {
+        if let Ok(raw) = std::fs::read_to_string(&cfg)
+            && let Ok(c) = serde_json::from_str::<Value>(raw.trim_start_matches('\u{FEFF}'))
+                && let Some(d) = c.get("dataDir").and_then(|v| v.as_str()) {
                     candidates.push(std::path::PathBuf::from(d));
                 }
-            }
-        }
     }
     candidates
 }
@@ -476,9 +463,11 @@ fn looks_like_legacy_dir(dir: &std::path::Path) -> bool {
 /// 2. 每次启动：从旧版 app-store 补充缺失的 versepc_* 个性化键。
 ///    这让即使之前迁移不全（如自定义图片/视频键缺失）也能在重启后自动补全，
 ///    解决"个性化设置重启又没了"的问题。
+///
 /// 迁移入口：仅在首次启动（或 marker 不存在时）执行。
 /// 1. 把旧版的数据文件（settings/accounts/favorites/external-folders）复制到新版数据目录（若新版还没有）。
 /// 2. 从旧版 app-store 合并缺失的 versepc_* 个性化键。
+///
 /// 之后每次启动直接返回，避免无谓的磁盘 IO 扫描导致"启动黑屏/黑框"。
 pub fn migrate_legacy_if_first_run(store: &Store) -> bool {
     // 已经做过迁移：完全跳过，不碰旧目录、不读 data-config，避免启动时磁盘 IO 抖动
@@ -535,12 +524,11 @@ fn copy_legacy_files(src: &Path, dst: &Path) -> bool {
     for fname in ["settings.json", "accounts.json", "favorites.json", "external-folders.json"] {
         let s = src.join(fname);
         let d = dst.join(fname);
-        if s.exists() && !d.exists() {
-            if std::fs::copy(&s, &d).is_ok() {
+        if s.exists() && !d.exists()
+            && std::fs::copy(&s, &d).is_ok() {
                 println!("[migrate] 已迁移 {fname}");
                 any = true;
             }
-        }
     }
     any
 }
@@ -549,9 +537,9 @@ fn copy_legacy_files(src: &Path, dst: &Path) -> bool {
 fn merge_legacy_store_keys(src: &Path, store: &Store) -> bool {
     let app_store_file = src.join("app-store.json");
     let mut any = false;
-    if let Ok(content) = std::fs::read_to_string(&app_store_file) {
-        if let Ok(app_store) = serde_json::from_str::<Value>(&content) {
-            if let Some(obj) = app_store.as_object() {
+    if let Ok(content) = std::fs::read_to_string(&app_store_file)
+        && let Ok(app_store) = serde_json::from_str::<Value>(&content)
+            && let Some(obj) = app_store.as_object() {
                 for (k, v) in obj {
                     if k.starts_with("versepc_") && store.get(k).is_none() {
                         store.set(k.clone(), v.clone());
@@ -559,8 +547,6 @@ fn merge_legacy_store_keys(src: &Path, store: &Store) -> bool {
                     }
                 }
             }
-        }
-    }
     if any {
         println!("[migrate] 已补充缺失的个性化设置键");
     }
@@ -658,9 +644,9 @@ impl Store {
         };
 
         // 读取旧 app-store.json，补充缺失的 verspc_* 键
-        if let Ok(content) = std::fs::read_to_string(&legacy_src) {
-            if let Ok(app_store) = serde_json::from_str::<Value>(&content) {
-                if let Some(obj) = app_store.as_object() {
+        if let Ok(content) = std::fs::read_to_string(&legacy_src)
+            && let Ok(app_store) = serde_json::from_str::<Value>(&content)
+                && let Some(obj) = app_store.as_object() {
                     let mut wrote_any = false;
                     let mut data = self.data.lock().unwrap();
                     for (k, v) in obj {
@@ -682,8 +668,6 @@ impl Store {
                         println!("[store] 懒补个性化键完成");
                     }
                 }
-            }
-        }
     }
 
     pub fn get(&self, key: &str) -> Option<Value> {

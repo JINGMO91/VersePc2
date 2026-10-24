@@ -9,6 +9,7 @@ pub enum Platform {
     Modrinth,
 }
 
+#[allow(dead_code)]
 pub struct WikiEntry {
     pub id: i32,
     pub chinese_name: Option<String>,
@@ -81,7 +82,7 @@ fn parse_slug_field(field: &str) -> (Option<String>, Option<String>) {
         (Some(base.clone()), Some(base))
     } else if field.contains('@') {
         let parts: Vec<&str> = field.split('@').collect();
-        let cf = parts.get(0).cloned().unwrap_or("").to_string();
+        let cf = parts.first().cloned().unwrap_or("").to_string();
         let mr = parts.get(1).cloned().unwrap_or("").to_string();
         (Some(cf), Some(mr))
     } else {
@@ -136,7 +137,7 @@ fn db() -> &'static Db {
     DB.get_or_init(|| {
         let raw = include_str!("WikiEntries.txt");
         let mut lines: Vec<&str> = raw.split('\n').collect();
-        while lines.last().map_or(false, |l| l.trim().is_empty()) {
+        while lines.last().is_some_and(|l| l.trim().is_empty()) {
             lines.pop();
         }
         let last = lines.pop().unwrap_or("");
@@ -158,7 +159,7 @@ fn db() -> &'static Db {
                     continue;
                 }
                 let parts: Vec<&str> = item.split('|').collect();
-                let slug_field = parts.get(0).cloned().unwrap_or("");
+                let slug_field = parts.first().cloned().unwrap_or("");
                 let (slug_cf, slug_mr) = parse_slug_field(slug_field);
                 let mut chinese_name = if parts.len() >= 2 {
                     let last_part = parts[parts.len() - 1].trim();
@@ -170,19 +171,12 @@ fn db() -> &'static Db {
                 } else {
                     None
                 };
-                if let Some(cn) = chinese_name.as_mut() {
-                    if cn.contains('*') {
-                        let base = if slug_cf.is_some() {
-                            &slug_cf.clone().unwrap()
-                        } else if slug_mr.is_some() {
-                            &slug_mr.clone().unwrap()
-                        } else {
-                            ""
-                        };
+                if let Some(cn) = chinese_name.as_mut()
+                    && cn.contains('*') {
+                        let base = slug_cf.as_deref().or(slug_mr.as_deref()).unwrap_or("");
                         let english = capitalize_first(&base.replace('-', " "));
                         *cn = cn.replace('*', &format!(" ({})", english));
                     }
-                }
                 entries.push(WikiEntry {
                     id: line_number as i32,
                     chinese_name,
@@ -261,16 +255,13 @@ pub fn extract_words(entry: &WikiEntry, source: Platform) -> Vec<String> {
     };
     let mut candidates: Vec<String> = Vec::new();
     if let Some(s) = slug {
-        candidates.push(s.replace('-', " ").replace('/', " "));
+        candidates.push(s.replace(['-', '/'], " "));
     }
     if let Some(cn) = &entry.chinese_name {
         let cleaned_after = after_last(cn, " (").trim_end_matches([')', ' ']);
         let cleaned = before_first(cleaned_after, " - ");
         let cleaned = cleaned
-            .replace('-', " ")
-            .replace('/', " ")
-            .replace(':', " ")
-            .replace('(', " ")
+            .replace(['-', '/', ':', '('], " ")
             .replace(')', "");
         candidates.push(cleaned);
     }
@@ -286,11 +277,10 @@ pub fn extract_words(entry: &WikiEntry, source: Platform) -> Vec<String> {
             if STOP_WORDS.contains(&w.as_str()) {
                 return false;
             }
-            if let Ok(v) = w.parse::<f64>() {
-                if v > 0.0 {
+            if let Ok(v) = w.parse::<f64>()
+                && v > 0.0 {
                     return false;
                 }
-            }
             if !w.is_ascii() {
                 return false;
             }
@@ -302,7 +292,7 @@ pub fn extract_words(entry: &WikiEntry, source: Platform) -> Vec<String> {
     let out: Vec<String> = words
         .iter()
         .filter(|w| {
-            !words.iter().any(|c| c.len() < w.chars().count() as usize && w.starts_with(c.as_str()) && can_form(&w[c.len()..], &words))
+            !words.iter().any(|c| c.len() < w.chars().count() && w.starts_with(c.as_str()) && can_form(&w[c.len()..], &words))
         })
         .cloned()
         .collect();
@@ -367,7 +357,7 @@ pub fn build_plan(raw_query: &str, res_type: &str, use_cf: bool, use_mr: bool) -
                     let w = word_weights.entry(word).or_insert(0.0);
                     let exact = d.sources_all[&indices[hit.index]][1]
                         .iter()
-                        .any(|s| s.aliases.iter().any(|a| *a == raw));
+                        .any(|s| s.aliases.contains(&raw));
                     let sim = if exact { 1000.0 } else { hit.similarity };
                     *w += sim * entry.popularity as f64;
                 }

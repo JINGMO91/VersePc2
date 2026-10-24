@@ -15,6 +15,7 @@ use super::xbox::XstsResult;
 
 /// MC Token 响应（步骤 6）
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct McTokenResponse {
     pub access_token: String,
     #[serde(default)]
@@ -31,6 +32,7 @@ pub struct McProfile {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct McSkin {
     pub id: String,
     pub state: String,

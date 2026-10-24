@@ -21,15 +21,14 @@ pub fn analyze(logs: &PreparedLogs) -> HashMap<CrashReason, Vec<String>> {
         let is_mixin = mixin_analyze(lm, log_crash, log_mc_debug, &mut reasons);
 
         // Forge 报错
-        if lm.contains("An exception was thrown, the game will display an error screen and halt.") {
-            if let Some(msg) = regex_seek_group(
+        if lm.contains("An exception was thrown, the game will display an error screen and halt.")
+            && let Some(msg) = regex_seek_group(
                 lm,
                 r"the game will display an error screen and halt.[\n\r]+[^\n]+?Exception: ([\s\S]+?)(?=\n\tat)",
                 1,
             ) {
                 append_reason(&mut reasons, CrashReason::ForgeCrash, Some(vec![msg.trim().to_string()]));
             }
-        }
 
         // Fabric 报错并给出解决方案（三种文案）
         for needle in FABRIC_SOLUTION_NEEDLES {
@@ -54,12 +53,11 @@ pub fn analyze(logs: &PreparedLogs) -> HashMap<CrashReason, Vec<String>> {
         }
 
         // "due to errors, provided by '...'"（Mixin 失败除外）
-        if !is_mixin && lm.contains("due to errors, provided by ") {
-            if let Some(name) = regex_seek_group(lm, r"due to errors, provided by '([^']+)", 1) {
-                let names = try_analyze_mod_name_one(&name.trim_end_matches('\n'), log_crash, log_mc_debug);
+        if !is_mixin && lm.contains("due to errors, provided by ")
+            && let Some(name) = regex_seek_group(lm, r"due to errors, provided by '([^']+)", 1) {
+                let names = try_analyze_mod_name_one(name.trim_end_matches('\n'), log_crash, log_mc_debug);
                 append_reason(&mut reasons, CrashReason::ModCrashed, Some(names));
             }
-        }
     }
 
     // 崩溃报告分析
@@ -113,17 +111,17 @@ fn mixin_analyze(
     let mod_name = regex_seek_group(log_text, r"from mod ([^.\/ ]+)(?=\] from)", 1)
         .or_else(|| regex_seek_group(log_text, r"for mod ([^.\/ ]+)(?= failed)", 1));
     if let Some(name) = mod_name {
-        let names = try_analyze_mod_name_one(&name.trim_end_matches('\n'), log_crash, log_mc_debug);
+        let names = try_analyze_mod_name_one(name.trim_end_matches('\n'), log_crash, log_mc_debug);
         append_reason(reasons, CrashReason::ModMixinError, Some(names));
         return true;
     }
 
     // JSON 名称匹配
-    for json_name in super::utils::regex_seek_all_group(
+    if let Some(json_name) = super::utils::regex_seek_all_group(
         r"(?m)^[^\t]+[ \[{(]([^ \[{(]+\.[^ ]+)(?=\.json)",
         log_text,
         1,
-    ) {
+    ).into_iter().next() {
         let name = json_name
             .replace("mixins", "mixin")
             .replace(".mixin", "")

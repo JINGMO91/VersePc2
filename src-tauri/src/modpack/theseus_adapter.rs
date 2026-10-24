@@ -74,19 +74,16 @@ async fn import_zip_generic(
     // 2. 尝试读取 HMCL 的 modpack.json 获取名称
     let mut pack_name = String::new();
     for i in 0..archive.len() {
-        if let Ok(mut entry) = archive.by_index(i) {
-            if entry.name() == "modpack.json" {
+        if let Ok(mut entry) = archive.by_index(i)
+            && entry.name() == "modpack.json" {
                 let mut buf = String::new();
-                if entry.read_to_string(&mut buf).is_ok() {
-                    if let Ok(v) = serde_json::from_str::<Value>(&buf) {
-                        if let Some(name) = v.get("name").and_then(|n| n.as_str()) {
+                if entry.read_to_string(&mut buf).is_ok()
+                    && let Ok(v) = serde_json::from_str::<Value>(&buf)
+                        && let Some(name) = v.get("name").and_then(|n| n.as_str()) {
                             pack_name = name.to_string();
                         }
-                    }
-                }
                 break;
             }
-        }
     }
 
     // 3. 确定版本名

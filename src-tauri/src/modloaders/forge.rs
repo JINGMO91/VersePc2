@@ -46,15 +46,14 @@ pub async fn get_forge_versions(game_version: &str) -> Vec<Value> {
     let mut versions: Vec<Value> = Vec::new();
     for cap in find_version_tags(&xml) {
         // cap 形如 "1.20.1-47.3.0"
-        if let Some(forge_ver) = cap.strip_prefix(&format!("{}-", game_version)) {
-            if !forge_ver.is_empty() {
+        if let Some(forge_ver) = cap.strip_prefix(&format!("{}-", game_version))
+            && !forge_ver.is_empty() {
                 versions.push(json!({
                     "version": forge_ver,
                     "gameVersion": game_version,
                     "type": "release",
                 }));
             }
-        }
     }
 
     // 倒序（最新版本在前）
@@ -106,12 +105,11 @@ fn find_version_tags(xml: &str) -> Vec<String> {
                 if tag_trim == "version" {
                     in_tag = true;
                     current.clear();
-                } else if tag_trim == "/version" {
-                    if in_tag {
+                } else if tag_trim == "/version"
+                    && in_tag {
                         result.push(current.clone());
                         in_tag = false;
                     }
-                }
                 i = end + 1;
             } else {
                 break;
@@ -284,8 +282,8 @@ pub async fn install_forge(
 
     // 旧版 Forge（版本号第一段 < 20，对应 MC ≤ 1.12.2）：
     // 不运行 Java 安装器，直接解析 install_profile.json 完成安装
-    if version_first_segment(&forge_version) < 20 {
-        return install_forge_legacy(game_version, &forge_version, &target_id, &installer_path).await;
+    if version_first_segment(forge_version) < 20 {
+        return install_forge_legacy(game_version, forge_version, &target_id, &installer_path).await;
     }
 
     // 4. 预下载 installer 所需支持库
@@ -342,11 +340,12 @@ pub async fn install_forge(
     for (idx, java_path) in java_candidates.iter().enumerate() {
         eprintln!("[Forge] 尝试第 {} 个 Java: {}", idx + 1, java_path);
 
-        let mut args: Vec<String> = Vec::new();
-        args.push("-jar".to_string());
-        args.push(installer_path.to_string_lossy().to_string());
-        args.push("--installClient".to_string());
-        args.push(data_dir.to_string_lossy().to_string());
+        let args: Vec<String> = vec![
+            "-jar".to_string(),
+            installer_path.to_string_lossy().to_string(),
+            "--installClient".to_string(),
+            data_dir.to_string_lossy().to_string(),
+        ];
 
         let install_result = shared::run_subprocess_with_timeout(
             std::path::Path::new(java_path),
@@ -419,9 +418,9 @@ pub async fn install_forge(
         let mut found_version_id: Option<String> = None;
         if let Ok(entries) = std::fs::read_dir(shared::versions_dir()) {
             for entry in entries.flatten() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if name.contains(&format!("forge-{}", forge_version))
-                        || name == &default_version_id
+                if let Some(name) = entry.file_name().to_str()
+                    && (name.contains(&format!("forge-{}", forge_version))
+                        || name == default_version_id)
                     {
                         let json_path = shared::versions_dir().join(name).join(format!("{}.json", name));
                         if json_path.exists() {
@@ -429,7 +428,6 @@ pub async fn install_forge(
                             break;
                         }
                     }
-                }
             }
         }
 
@@ -530,18 +528,18 @@ async fn prefetch_installer_libraries(installer_path: &std::path::Path) -> Resul
     let version_json: Value = serde_json::from_slice(&version_bytes)
         .map_err(|e| format!("解析 version.json 失败: {}", e))?;
 
+    type LibEntry = (String, String, String, Option<String>, Option<u64>);
     // (name, 库相对路径, url, sha1, size)
-    let mut libs: Vec<(String, String, String, Option<String>, Option<u64>)> = Vec::new();
+    let mut libs: Vec<LibEntry> = Vec::new();
     for json in [&profile, &version_json] {
         if let Some(arr) = json.get("libraries").and_then(|v| v.as_array()) {
             for lib in arr {
                 let Some(obj) = lib.as_object() else { continue };
                 let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                if let Some(classifier) = name.split(':').nth(3) {
-                    if classifier == "universal" || classifier == "shim" || classifier == "client" {
+                if let Some(classifier) = name.split(':').nth(3)
+                    && (classifier == "universal" || classifier == "shim" || classifier == "client") {
                         continue;
                     }
-                }
                 let Some(artifact) = obj
                     .get("downloads")
                     .and_then(|d| d.get("artifact"))
@@ -617,6 +615,7 @@ fn version_first_segment(forge_version: &str) -> u32 {
 /// 旧版 Forge 安装（不运行 Java 安装器，直接解析 install_profile.json）：
 /// - 无 "install" 字段：Legacy 方式 1 —— 读取 json 字段指向的版本 JSON，并把 installer 内 maven/ 解压到 libraries/
 /// - 有 "install" 字段：Legacy 方式 2 —— 把 install.filePath 的 jar 解压到 install.path 对应的库位置，写 versionInfo 为版本 JSON
+///
 /// 安装完成后若版本 JSON 带继承字段，则合并原版产出自含独立版本。
 async fn install_forge_legacy(
     game_version: &str,
@@ -684,11 +683,10 @@ async fn install_forge_legacy(
             None => return json!({ "success": false, "error": format!("无法解析库路径: {}", coord) }),
         };
         let lib_dest = shared::libraries_dir().join(&lib_rel);
-        if let Some(parent) = lib_dest.parent() {
-            if std::fs::create_dir_all(parent).is_err() {
+        if let Some(parent) = lib_dest.parent()
+            && std::fs::create_dir_all(parent).is_err() {
                 return json!({ "success": false, "error": format!("无法创建库目录 {}", parent.display()) });
             }
-        }
         {
             let mut src = match archive.by_name(&file_path_entry) {
                 Ok(e) => e,
@@ -785,11 +783,10 @@ fn extract_maven_prefix<R: std::io::Read + std::io::Seek>(
             continue;
         }
         let dest = libs_dir.join(&rel_norm);
-        if let Some(parent) = dest.parent() {
-            if std::fs::create_dir_all(parent).is_err() {
+        if let Some(parent) = dest.parent()
+            && std::fs::create_dir_all(parent).is_err() {
                 continue;
             }
-        }
         let mut out = match std::fs::File::create(&dest) {
             Ok(f) => f,
             Err(_) => continue,

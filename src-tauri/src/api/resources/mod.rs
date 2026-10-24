@@ -67,11 +67,10 @@ pub(crate) fn api_cache() -> &'static Mutex<HashMap<String, CacheEntry>> {
 /// 读取缓存；命中且在 TTL 内返回数据
 pub(crate) async fn cache_get(url: &str, ttl_ms: u64) -> Option<Value> {
     let cache = api_cache().lock().await;
-    if let Some(entry) = cache.get(url) {
-        if entry.ts.elapsed().as_millis() < ttl_ms as u128 {
+    if let Some(entry) = cache.get(url)
+        && entry.ts.elapsed().as_millis() < ttl_ms as u128 {
             return Some(entry.data.clone());
         }
-    }
     None
 }
 

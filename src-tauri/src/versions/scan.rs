@@ -136,8 +136,8 @@ pub(crate) fn count_mods_jar(mods_dir: &Path) -> usize {
 /// 整合包自身无加载器标志时，从父版本继承加载器类型与基础 MC 版本。
 /// 例如 RLCraft 的 version.json 只声明 inheritsFrom 指向 Forge 加载器版本，
 /// 自身没有 libraries/mainClass，若不继承父加载器信息，会被设置页误判为"原版"。
-pub(crate) fn inherit_loader_from_parent(versions: &mut Vec<Value>) {
-    let snapshot = versions.clone();
+pub(crate) fn inherit_loader_from_parent(versions: &mut [Value]) {
+    let snapshot = versions.to_vec();
     let bare_mc_re = regex::Regex::new(r"^\d+\.\d+(\.\d+)?(-\d+)?$").unwrap();
     for v in versions.iter_mut() {
         let is_modpack = v.get("isModpack").and_then(|x| x.as_bool()).unwrap_or(false);
@@ -237,10 +237,9 @@ pub(crate) fn scan_versions_in_dir(versions_dir: &Path, is_external: bool, exter
 
         // 找版本 JSON
         let version_json = find_version_json(&path, &name);
-        if version_json.is_none() {
+        let Some((json_content, json_path)) = version_json else {
             continue;
-        }
-        let (json_content, json_path) = version_json.unwrap();
+        };
         let parsed: Value = match serde_json::from_str(&json_content) {
             Ok(v) => v,
             Err(_) => continue,
@@ -253,15 +252,12 @@ pub(crate) fn scan_versions_in_dir(versions_dir: &Path, is_external: bool, exter
         let mut release_time = utils::get_str(&parsed, "releaseTime");
         // 兜底：releaseTime 缺失或为 1970 占位（旧版 now_iso 的 bug 产物）时，
         // 用版本 JSON 的修改时间作为发布时间，避免界面显示 1970
-        if utils::is_invalid_release_time(&release_time) {
-            if let Ok(meta) = std::fs::metadata(&json_path) {
-                if let Ok(modified) = meta.modified() {
-                    if let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) {
+        if utils::is_invalid_release_time(&release_time)
+            && let Ok(meta) = std::fs::metadata(&json_path)
+                && let Ok(modified) = meta.modified()
+                    && let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) {
                         release_time = utils::ts_to_iso(dur.as_secs());
                     }
-                }
-            }
-        }
         let inherits_from = utils::get_str(&parsed, "inheritsFrom");
         let version_type = utils::get_str(&parsed, "type");
 
@@ -325,11 +321,10 @@ pub(crate) fn scan_versions_in_dir(versions_dir: &Path, is_external: bool, exter
 pub(crate) fn find_version_json(version_dir: &Path, name: &str) -> Option<(String, PathBuf)> {
     // 1. <name>.json
     let prefer_path = version_dir.join(format!("{}.json", name));
-    if prefer_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&prefer_path) {
+    if prefer_path.exists()
+        && let Ok(content) = std::fs::read_to_string(&prefer_path) {
             return Some((content, prefer_path));
         }
-    }
 
     // 2. 任意 .json
     let entries = std::fs::read_dir(version_dir).ok()?;
@@ -401,11 +396,10 @@ pub(crate) fn detect_loader(parsed: &Value, id: &str, inherits_from: &str, versi
 
     // 识别整合包：优先检查版本目录中是否有 pack-info.json 或 pack.png
     let mut is_modpack = false;
-    if let Some(dir) = version_dir {
-        if dir.join("pack-info.json").exists() || dir.join("pack.png").exists() {
+    if let Some(dir) = version_dir
+        && (dir.join("pack-info.json").exists() || dir.join("pack.png").exists()) {
             is_modpack = true;
         }
-    }
     // 目录标记文件缺失时，按版本 ID + 继承关系判断：
     // 版本 ID 不是"纯 MC 版本号"、也不是"加载器 ID"，则视为整合包。
     // 这样即使整合包顶层没有 pack-info.json/pack.png（如仅含 icon.png），也能正确识别。
@@ -465,7 +459,7 @@ pub(crate) fn extract_base_version(id: &str) -> String {
 }
 
 /// 标记远程版本列表中的已安装版本
-pub(crate) fn mark_installed(remote_versions: &mut Vec<Value>, local_ids: &[String]) {
+pub(crate) fn mark_installed(remote_versions: &mut [Value], local_ids: &[String]) {
     for v in remote_versions.iter_mut() {
         let id = utils::get_str(v, "id");
         let installed = local_ids.iter().any(|s| s == &id);
@@ -495,13 +489,12 @@ pub(crate) fn is_april_fools_id(id: &str) -> bool {
 }
 
 /// 把愚人节版本的 type 统一标记为 special
-pub(crate) fn mark_april_fools(remote_versions: &mut Vec<Value>) {
+pub(crate) fn mark_april_fools(remote_versions: &mut [Value]) {
     for v in remote_versions.iter_mut() {
         let id = utils::get_str(v, "id");
-        if is_april_fools_id(&id) {
-            if let Some(obj) = v.as_object_mut() {
+        if is_april_fools_id(&id)
+            && let Some(obj) = v.as_object_mut() {
                 obj.insert("type".to_string(), json!("special"));
             }
-        }
     }
 }

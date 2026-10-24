@@ -24,6 +24,7 @@ const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(200);
 // ============== 运行时状态 ==============
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct TunnelInfo {
     server_address: String,
     listen_port: u16,
@@ -31,6 +32,7 @@ struct TunnelInfo {
     max_players: u32,
 }
 
+#[allow(dead_code)]
 struct RedstoneState {
     servers: Vec<Value>,
     current_server_idx: usize,
@@ -137,11 +139,10 @@ fn kernel_file_name() -> String {
 fn find_kernel() -> Option<PathBuf> {
     let name = kernel_file_name();
     let mut candidates: Vec<PathBuf> = Vec::new();
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent() {
             candidates.push(dir.join(&name));
         }
-    }
     candidates.push(redstone_dir().join(name));
     candidates.into_iter().find(|p| p.exists())
 }
@@ -217,8 +218,8 @@ async fn fetch_server_list() -> Vec<Value> {
     let client = http_client(6);
     match client.get(REGISTRY_URL).send().await {
         Ok(resp) if resp.status().is_success() => {
-            if let Ok(obj) = resp.json::<Value>().await {
-                if let Some(map) = obj.as_object() {
+            if let Ok(obj) = resp.json::<Value>().await
+                && let Some(map) = obj.as_object() {
                     let list: Vec<Value> = map
                         .iter()
                         .filter_map(|(name, addr)| {
@@ -234,7 +235,6 @@ async fn fetch_server_list() -> Vec<Value> {
                         return list;
                     }
                 }
-            }
         }
         _ => {}
     }
@@ -252,7 +252,7 @@ async fn try_start_node(
     kernel: &Path,
     server_address: &str,
     game_port: u16,
-    max_players: u32,
+    _max_players: u32,
 ) -> Result<(String, u16, tokio::process::Child), String> {
     let log = |msg: &str| {
         emit_log(app, msg);
@@ -431,7 +431,6 @@ async fn start_tunnel_inner(app: &AppHandle, params: Value) -> Value {
                     s.reconnect_nodes = candidates
                         .iter()
                         .filter(|a| *a != addr)
-                        .cloned()
                         .map(|a| json!({ "address": a, "name": a }))
                         .collect();
                     s.auto_reconnect = true;
@@ -501,7 +500,7 @@ async fn start_tunnel_inner(app: &AppHandle, params: Value) -> Value {
                         };
                         let _ = app2.emit("redstone:reconnecting", json!({ "reason": reason, "attempt": attempts_done, "maxAttempts": max_attempts2 }));
                         let Some(next_addr) = next_addr else {
-                            write_debug(&format!("[hongshi] 无更多候选节点，重连停止"));
+                            write_debug("[hongshi] 无更多候选节点，重连停止");
                             let _ = app2.emit("redstone:disconnected", json!({ "reason": "no more nodes" }));
                             return;
                         };
@@ -693,13 +692,11 @@ pub async fn redstone_scan_port() -> Value {
         }
         // 解析端口：0.0.0.0:25565 或 [::]:25565
         let local_addr = parts[1];
-        if let Some(colon) = local_addr.rfind(':') {
-            if let Ok(port) = local_addr[colon + 1..].parse::<u16>() {
-                if !candidates.contains(&port) {
+        if let Some(colon) = local_addr.rfind(':')
+            && let Ok(port) = local_addr[colon + 1..].parse::<u16>()
+                && !candidates.contains(&port) {
                     candidates.push(port);
                 }
-            }
-        }
     }
 
     if candidates.is_empty() {

@@ -1,18 +1,14 @@
 // api/mods/project.rs — 模组详情、版本列表与下载
-use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 use std::time::Duration;
 
 use serde_json::{json, Value};
-use tauri::AppHandle;
 
 use crate::api::ApiResult;
-use crate::download::{download_with_mirror, download_with_mirror_cancellable, resources_session};
-use crate::mods;
-use crate::resource::wiki;
+use crate::download::{download_with_mirror_cancellable, resources_session};
 use crate::storage;
 
-use super::{MODRINTH_API, CURSEFORGE_API, DEFAULT_CF_API_KEY, MAX_DEPENDENCY_DEPTH, MODRINTH_BUNDLED_DEPS, CURSEFORGE_BUNDLED_DEPS};
+use super::{MODRINTH_API, CURSEFORGE_API, DEFAULT_CF_API_KEY, MODRINTH_BUNDLED_DEPS, CURSEFORGE_BUNDLED_DEPS};
 
 /// GET /api/mods/project-versions — 项目版本列表（兼容旧路径）
 pub(crate) async fn handle_project_versions(params: &Option<Value>) -> ApiResult {
@@ -317,7 +313,7 @@ pub(crate) async fn handle_versions(params: &Option<Value>) -> ApiResult {
         // CurseForge 版本列表接口
         let mut url = format!("{}/mods/{}/files?pageSize=50", CURSEFORGE_API, project_id);
         if !game_ver.is_empty() {
-            url.push_str(&format!("&gameVersion={}", urlencoding::encode(&game_ver)));
+            url.push_str(&format!("&gameVersion={}", urlencoding::encode(game_ver)));
         }
         if !loader.is_empty() {
             let loader_id = match loader.to_lowercase().as_str() {
@@ -361,20 +357,18 @@ pub(crate) async fn handle_versions(params: &Option<Value>) -> ApiResult {
                                             .collect()
                                     })
                                     .unwrap_or_default();
-                                if loaders.is_empty() {
-                                    if let Some(arr) = f.get("gameVersions").and_then(|g| g.as_array()) {
+                                if loaders.is_empty()
+                                    && let Some(arr) = f.get("gameVersions").and_then(|g| g.as_array()) {
                                         for gv in arr {
                                             if let Some(s) = gv.as_str() {
                                                 let low = s.to_lowercase();
-                                                if low == "forge" || low == "fabric" || low == "neoforge" || low == "quilt" {
-                                                    if !loaders.contains(&low) {
+                                                if (low == "forge" || low == "fabric" || low == "neoforge" || low == "quilt")
+                                                    && !loaders.contains(&low) {
                                                         loaders.push(low);
                                                     }
-                                                }
                                             }
                                         }
                                     }
-                                }
                                 let files_arr: Vec<Value> = f
                                     .get("fileName")
                                     .and_then(|n| n.as_str())

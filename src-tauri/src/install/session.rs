@@ -146,27 +146,25 @@ pub fn update_session(app: &AppHandle, session_id: &str, updater: impl FnOnce(&m
 /// 获取会话当前状态（给 GET /api/install-progress 用）
 pub fn get_session_status(session_id: &str) -> Option<Value> {
     let g = SESSIONS.lock().unwrap();
-    if let Some(map) = g.as_ref() {
-        if let Some(session_arc) = map.get(session_id) {
+    if let Some(map) = g.as_ref()
+        && let Some(session_arc) = map.get(session_id) {
             let session = session_arc.lock().unwrap();
             return Some(session.to_json());
         }
-    }
     None
 }
 
 /// 取消会话
 pub fn cancel_session(session_id: &str) -> bool {
     let g = SESSIONS.lock().unwrap();
-    if let Some(map) = g.as_ref() {
-        if let Some(session_arc) = map.get(session_id) {
+    if let Some(map) = g.as_ref()
+        && let Some(session_arc) = map.get(session_id) {
             let mut session = session_arc.lock().unwrap();
             session.cancel_flag.store(true, Ordering::SeqCst);
             session.stage = InstallStage::Cancelled;
             session.message = "已取消".to_string();
             return true;
         }
-    }
     false
 }
 

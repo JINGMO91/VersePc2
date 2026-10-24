@@ -158,7 +158,7 @@ async fn install_fabric_impl(
             .as_ref()
             .and_then(|p| p.get("libraries"))
             .and_then(|l| l.as_array())
-            .map_or(true, |a| a.is_empty())
+            .is_none_or(|a| a.is_empty())
     {
         eprintln!("[Fabric] profile/json 不可用，回退到基础端点构造");
         let base_meta_url = format!(
@@ -205,11 +205,10 @@ async fn install_fabric_impl(
                     } else {
                         mc.get("client").and_then(|c| c.as_str()).map(|s| s.to_string())
                     };
-                    if let Some(s) = mc_str {
-                        if s.contains("fabricmc") {
+                    if let Some(s) = mc_str
+                        && s.contains("fabricmc") {
                             profile["mainClass"] = json!(s);
                         }
-                    }
                 }
             }
 
@@ -221,8 +220,10 @@ async fn install_fabric_impl(
                 // 添加 fabric-loader 主库
                 if let Some(maven) = loader.get("maven").and_then(|m| m.as_str()) {
                     let parts: Vec<&str> = maven.split(':').collect();
-                    if parts.len() >= 3 {
-                        profile["libraries"].as_array_mut().unwrap().push(json!({
+                    if parts.len() >= 3
+                        && let Some(libs) = profile["libraries"].as_array_mut()
+                    {
+                        libs.push(json!({
                             "name": maven,
                             "url": "https://maven.fabricmc.net/"
                         }));
@@ -231,22 +232,23 @@ async fn install_fabric_impl(
             }
 
             // intermediary 中间映射库
-            if let Some(intermediary) = profile_data.get("intermediary") {
-                if let Some(maven) = intermediary.get("maven").and_then(|m| m.as_str()) {
+            if let Some(intermediary) = profile_data.get("intermediary")
+                && let Some(maven) = intermediary.get("maven").and_then(|m| m.as_str()) {
                     let parts: Vec<&str> = maven.split(':').collect();
-                    if parts.len() >= 3 {
-                        profile["libraries"].as_array_mut().unwrap().push(json!({
+                    if parts.len() >= 3
+                        && let Some(libs) = profile["libraries"].as_array_mut()
+                    {
+                        libs.push(json!({
                             "name": maven,
                             "url": "https://maven.fabricmc.net/"
                         }));
                     }
                 }
-            }
 
             // 合并启动参数
-            if let Some(args) = profile_data.get("arguments") {
-                if let Some(obj) = args.as_object() {
-                    if let Some(profile_args) =
+            if let Some(args) = profile_data.get("arguments")
+                && let Some(obj) = args.as_object()
+                    && let Some(profile_args) =
                         profile.get_mut("arguments").and_then(|v| v.as_object_mut())
                     {
                         for (key, val) in obj {
@@ -255,8 +257,6 @@ async fn install_fabric_impl(
                             }
                         }
                     }
-                }
-            }
 
             full_profile = Some(profile);
         } else {
@@ -267,7 +267,7 @@ async fn install_fabric_impl(
         }
     }
 
-    let mut profile = match full_profile {
+    let profile = match full_profile {
         Some(p) => p,
         None => {
             return json!({

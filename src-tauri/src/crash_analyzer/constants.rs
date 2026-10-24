@@ -11,6 +11,7 @@ pub fn default_minecraft_dir() -> PathBuf {
 /// 崩溃原因枚举
 /// 用字符串值（中文描述）作为 Map key，Rust 用 enum + as_str() 实现
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
 pub enum CrashReason {
     JavaVersionTooHigh,
     ModFileExtracted,

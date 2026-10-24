@@ -15,6 +15,7 @@ use crate::storage;
 /// Modrinth API 官方地址
 const MODRINTH_API: &str = "https://api.modrinth.com/v2";
 /// Modrinth API 国内镜像（BMCLAPI）
+#[allow(dead_code)]
 const MODRINTH_API_MIRROR: &str = "https://bmclapi2.bangbang93.com/modrinth/v2";
 /// CurseForge API 官方地址
 const CURSEFORGE_API: &str = "https://api.curseforge.com/v1";
@@ -97,18 +98,16 @@ async fn handle_search(params: &Option<Value>) -> ApiResult {
     let mut all_hits: Vec<Value> = Vec::new();
 
     // --- Modrinth 源 ---
-    if source == "any" || source == "modrinth" {
-        if let Ok(mr_hits) = search_modrinth(&client, &mp_query, &loader, &version, limit, offset).await {
+    if (source == "any" || source == "modrinth")
+        && let Ok(mr_hits) = search_modrinth(&client, &mp_query, &loader, &version, limit, offset).await {
             all_hits.extend(mr_hits);
         }
-    }
 
     // --- CurseForge 源 ---
-    if source == "any" || source == "curseforge" {
-        if let Ok(cf_hits) = search_curseforge(&client, &mp_query, &loader, &version, limit, offset).await {
+    if (source == "any" || source == "curseforge")
+        && let Ok(cf_hits) = search_curseforge(&client, &mp_query, &loader, &version, limit, offset).await {
             all_hits.extend(cf_hits);
         }
-    }
 
     // 双源混合时按下载量排序
     if source == "any" {

@@ -27,6 +27,7 @@ use self::prepare::{prepare, PreparedLogs};
 
 /// 崩溃分析器
 /// 持有配置和中间状态，对外提供 analyze / analyze_with_logs 等方法
+#[allow(dead_code)]
 pub struct CrashAnalyzer {
     pub minecraft_dir: PathBuf,
     pub target_instance: Option<String>,
@@ -166,6 +167,7 @@ impl AnalysisOutput {
 
 /// 公开的辅助函数：从外部模块触发分析
 /// 用于 API 路由层（api/crash.rs）调用
+#[allow(dead_code)]
 pub fn analyze_crash(
     target_instance: Option<String>,
     minecraft_dir: Option<PathBuf>,

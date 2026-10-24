@@ -2,7 +2,7 @@
 // 职责：针对资源文件（assets/objects）数量多、体积小的特点，提供专用批量下载。
 // 与单文件下载不同，这里一次性选择最优源，避免对每个小文件重复测速和解析 URL。
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
 use std::time::{Duration, Instant};
 
@@ -122,15 +122,12 @@ where
             // 已存在且 SHA1 正确则跳过
             if target_path.exists() {
                 let mut hash_ok = false;
-                if let Ok(meta) = tokio::fs::metadata(&target_path).await {
-                    if obj.size == 0 || meta.len() == obj.size {
-                        if let Ok(actual) = compute_sha1(&target_path).await {
-                            if actual.to_lowercase() == obj.hash.to_lowercase() {
+                if let Ok(meta) = tokio::fs::metadata(&target_path).await
+                    && (obj.size == 0 || meta.len() == obj.size)
+                        && let Ok(actual) = compute_sha1(&target_path).await
+                            && actual.to_lowercase() == obj.hash.to_lowercase() {
                                 hash_ok = true;
                             }
-                        }
-                    }
-                }
                 if hash_ok {
                     let done = completed.fetch_add(1, Ordering::SeqCst) + 1;
                     on_progress(done, total, &obj.name);
@@ -145,12 +142,11 @@ where
                 let url = format!("{}{}/{}", base, prefix, obj.hash);
                 match download_asset_once(&url, &target_path, ASSET_DOWNLOAD_TIMEOUT).await {
                     Ok(()) => {
-                        if let Ok(actual) = compute_sha1(&target_path).await {
-                            if actual.to_lowercase() == obj.hash.to_lowercase() {
+                        if let Ok(actual) = compute_sha1(&target_path).await
+                            && actual.to_lowercase() == obj.hash.to_lowercase() {
                                 downloaded = true;
                                 break;
                             }
-                        }
                         let _ = tokio::fs::remove_file(&target_path).await;
                     }
                     Err(_) => {
@@ -171,7 +167,7 @@ where
         });
     }
 
-    while let Some(_) = tasks.join_next().await {}
+    while tasks.join_next().await.is_some() {}
 
     (completed.load(Ordering::SeqCst), failed.load(Ordering::SeqCst))
 }

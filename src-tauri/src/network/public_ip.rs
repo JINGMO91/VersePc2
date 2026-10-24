@@ -32,11 +32,10 @@ pub async fn get_public_ip() -> Result<String, String> {
     // 先读缓存
     {
         let g = CACHED.lock().unwrap();
-        if let Some(cached) = g.as_ref() {
-            if cached.fetched_at.elapsed() < CACHE_TTL {
+        if let Some(cached) = g.as_ref()
+            && cached.fetched_at.elapsed() < CACHE_TTL {
                 return Ok(cached.ip.clone());
             }
-        }
     }
 
     let client = reqwest::Client::builder()
@@ -82,11 +81,10 @@ fn parse_ip_from_response(text: &str) -> String {
         return trimmed.to_string();
     }
     // JSON {"ip":"1.2.3.4"} 或 {"ip":"..."}
-    if let Ok(v) = serde_json::from_str::<Value>(trimmed) {
-        if let Some(ip) = v.get("ip").and_then(|i| i.as_str()) {
+    if let Ok(v) = serde_json::from_str::<Value>(trimmed)
+        && let Some(ip) = v.get("ip").and_then(|i| i.as_str()) {
             return ip.to_string();
         }
-    }
     String::new()
 }
 

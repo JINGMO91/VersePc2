@@ -92,7 +92,7 @@ fn vdf_tokens(raw: &str) -> Vec<String> {
     while let Some(c) = it.next() {
         match c {
             '/' if it.peek() == Some(&'/') => {
-                while let Some(n) = it.next() {
+                for n in it.by_ref() {
                     if n == '\n' {
                         break;
                     }

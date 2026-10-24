@@ -1,3 +1,4 @@
+#![allow(clippy::collapsible_match)]
 // dialog.rs — 文件对话框命令
 // 使用 tauri-plugin-dialog 官方插件实现原生文件选择
 
@@ -67,14 +68,15 @@ pub async fn dialog_open(app: tauri::AppHandle, options: Option<Value>) -> Value
         .map(|arr| arr.iter().any(|p| p.as_str() == Some("multiSelections")))
         .unwrap_or(false);
 
-    let result = tokio::task::spawn_blocking(move || -> Value {
+    
+
+    tokio::task::spawn_blocking(move || -> Value {
         let mut builder = app.dialog().file();
         builder = builder.set_title(&title);
-        if let Some(ref dp) = resolve_default_path(default_path) {
-            if dp.exists() {
+        if let Some(ref dp) = resolve_default_path(default_path)
+            && dp.exists() {
                 builder = builder.set_directory(dp);
             }
-        }
 
         if is_folder {
             if is_multi {
@@ -127,9 +129,7 @@ pub async fn dialog_open(app: tauri::AppHandle, options: Option<Value>) -> Value
         }
     })
     .await
-    .unwrap_or(json!({ "canceled": true, "filePaths": [] }));
-
-    result
+    .unwrap_or(json!({ "canceled": true, "filePaths": [] }))
 }
 
 /// Tauri 命令：select_folder
@@ -155,14 +155,14 @@ pub async fn select_folder(app: tauri::AppHandle, title: Option<String>, default
                 let _ = f.write_all(line.as_bytes());
             });
     }
-    let result = tokio::task::spawn_blocking(move || -> Value {
+    
+    tokio::task::spawn_blocking(move || -> Value {
         let mut builder = app.dialog().file();
         builder = builder.set_title(&title);
-        if let Some(ref dp) = effective {
-            if dp.exists() {
+        if let Some(ref dp) = effective
+            && dp.exists() {
                 builder = builder.set_directory(dp);
             }
-        }
         match builder.blocking_pick_folder() {
             Some(fp) => match fp {
                 FilePath::Path(p) => json!({ "cancelled": false, "path": p.to_string_lossy() }),
@@ -172,8 +172,7 @@ pub async fn select_folder(app: tauri::AppHandle, title: Option<String>, default
         }
     })
     .await
-    .unwrap_or(json!({ "cancelled": true }));
-    result
+    .unwrap_or(json!({ "cancelled": true }))
 }
 
 /// api_proxy 内部用的 select-folder 路由处理函数
@@ -190,11 +189,10 @@ pub async fn select_folder_api(
     let body = tokio::task::spawn_blocking(move || -> Value {
         let mut builder = app_clone.dialog().file();
         builder = builder.set_title(&title);
-        if let Some(ref dp) = effective {
-            if dp.exists() {
+        if let Some(ref dp) = effective
+            && dp.exists() {
                 builder = builder.set_directory(dp);
             }
-        }
         match builder.blocking_pick_folder() {
             Some(fp) => match fp {
                 FilePath::Path(p) => json!({ "success": true, "path": p.to_string_lossy() }),
@@ -213,14 +211,14 @@ pub async fn select_folder_api(
 #[tauri::command]
 pub async fn select_file(app: tauri::AppHandle, title: Option<String>, default_path: Option<String>) -> Value {
     let title = title.unwrap_or_else(|| "选择文件".to_string());
-    let result = tokio::task::spawn_blocking(move || -> Value {
+    
+    tokio::task::spawn_blocking(move || -> Value {
         let mut builder = app.dialog().file();
         builder = builder.set_title(&title);
-        if let Some(ref dp) = resolve_default_path(default_path) {
-            if dp.exists() {
+        if let Some(ref dp) = resolve_default_path(default_path)
+            && dp.exists() {
                 builder = builder.set_directory(dp);
             }
-        }
         match builder.blocking_pick_file() {
             Some(fp) => match fp {
                 FilePath::Path(p) => json!({ "cancelled": false, "path": p.to_string_lossy() }),
@@ -230,6 +228,5 @@ pub async fn select_file(app: tauri::AppHandle, title: Option<String>, default_p
         }
     })
     .await
-    .unwrap_or(json!({ "cancelled": true }));
-    result
+    .unwrap_or(json!({ "cancelled": true }))
 }

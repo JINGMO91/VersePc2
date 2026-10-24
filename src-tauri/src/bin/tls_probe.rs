@@ -58,7 +58,7 @@ async fn full_chunked(client: &reqwest::Client, url: &str, dest: &std::path::Pat
     if !supports_range || size < 1024 * 1024 {
         return Ok(false);
     }
-    let chunk_count = ((size / (512 * 1024)).max(1) as usize).min(64).max(1);
+    let chunk_count = (size / (512 * 1024)).clamp(1, 64) as usize;
     let base = size / chunk_count as u64;
     let mut handles = Vec::new();
     let bytes = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));

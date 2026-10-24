@@ -3,6 +3,7 @@
 
 /// Java 候选项
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct JavaCandidate {
     pub major_version: u32,
     pub path: String,
@@ -11,6 +12,7 @@ pub struct JavaCandidate {
 /// 决策是否跳过系统 Java 扫描（对应 java-scan-resolver.js）
 /// 只有 candidates 里有"精确匹配"（majorVersion == requiredVersion）时才跳过
 /// 旧逻辑只要"满足要求"就跳过，会错过更精确的版本
+#[allow(dead_code)]
 pub fn should_skip_system_scan(
     candidates: &[JavaCandidate],
     required_version: u32,

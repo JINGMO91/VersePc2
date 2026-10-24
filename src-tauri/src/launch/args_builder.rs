@@ -8,7 +8,7 @@
 //    build_classpath、extract_natives_dir、resolve_version_isolation 等）
 // 3. 后续重构方向：把通用辅助函数抽离到 launch/common.rs 或 versions.rs 模块
 
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -214,17 +214,16 @@ pub fn build_launch_arguments(
     variables.insert("quickPlayRealms".to_string(), String::new());
     // 存档启动：把 quickPlaySingleplayer 变量填成世界名，版本 JSON 中引用该变量的参数即可进世界
     let has_quick_play = quick_play_world.map(|w| !w.is_empty()).unwrap_or(false);
-    if let Some(world) = quick_play_world {
-        if !world.is_empty() {
+    if let Some(world) = quick_play_world
+        && !world.is_empty() {
             variables.insert("quickPlaySingleplayer".to_string(), world.to_string());
         }
-    }
 
     // ============== Mod 数量统计 ==============
     let mod_count = count_mods(&game_dir);
 
     // ============== 内存决策 ==============
-    let (memory_mode, memory_value) = resolve_memory_settings(settings, &actual_version_id, &data_dir);
+    let (memory_mode, _memory_value) = resolve_memory_settings(settings, &actual_version_id, &data_dir);
     let total_mb = total_physical_memory_mb();
     let free_mb = free_physical_memory_mb();
     let max_mem_mb = resolve_max_memory(&memory_mode, total_mb, free_mb, mod_count);
@@ -299,12 +298,11 @@ pub fn build_launch_arguments(
     if enable_cds {
         let cds_dir = data_dir.join("cds");
         let cds_archive = cds_dir.join(format!("{}.jsa", actual_version_id));
-        if let Ok(meta) = std::fs::metadata(&cds_archive) {
-            if meta.len() > 1024 {
+        if let Ok(meta) = std::fs::metadata(&cds_archive)
+            && meta.len() > 1024 {
                 jvm_args.push("-Xshare:on".to_string());
                 jvm_args.push(format!("-XX:SharedArchiveFile={}", cds_archive.to_string_lossy()));
             }
-        }
     }
 
     // ============== 加载器类型检测 ==============
@@ -343,7 +341,7 @@ pub fn build_launch_arguments(
                 })
             })
             .unwrap_or(false);
-    let is_fabric = main_class.contains("fabricmc") || main_class.contains("knot");
+    let _is_fabric = main_class.contains("fabricmc") || main_class.contains("knot");
 
     // ============== 离线账户禁用 Realms ==============
     let is_offline_account = is_offline_token
@@ -552,14 +550,13 @@ fn sanitize_jvm_args(args: &mut Vec<String>) {
 
     for arg in args.iter_mut() {
         // trim -Dkey=value 的值部分（如 -DFabricMcEmu= xxx ）
-        if let Some(pos) = arg.find("-D") {
-            if let Some(eq_pos) = arg[pos..].find('=') {
+        if let Some(pos) = arg.find("-D")
+            && let Some(eq_pos) = arg[pos..].find('=') {
                 let abs_eq = pos + eq_pos;
                 let key = &arg[..abs_eq];
                 let value = arg[abs_eq + 1..].trim();
                 *arg = format!("{}={}", key, value);
             }
-        }
     }
 
     args.retain(|a| !unsupported_options.iter().any(|u| a.trim() == *u));
@@ -645,11 +642,10 @@ pub fn build_classpath(
 
     // 搜索路径：外部根的 libraries 优先，其次本地 libraries
     let mut search_bases: Vec<PathBuf> = Vec::new();
-    if let Some(ext_dir) = external_version_dir {
-        if let Some(root) = dep_check::find_external_root(ext_dir) {
+    if let Some(ext_dir) = external_version_dir
+        && let Some(root) = dep_check::find_external_root(ext_dir) {
             search_bases.push(root.join("libraries"));
         }
-    }
     search_bases.push(libraries_dir.to_path_buf());
 
     let current_os = dep_check::current_platform_name();
@@ -657,11 +653,10 @@ pub fn build_classpath(
 
     for lib in &libraries {
         // rules 过滤
-        if let Some(rules) = lib.get("rules").and_then(|v| v.as_array()) {
-            if !dep_check::evaluate_rules(rules, false, false) {
+        if let Some(rules) = lib.get("rules").and_then(|v| v.as_array())
+            && !dep_check::evaluate_rules(rules, false, false) {
                 continue;
             }
-        }
 
         let name = utils::get_str(lib, "name");
         // 跳过 natives 库（它们通过 -Djava.library.path 加载）
@@ -681,20 +676,17 @@ pub fn build_classpath(
         let mut resolved_path: Option<String> = None;
 
         // 优先用 downloads.artifact.path
-        if let Some(artifact) = lib.get("downloads").and_then(|d| d.get("artifact")) {
-            if let Some(path) = artifact.get("path").and_then(|p| p.as_str()) {
-                if !path.is_empty() {
+        if let Some(artifact) = lib.get("downloads").and_then(|d| d.get("artifact"))
+            && let Some(path) = artifact.get("path").and_then(|p| p.as_str())
+                && !path.is_empty() {
                     resolved_path = find_lib_in_bases(&search_bases, path);
                 }
-            }
-        }
 
         // 回退：从 maven name 解析路径
-        if resolved_path.is_none() && !name.is_empty() {
-            if let Some(rel_path) = maven_name_to_path(&name) {
+        if resolved_path.is_none() && !name.is_empty()
+            && let Some(rel_path) = maven_name_to_path(&name) {
                 resolved_path = find_lib_in_bases(&search_bases, &rel_path);
             }
-        }
 
         // 最后回退：扫描目录
         if resolved_path.is_none() && !name.is_empty() {
@@ -726,8 +718,8 @@ fn push_classpath_entry(entries: &mut Vec<ClasspathEntry>, name: &str, path: Str
     }
     let key = lib_artifact_key(name);
     let version = lib_version_of(name, &path);
-    if let Some(k) = key.as_deref() {
-        if let Some(existing) = entries
+    if let Some(k) = key.as_deref()
+        && let Some(existing) = entries
             .iter_mut()
             .find(|e| e.key.as_deref() == Some(k))
         {
@@ -737,7 +729,6 @@ fn push_classpath_entry(entries: &mut Vec<ClasspathEntry>, name: &str, path: Str
             }
             return;
         }
-    }
     entries.push(ClasspathEntry {
         key,
         version,
@@ -776,7 +767,7 @@ fn lib_version_of(name: &str, path: &str) -> String {
 fn compare_lib_version(a: &str, b: &str) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     let split = |s: &str| {
-        s.split(|c: char| c == '.' || c == '-' || c == '_' || c == '+')
+        s.split(['.', '-', '_', '+'])
             .map(|p| p.to_string())
             .collect::<Vec<_>>()
     };
@@ -916,11 +907,10 @@ fn extract_natives_dir(
 
     // 搜索路径：外部根 libraries 优先，其次本地 libraries，再 .minecraft/libraries
     let mut search_bases: Vec<PathBuf> = Vec::new();
-    if let Some(ext_dir) = external_version_dir {
-        if let Some(root) = dep_check::find_external_root(ext_dir) {
+    if let Some(ext_dir) = external_version_dir
+        && let Some(root) = dep_check::find_external_root(ext_dir) {
             search_bases.push(root.join("libraries"));
         }
-    }
     let libraries_dir = data_dir.join("libraries");
     search_bases.push(libraries_dir.clone());
     let mc_lib = storage::default_minecraft_dir(data_dir.to_path_buf()).join("libraries");
@@ -931,11 +921,10 @@ fn extract_natives_dir(
     // 收集所有 native jar 路径
     let mut native_jars: Vec<PathBuf> = Vec::new();
     for lib in &libraries {
-        if let Some(rules) = lib.get("rules").and_then(|v| v.as_array()) {
-            if !dep_check::evaluate_rules(rules, false, false) {
+        if let Some(rules) = lib.get("rules").and_then(|v| v.as_array())
+            && !dep_check::evaluate_rules(rules, false, false) {
                 continue;
             }
-        }
         let lib_name = utils::get_str(lib, "name");
         let mut native_path: Option<PathBuf> = None;
         let mut is_native = false;
@@ -951,13 +940,10 @@ fn extract_natives_dir(
                 .get("downloads")
                 .and_then(|d| d.get("classifiers"))
                 .and_then(|c| c.get(classifier.as_str()))
-            {
-                if let Some(path) = nd.get("path").and_then(|p| p.as_str()) {
-                    if !path.is_empty() {
+                && let Some(path) = nd.get("path").and_then(|p| p.as_str())
+                    && !path.is_empty() {
                         native_path = find_native_jar(&search_bases, path);
                     }
-                }
-            }
         } else if lib_name.contains(":natives-") {
             let name_parts: Vec<&str> = lib_name.split(':').collect();
             let native_suffix = name_parts.last().copied().unwrap_or("");
@@ -993,11 +979,9 @@ fn extract_natives_dir(
                 .and_then(|d| d.get("artifact"))
                 .and_then(|a| a.get("path"))
                 .and_then(|p| p.as_str())
-            {
-                if !path.is_empty() {
+                && !path.is_empty() {
                     native_path = find_native_jar(&search_bases, path);
                 }
-            }
             if native_path.is_none() && name_parts.len() >= 4 {
                 let group_path = name_parts[0].replace('.', "/");
                 let nname = name_parts[1];
@@ -1014,11 +998,10 @@ fn extract_natives_dir(
         if !is_native {
             continue;
         }
-        if let Some(np) = native_path {
-            if np.exists() && !native_jars.contains(&np) {
+        if let Some(np) = native_path
+            && np.exists() && !native_jars.contains(&np) {
                 native_jars.push(np);
             }
-        }
     }
 
     if native_jars.is_empty() {
@@ -1142,11 +1125,10 @@ fn max_dir_mtime(dir: &Path) -> u64 {
     let mut max = 0u64;
     if let Ok(entries) = std::fs::read_dir(dir) {
         for e in entries.flatten() {
-            if let Some(m) = e.metadata().ok().and_then(|m| m.modified().ok()) {
-                if let Ok(s) = m.duration_since(std::time::UNIX_EPOCH) {
+            if let Some(m) = e.metadata().ok().and_then(|m| m.modified().ok())
+                && let Ok(s) = m.duration_since(std::time::UNIX_EPOCH) {
                     max = max.max(s.as_millis() as u64);
                 }
-            }
         }
     }
     max
@@ -1201,11 +1183,10 @@ fn extract_native_jar(jar_path: &Path, natives_dir: &Path) {
         };
         let dest_path = natives_dir.join(&file_name);
         // 已存在且大小相同则跳过
-        if let Ok(existing) = std::fs::metadata(&dest_path) {
-            if existing.len() == entry.size() {
+        if let Ok(existing) = std::fs::metadata(&dest_path)
+            && existing.len() == entry.size() {
                 continue;
             }
-        }
         let mut buf = Vec::new();
         if entry.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
             let _ = std::fs::write(&dest_path, buf);
@@ -1222,11 +1203,10 @@ pub(crate) fn resolve_game_dir(
     versions_dir: &Path,
     data_dir: &Path,
 ) -> PathBuf {
-    if let Some(custom) = custom_game_dir {
-        if !custom.is_empty() {
+    if let Some(custom) = custom_game_dir
+        && !custom.is_empty() {
             return PathBuf::from(custom);
         }
-    }
     if let Some(ext_dir) = external_version_dir {
         return ext_dir.to_path_buf();
     }
@@ -1290,11 +1270,10 @@ fn dir_has_visible_files(dir: &Path) -> bool {
 fn dir_has_subdirs(dir: &Path) -> bool {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
-            if let Ok(meta) = entry.metadata() {
-                if meta.is_dir() {
+            if let Ok(meta) = entry.metadata()
+                && meta.is_dir() {
                     return true;
                 }
-            }
         }
     }
     false
@@ -1324,7 +1303,7 @@ fn copy_forge_log4j(version_id: &str, versions_dir: &Path, game_dir: &Path) {
 /// 解析分辨率字符串（如 "1280x720"）
 fn parse_resolution(resolution: &str) -> (u32, u32) {
     let parts: Vec<&str> = resolution.split('x').collect();
-    let w = parts.get(0).and_then(|s| s.parse().ok()).unwrap_or(854);
+    let w = parts.first().and_then(|s| s.parse().ok()).unwrap_or(854);
     let h = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(480);
     (w, h)
 }
@@ -1430,14 +1409,14 @@ fn num_cpus() -> u32 {
 fn total_physical_memory_mb() -> u64 {
     let mut sys = sysinfo::System::new();
     sys.refresh_memory();
-    (sys.total_memory() / (1024 * 1024)) as u64
+    sys.total_memory() / (1024 * 1024)
 }
 
 /// 获取当前可用物理内存（MB）
 fn free_physical_memory_mb() -> u64 {
     let mut sys = sysinfo::System::new();
     sys.refresh_memory();
-    (sys.available_memory() / (1024 * 1024)) as u64
+    sys.available_memory() / (1024 * 1024)
 }
 
 /// 推送用户自定义 JVM 参数（去重）
@@ -1632,14 +1611,13 @@ fn normalize_module_flags(jvm_args: &mut Vec<String>) {
             continue;
         }
         // 检测裸的 module value（不是 flag，且格式像 module/package=target）
-        if looks_like_module_value(arg) {
-            if let Some(flag) = &last_flag {
-                let value = arg.clone();
+        if looks_like_module_value(arg)
+            && let Some(flag) = &last_flag {
+                let _value = arg.clone();
                 jvm_args.insert(i, flag.clone());
                 i += 2;
                 continue;
             }
-        }
         i += 1;
     }
 }
@@ -1656,7 +1634,6 @@ fn push_ordinary_jvm_arg(jvm_args: &mut Vec<String>, replaced: &str) {
         return;
     }
     if replaced.starts_with("-Xmx") || replaced.starts_with("-Xms") {
-        return;
     } else if !jvm_args.iter().any(|existing| existing == replaced) {
         jvm_args.push(replaced.to_string());
     }
@@ -2164,16 +2141,14 @@ fn fallback_empty_main_jar(
     let mut fv = String::new();
     let mut mv = String::new();
     for (idx, a) in game_args.iter().enumerate() {
-        if a.as_str() == Some("--fml.forgeVersion") && idx + 1 < game_args.len() {
-            if let Some(v) = game_args[idx + 1].as_str() {
+        if a.as_str() == Some("--fml.forgeVersion") && idx + 1 < game_args.len()
+            && let Some(v) = game_args[idx + 1].as_str() {
                 fv = v.to_string();
             }
-        }
-        if a.as_str() == Some("--fml.mcVersion") && idx + 1 < game_args.len() {
-            if let Some(v) = game_args[idx + 1].as_str() {
+        if a.as_str() == Some("--fml.mcVersion") && idx + 1 < game_args.len()
+            && let Some(v) = game_args[idx + 1].as_str() {
                 mv = v.to_string();
             }
-        }
     }
     if mv.is_empty() {
         mv = utils::get_str(version_json, "clientVersion");
@@ -2187,13 +2162,11 @@ fn fallback_empty_main_jar(
         .join("forge")
         .join(format!("{}-{}", mv, fv))
         .join(format!("forge-{}-{}-client.jar", mv, fv));
-    if patched_jar.exists() {
-        if let Ok(meta) = std::fs::metadata(&patched_jar) {
-            if meta.len() > 0 {
+    if patched_jar.exists()
+        && let Ok(meta) = std::fs::metadata(&patched_jar)
+            && meta.len() > 0 {
                 return patched_jar;
             }
-        }
-    }
     main_jar_path.to_path_buf()
 }
 
@@ -2216,11 +2189,11 @@ fn resolve_memory_settings(
 
     // 优先级 2：前端 launch_settings（store.json 中的 versepc_launch_settings）
     let store_path = data_dir.join("store.json");
-    if store_path.exists() {
-        if let Ok(content) = std::fs::read_to_string(&store_path) {
-            if let Ok(store) = serde_json::from_str::<Value>(&content) {
-                if let Some(launch_str) = store.get("versepc_launch_settings").and_then(|v| v.as_str()) {
-                    if let Ok(launch_settings) = serde_json::from_str::<Value>(launch_str) {
+    if store_path.exists()
+        && let Ok(content) = std::fs::read_to_string(&store_path)
+            && let Ok(store) = serde_json::from_str::<Value>(&content)
+                && let Some(launch_str) = store.get("versepc_launch_settings").and_then(|v| v.as_str())
+                    && let Ok(launch_settings) = serde_json::from_str::<Value>(launch_str) {
                         let launch_mode = utils::get_str(&launch_settings, "memoryMode");
                         let launch_value = launch_settings.get("memoryValue").and_then(|v| v.as_u64());
                         if launch_mode == "custom" {
@@ -2234,10 +2207,6 @@ fn resolve_memory_settings(
                         let mode = resolve_memory_mode(settings_max, true, Some("auto"), launch_value);
                         return (mode, None);
                     }
-                }
-            }
-        }
-    }
 
     // 优先级 3：通过 resolve_memory_mode 决策
     let settings_max = settings.get("maxMemory").and_then(|v| v.as_u64()).unwrap_or(4096);

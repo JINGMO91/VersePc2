@@ -1,22 +1,10 @@
 ﻿// modpack/mrpack_native/loader.rs — 整合包加载器安装
-use std::collections::HashSet;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
 
-use serde::Deserialize;
-use serde_json::{json, Map, Value};
-use tauri::{AppHandle, Emitter};
-use tokio::sync::{Mutex, Semaphore};
+use tauri::AppHandle;
 
 use crate::modpack::curseforge_shared as cf_shared;
-use super::{emit_progress, emit_progress_with_files, normalize_version_id, versions_dir};
-use crate::modloaders::shared as ml_shared;
-use crate::storage;
+use super::{emit_progress, versions_dir};
 
-use super::{MrpackManifest, MrpackDependencies, MrpackFile, CleanupAbort, LoaderKind, MAX_DOWNLOAD_ROUNDS};
 
 /// 安装模组加载器（Forge/NeoForge/Fabric）
 /// 已存在则校验 libs 完整性，损坏则删除重装

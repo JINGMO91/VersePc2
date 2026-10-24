@@ -255,7 +255,7 @@ pub async fn handle(method: &str, path: &str, params: &Option<Value>, body: &Opt
                 return Some(ApiResult::err(400, "Missing versionId"));
             }
             // 判断是否外部版本
-            let is_external = is_external_version(&version_id);
+            let is_external = is_external_version(version_id);
             let clean_id = if is_external {
                 version_id.split(" [外部").next().unwrap_or(version_id).to_string()
             } else {
@@ -283,7 +283,7 @@ pub async fn handle(method: &str, path: &str, params: &Option<Value>, body: &Opt
             if version_id.is_empty() {
                 return Some(ApiResult::err(400, "Missing versionId"));
             }
-            let is_external = is_external_version(&version_id);
+            let is_external = is_external_version(version_id);
             let clean_id = if is_external {
                 version_id.split(" [外部").next().unwrap_or(version_id).to_string()
             } else {
@@ -413,7 +413,7 @@ pub async fn handle(method: &str, path: &str, params: &Option<Value>, body: &Opt
                 return Some(ApiResult::err(400, "Missing versionId"));
             }
 
-            let is_external = is_external_version(&version_id);
+            let is_external = is_external_version(version_id);
             let clean_id = if is_external {
                 version_id.split(" [外部").next().unwrap_or(version_id).to_string()
             } else {
@@ -515,7 +515,7 @@ pub async fn handle(method: &str, path: &str, params: &Option<Value>, body: &Opt
                 return Some(ApiResult::err(400, "Missing versionId"));
             }
 
-            let is_external = is_external_version(&version_id);
+            let is_external = is_external_version(version_id);
             let clean_id = if is_external {
                 version_id.split(" [外部").next().unwrap_or(version_id).to_string()
             } else {
@@ -541,34 +541,30 @@ pub async fn handle(method: &str, path: &str, params: &Option<Value>, body: &Opt
 
             // 统计 saves 数量
             let mut saves: Vec<String> = Vec::new();
-            if saves_dir.exists() {
-                if let Ok(entries) = std::fs::read_dir(&saves_dir) {
+            if saves_dir.exists()
+                && let Ok(entries) = std::fs::read_dir(&saves_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().is_dir() && entry.path().join("level.dat").exists() {
-                            if let Some(name) = entry.file_name().to_str() {
+                        if entry.path().is_dir() && entry.path().join("level.dat").exists()
+                            && let Some(name) = entry.file_name().to_str() {
                                 saves.push(name.to_string());
                                 if saves.len() >= 20 {
                                     break;
                                 }
                             }
-                        }
                     }
                 }
-            }
 
             // resourcepacks zip 文件
             let mut resource_packs: Vec<String> = Vec::new();
-            if rp_dir.exists() {
-                if let Ok(entries) = std::fs::read_dir(&rp_dir) {
+            if rp_dir.exists()
+                && let Ok(entries) = std::fs::read_dir(&rp_dir) {
                     for entry in entries.flatten() {
-                        if entry.path().extension().and_then(|x| x.to_str()) == Some("zip") {
-                            if let Some(name) = entry.file_name().to_str() {
+                        if entry.path().extension().and_then(|x| x.to_str()) == Some("zip")
+                            && let Some(name) = entry.file_name().to_str() {
                                 resource_packs.push(name.to_string());
                             }
-                        }
                     }
                 }
-            }
 
             // gameDesc：简化版（完整需要解析加载器版本）
             let game_desc = clean_id.clone();
@@ -660,11 +656,10 @@ pub async fn handle(method: &str, path: &str, params: &Option<Value>, body: &Opt
             let cleanup_dirs = ["natives", "logs", "crash-reports", ".fabric", ".quilt"];
             for sub in &cleanup_dirs {
                 let p = version_dir.join(sub);
-                if p.exists() {
-                    if std::fs::remove_dir_all(&p).is_ok() {
+                if p.exists()
+                    && std::fs::remove_dir_all(&p).is_ok() {
                         deleted.push(sub.to_string());
                     }
-                }
             }
             Some(ApiResult::ok(json!({
                 "success": true,
@@ -758,17 +753,14 @@ pub async fn handle(method: &str, path: &str, params: &Option<Value>, body: &Opt
                             if !json_path.exists() {
                                 continue;
                             }
-                            if let Ok(content) = std::fs::read_to_string(&json_path) {
-                                if let Ok(json) = serde_json::from_str::<Value>(&content) {
-                                    if let Some(inherits) = json.get("inheritsFrom").and_then(|v| v.as_str()) {
-                                        if visited.contains(inherits) {
+                            if let Ok(content) = std::fs::read_to_string(&json_path)
+                                && let Ok(json) = serde_json::from_str::<Value>(&content)
+                                    && let Some(inherits) = json.get("inheritsFrom").and_then(|v| v.as_str())
+                                        && visited.contains(inherits) {
                                             to_delete.push(name.to_string());
                                             visited.insert(name.to_string());
                                             changed = true;
                                         }
-                                    }
-                                }
-                            }
                         }
                     }
                 }

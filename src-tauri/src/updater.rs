@@ -175,11 +175,10 @@ fn verify_file(path: &Path, expected_size: u64, expected_sha: Option<&str>) -> b
     if !path.exists() {
         return false;
     }
-    if let Ok(md) = fs::metadata(path) {
-        if expected_size > 0 && md.len() != expected_size {
+    if let Ok(md) = fs::metadata(path)
+        && expected_size > 0 && md.len() != expected_size {
             return false;
         }
-    }
     if let Some(sha) = expected_sha {
         let Ok(mut f) = fs::File::open(path) else {
             return false;
@@ -500,7 +499,7 @@ async fn stream_download(
             } else {
                 0.0
             };
-            emit(&app, "download-progress", &json!({
+            emit(app, "download-progress", &json!({
                 "percent": (pct * 10.0).round() / 10.0,
                 "transferred": transferred,
                 "total": total.max(transferred),
@@ -531,7 +530,7 @@ async fn stream_download(
         final_size == expected_size
     ));
     if total > 0 {
-        emit(&app, "download-progress", &json!({
+        emit(app, "download-progress", &json!({
             "percent": 100.0,
             "transferred": total,
             "total": total,
@@ -556,7 +555,7 @@ async fn download_with_fallback(
 ) -> Result<(), String> {
     if verify_file(target, expected_size, expected_sha) {
         if expected_size > 0 {
-            emit(&app, "download-progress", &json!({
+            emit(app, "download-progress", &json!({
                 "percent": 100.0,
                 "transferred": expected_size,
                 "total": expected_size,
@@ -778,7 +777,7 @@ fn install_and_restart(app: &AppHandle, new_pkg: &Path) -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("无法启动更新脚本: {}", e))?;
         app.exit(0);
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(target_os = "linux")]

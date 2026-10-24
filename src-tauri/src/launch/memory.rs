@@ -90,7 +90,7 @@ pub fn resolve_max_memory(
             auto_mb = auto_mb.min(physical_cap as f64);
 
             // 封顶 16GB，对齐 256MB
-            let mut result = auto_mb.max(512.0).min(16384.0) as u64;
+            let mut result = auto_mb.clamp(512.0, 16384.0) as u64;
             result = (result / 256) * 256;
             result
         }
@@ -103,6 +103,7 @@ pub fn resolve_max_memory(
 /// 优先级 3: 大内存机器（≥12GB）跳过
 /// 优先级 4: 大型整合包（mod ≥ 100）跳过
 /// 优先级 5: 可用内存充足（> 4GB）跳过
+#[allow(dead_code)]
 pub fn should_run_memory_optimize(
     auto_memory_optimize: bool,
     version_mem_optimize: &str,

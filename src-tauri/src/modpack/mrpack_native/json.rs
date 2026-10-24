@@ -1,22 +1,12 @@
 ﻿// modpack/mrpack_native/json.rs — 版本 JSON 合并与 JVM 参数整理
 use std::collections::HashSet;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
+use std::path::Path;
 
-use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use tauri::{AppHandle, Emitter};
-use tokio::sync::{Mutex, Semaphore};
 
 use crate::modpack::curseforge_shared as cf_shared;
-use super::{emit_progress, emit_progress_with_files, normalize_version_id, versions_dir};
-use crate::modloaders::shared as ml_shared;
-use crate::storage;
+use super::versions_dir;
 
-use super::{MrpackManifest, MrpackDependencies, MrpackFile, CleanupAbort, LoaderKind, MAX_DOWNLOAD_ROUNDS};
 
 /// 创建版本 JSON（合并加载器 JSON 到原版 JSON 之上）
 pub(crate) fn create_version_json_with_merge(
@@ -37,13 +27,11 @@ pub(crate) fn create_version_json_with_merge(
 
             if !mc_version.is_empty() {
                 let vanilla_json_path = versions_dir().join(mc_version).join(format!("{}.json", mc_version));
-                if vanilla_json_path.exists() {
-                    if let Ok(vanilla_str) = std::fs::read_to_string(&vanilla_json_path) {
-                        if let Ok(base_json) = serde_json::from_str::<Value>(&vanilla_str) {
+                if vanilla_json_path.exists()
+                    && let Ok(vanilla_str) = std::fs::read_to_string(&vanilla_json_path)
+                        && let Ok(base_json) = serde_json::from_str::<Value>(&vanilla_str) {
                             merged_json = Some(merge_version_json(&base_json, &lv_json, version_id));
                         }
-                    }
-                }
             }
 
             if merged_json.is_none() {
@@ -61,13 +49,11 @@ pub(crate) fn create_version_json_with_merge(
             }
 
             // 补充 clientVersion
-            if let Some(ref mut mj) = merged_json {
-                if mj.get("clientVersion").is_none() && !mc_version.is_empty() {
-                    if let Some(obj) = mj.as_object_mut() {
+            if let Some(ref mut mj) = merged_json
+                && mj.get("clientVersion").is_none() && !mc_version.is_empty()
+                    && let Some(obj) = mj.as_object_mut() {
                         obj.insert("clientVersion".to_string(), json!(mc_version));
                     }
-                }
-            }
         }
 
         let version_json = merged_json.unwrap_or_else(|| {
@@ -93,13 +79,11 @@ pub(crate) fn create_version_json_with_merge(
         let vanilla_jar = versions_dir().join(mc_version).join(format!("{}.jar", mc_version));
         let target_jar = version_dir.join(format!("{}.jar", version_id));
         let mut need_copy = true;
-        if target_jar.exists() {
-            if let Ok(stat) = std::fs::metadata(&target_jar) {
-                if stat.len() > 0 {
+        if target_jar.exists()
+            && let Ok(stat) = std::fs::metadata(&target_jar)
+                && stat.len() > 0 {
                     need_copy = false;
                 }
-            }
-        }
         if need_copy && vanilla_jar.exists() {
             if let Err(e) = std::fs::copy(&vanilla_jar, &target_jar) {
                 eprintln!("[mrpack] 复制版本jar失败: {}", e);
@@ -114,11 +98,10 @@ pub(crate) fn create_version_json_with_merge(
 
         // 删除加载器文件夹（libraries 已合并到版本 JSON）
         let loader_dir = versions_dir().join(lv_id);
-        if loader_dir.exists() && loader_dir != version_dir {
-            if let Err(e) = std::fs::remove_dir_all(&loader_dir) {
+        if loader_dir.exists() && loader_dir != version_dir
+            && let Err(e) = std::fs::remove_dir_all(&loader_dir) {
                 eprintln!("[mrpack] 删除加载器文件夹失败: {}", e);
             }
-        }
     } else {
         // 无加载器：创建简单版本 JSON
         let version_json = json!({
@@ -159,13 +142,11 @@ pub(crate) fn remerge_version_json(
 
     if !mc_version.is_empty() {
         let vanilla_json_path = versions_dir().join(mc_version).join(format!("{}.json", mc_version));
-        if vanilla_json_path.exists() {
-            if let Ok(vanilla_str) = std::fs::read_to_string(&vanilla_json_path) {
-                if let Ok(base_json) = serde_json::from_str::<Value>(&vanilla_str) {
+        if vanilla_json_path.exists()
+            && let Ok(vanilla_str) = std::fs::read_to_string(&vanilla_json_path)
+                && let Ok(base_json) = serde_json::from_str::<Value>(&vanilla_str) {
                     new_json = Some(merge_version_json(&base_json, &lv_json, version_id));
                 }
-            }
-        }
     }
 
     if new_json.is_none() {
@@ -183,11 +164,10 @@ pub(crate) fn remerge_version_json(
 
     if let Some(ref mut nj) = new_json {
         // 补充 clientVersion
-        if nj.get("clientVersion").is_none() && !mc_version.is_empty() {
-            if let Some(obj) = nj.as_object_mut() {
+        if nj.get("clientVersion").is_none() && !mc_version.is_empty()
+            && let Some(obj) = nj.as_object_mut() {
                 obj.insert("clientVersion".to_string(), json!(mc_version));
             }
-        }
         // JVM 参数去重
         let nj_dedup = dedup_jvm_args_in_json(nj.clone());
         *nj = nj_dedup;
@@ -213,12 +193,12 @@ pub(crate) fn create_fallback_version_json(
         "releaseTime": cf_shared::now_iso()
     });
 
-    if let Some(lv_id) = loader_version_id {
-        if !mc_version.is_empty() {
+    if let Some(lv_id) = loader_version_id
+        && !mc_version.is_empty() {
             let lv_p = versions_dir().join(lv_id).join(format!("{}.json", lv_id));
-            if lv_p.exists() {
-                if let Ok(lv_str) = std::fs::read_to_string(&lv_p) {
-                    if let Ok(lv_j) = serde_json::from_str::<Value>(&lv_str) {
+            if lv_p.exists()
+                && let Ok(lv_str) = std::fs::read_to_string(&lv_p)
+                    && let Ok(lv_j) = serde_json::from_str::<Value>(&lv_str) {
                         let vanilla_json_path = versions_dir().join(mc_version).join(format!("{}.json", mc_version));
                         let base_json: Option<Value> = std::fs::read_to_string(&vanilla_json_path)
                             .ok()
@@ -238,16 +218,12 @@ pub(crate) fn create_fallback_version_json(
                             fallback_json = j;
                         }
                         // 补充 clientVersion
-                        if let Some(obj) = fallback_json.as_object_mut() {
-                            if obj.get("clientVersion").is_none() {
+                        if let Some(obj) = fallback_json.as_object_mut()
+                            && obj.get("clientVersion").is_none() {
                                 obj.insert("clientVersion".to_string(), json!(mc_version));
                             }
-                        }
                     }
-                }
-            }
         }
-    }
 
     let fallback_json = dedup_jvm_args_in_json(fallback_json);
     let _ = std::fs::write(
@@ -358,7 +334,7 @@ pub(crate) fn merge_version_json(base_json: &Value, loader_json: &Value, version
 
             if key == "arguments" && loader_val.get("arguments").is_some() && base_json.get("arguments").is_some() {
                 // arguments 合并：game + jvm
-                let base_args = base_json.get("arguments").unwrap();
+                let Some(base_args) = base_json.get("arguments") else { continue; };
                 let loader_args = loader_val;
 
                 // 合并 game 参数（去重）
@@ -471,13 +447,12 @@ pub(crate) fn expand_multi_value_flags(args: &[Value]) -> Vec<Value> {
         if is_multi {
             let mut values: Vec<Value> = Vec::new();
             while i + 1 < args.len() {
-                if let Some(next) = args[i + 1].as_str() {
-                    if !next.starts_with('-') {
+                if let Some(next) = args[i + 1].as_str()
+                    && !next.starts_with('-') {
                         i += 1;
                         values.push(args[i].clone());
                         continue;
                     }
-                }
                 break;
             }
             if values.is_empty() {
@@ -512,13 +487,12 @@ pub(crate) fn group_jvm_tokens(args: &[Value]) -> Vec<Vec<Value>> {
                 let mut group: Vec<Value> = vec![cur.clone()];
                 let mut j = i + 1;
                 while j < args.len() {
-                    if let Some(ns) = args[j].as_str() {
-                        if !ns.starts_with('-') {
+                    if let Some(ns) = args[j].as_str()
+                        && !ns.starts_with('-') {
                             group.push(args[j].clone());
                             j += 1;
                             continue;
                         }
-                    }
                     break;
                 }
                 groups.push(group);
@@ -549,17 +523,14 @@ pub(crate) fn deduplicate_jvm_args(args: &[Value]) -> Vec<Value> {
 
     for arg in &expanded {
         match arg {
-            Value::String(s) => {
-                if s.starts_with("-D") || s.starts_with("-X") || s.starts_with("-XX") {
+            Value::String(s)
+                if (s.starts_with("-D") || s.starts_with("-X") || s.starts_with("-XX")) => {
                     if seen.contains(s) {
                         continue;
                     }
                     seen.insert(s.clone());
                     result.push(arg.clone());
-                } else {
-                    result.push(arg.clone());
                 }
-            }
             _ => {
                 result.push(arg.clone());
             }

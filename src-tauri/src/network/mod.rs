@@ -67,6 +67,7 @@ pub fn list_mappings() -> Vec<Value> {
 /// 检测的 LAN 端口（Minecraft 自动开放局域网时探测到的端口）
 static DETECTED_LAN_PORT: Mutex<Option<u16>> = Mutex::new(None);
 
+#[allow(dead_code)]
 pub fn set_detected_lan_port(port: u16) {
     let mut g = DETECTED_LAN_PORT.lock().unwrap();
     *g = Some(port);

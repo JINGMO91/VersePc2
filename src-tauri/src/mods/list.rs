@@ -111,7 +111,7 @@ fn build_installed_mods(settings: &Value, version_id: &str) -> Value {
             .and_then(|v| v.as_str())
             .filter(|s| !s.is_empty())
             .map(PathBuf::from)
-            .unwrap_or_else(|| storage::resolve_data_dir());
+            .unwrap_or_else(storage::resolve_data_dir);
         let shared_mods = game_dir.join("mods");
         if Some(&shared_mods) != mods_path.as_ref() {
             scan_dir(&shared_mods, "共享", &mut mods, &mut seen_files);

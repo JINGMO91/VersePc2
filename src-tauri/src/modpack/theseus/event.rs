@@ -29,6 +29,7 @@ pub fn set_app_handle(app: AppHandle) {
 }
 
 /// 获取全局 AppHandle
+#[allow(dead_code)]
 pub async fn get_app_handle() -> Result<AppHandle> {
     let mutex = GLOBAL_APP.get_or_init(|| Mutex::new(None));
     let guard = mutex.lock();
@@ -41,8 +42,10 @@ pub async fn get_app_handle() -> Result<AppHandle> {
 
 /// 加载条 ID（theseus 兼容类型）
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
 pub struct LoadingBarId(pub uuid::Uuid);
 
+#[allow(dead_code)]
 impl LoadingBarId {
     pub fn new() -> Self {
         Self(uuid::Uuid::new_v4())
@@ -57,6 +60,7 @@ impl Default for LoadingBarId {
 
 /// 实例载荷类型（theseus 兼容枚举）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum InstancePayloadType {
     Created,
     Updated,
@@ -67,10 +71,12 @@ pub enum InstancePayloadType {
 
 /// theseus 事件状态（theseus 兼容类型）
 /// 用于 events.rs 中 `crate::EventState::get()` 调用
+#[allow(dead_code)]
 pub struct EventState {
     pub app: AppHandle,
 }
 
+#[allow(dead_code)]
 impl EventState {
     /// 获取全局 EventState
     pub fn get() -> Result<Self> {
@@ -86,6 +92,7 @@ impl EventState {
 }
 
 /// 事件错误（theseus 兼容类型，从 tauri::Error 转换）
+#[allow(dead_code)]
 pub struct EventError(pub String);
 
 impl From<tauri::Error> for EventError {
@@ -104,6 +111,7 @@ impl From<EventError> for Error {
 ///
 /// 事件名：`theseus-loading`
 /// 载荷：`{ id, message, progress, total }`
+#[allow(dead_code)]
 pub async fn emit_loading(
     id: &LoadingBarId,
     message: &str,
@@ -127,6 +135,7 @@ pub async fn emit_loading(
 ///
 /// 事件名：`theseus-instance`
 /// 参数顺序为 (instance_id, payload_type)，与 theseus 调用约定一致
+#[allow(dead_code)]
 pub async fn emit_instance(
     instance_id: &str,
     payload_type: InstancePayloadType,
@@ -145,6 +154,7 @@ pub async fn emit_instance(
 /// 发送安装任务事件
 ///
 /// 事件名：`theseus-install-job`
+#[allow(dead_code)]
 pub async fn emit_install_job(snapshot: &serde_json::Value) -> Result<()> {
     let app = get_app_handle().await?;
     let _ = app.emit("theseus-install-job", snapshot.clone());
@@ -162,6 +172,7 @@ pub async fn emit_install_job(snapshot: &serde_json::Value) -> Result<()> {
 ///   - _total: 总数
 ///   - _progress_fn: 可选进度回调
 ///   - f: 对每个元素执行的闭包
+#[allow(dead_code)]
 pub async fn loading_try_for_each_concurrent<S, F, Fut, T>(
     stream: S,
     limit: Option<usize>,
@@ -199,6 +210,7 @@ where
     Ok(results)
 }
 
+#[allow(dead_code)]
 fn payload_type_name(t: InstancePayloadType) -> &'static str {
     match t {
         InstancePayloadType::Created => "created",
@@ -215,6 +227,7 @@ pub mod emit {
 
     /// 发送实例状态变更事件（theseus 兼容接口）
     /// 参数顺序为 (instance_id, payload_type)
+    #[allow(dead_code)]
     pub async fn emit_instance(
         instance_id: &str,
         payload_type: InstancePayloadType,
@@ -223,6 +236,7 @@ pub mod emit {
     }
 
     /// 发送加载进度事件（theseus 兼容接口，补充以支持 crate::event::emit::emit_loading 调用）
+    #[allow(dead_code)]
     pub async fn emit_loading(
         id: &LoadingBarId,
         message: &str,
@@ -233,6 +247,7 @@ pub mod emit {
     }
 
     /// 并发执行流（theseus 兼容接口）
+    #[allow(dead_code)]
     pub async fn loading_try_for_each_concurrent<S, F, Fut, T>(
         stream: S,
         limit: Option<usize>,

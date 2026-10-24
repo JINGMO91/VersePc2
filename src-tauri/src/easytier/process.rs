@@ -20,6 +20,9 @@ use tokio::process::Child;
 
 use super::state::{self, EasyTierMode};
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 /// 全局子进程句柄
 static CHILD: Mutex<Option<Child>> = Mutex::new(None);
 /// 后台状态轮询任务句柄
@@ -77,11 +80,10 @@ pub async fn fetch_public_nodes(_force_refresh: bool) -> Vec<String> {
             if url.is_empty() {
                 continue;
             }
-            if let Some(region) = item.get("region").and_then(|r| r.as_str()) {
-                if is_china && region != "CN" {
+            if let Some(region) = item.get("region").and_then(|r| r.as_str())
+                && is_china && region != "CN" {
                     continue;
                 }
-            }
             nodes.push(url.to_string());
         }
     }
@@ -272,7 +274,6 @@ pub async fn download() -> Result<(), String> {
         .arg(&tmp_dir);
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         tar_cmd.creation_flags(0x08000000);
     }
     let tar_out = tar_cmd
@@ -367,7 +368,6 @@ pub async fn start_host(game_port: u16, player_name: &str) -> Result<Value, Stri
         .stderr(std::process::Stdio::null());
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x08000000);
     }
     let child = cmd
@@ -473,7 +473,6 @@ pub async fn start_guest(room_code: &str, player_name: &str) -> Result<Value, St
         .stderr(std::process::Stdio::null());
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x08000000);
     }
     let child = cmd

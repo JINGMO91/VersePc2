@@ -73,37 +73,34 @@ async fn handle_current_context() -> ApiResult {
 
         if forge_json.exists() {
             loader = "forge".to_string();
-            if let Ok(content) = std::fs::read_to_string(&forge_json) {
-                if let Ok(json) = serde_json::from_str::<Value>(&content) {
+            if let Ok(content) = std::fs::read_to_string(&forge_json)
+                && let Ok(json) = serde_json::from_str::<Value>(&content) {
                     loader_version = json
                         .get("id")
                         .and_then(|i| i.as_str())
                         .unwrap_or("")
                         .to_string();
                 }
-            }
         } else if fabric_json.exists() {
             loader = "fabric".to_string();
-            if let Ok(content) = std::fs::read_to_string(&fabric_json) {
-                if let Ok(json) = serde_json::from_str::<Value>(&content) {
+            if let Ok(content) = std::fs::read_to_string(&fabric_json)
+                && let Ok(json) = serde_json::from_str::<Value>(&content) {
                     loader_version = json
                         .get("id")
                         .and_then(|i| i.as_str())
                         .unwrap_or("")
                         .to_string();
                 }
-            }
         } else if neo_json.exists() {
             loader = "neoforge".to_string();
-            if let Ok(content) = std::fs::read_to_string(&neo_json) {
-                if let Ok(json) = serde_json::from_str::<Value>(&content) {
+            if let Ok(content) = std::fs::read_to_string(&neo_json)
+                && let Ok(json) = serde_json::from_str::<Value>(&content) {
                     loader_version = json
                         .get("id")
                         .and_then(|i| i.as_str())
                         .unwrap_or("")
                         .to_string();
                 }
-            }
         }
 
         // 模组目录：版本隔离时在 ver_dir/mods，否则在 gameDir/mods
@@ -286,11 +283,10 @@ async fn handle_create_shortcut(body: &Option<Value>) -> ApiResult {
                 .unwrap_or_default()
         };
 
-        if !shortcut_dir.exists() {
-            if let Err(e) = std::fs::create_dir_all(&shortcut_dir) {
+        if !shortcut_dir.exists()
+            && let Err(e) = std::fs::create_dir_all(&shortcut_dir) {
                 return ApiResult::err(500, &format!("无法创建目录: {}", e));
             }
-        }
 
         let shortcut_path = shortcut_dir.join(format!("{}.lnk", safe_name));
         let working_dir = exe_path
@@ -703,7 +699,7 @@ async fn mc_ping(host: &str, port: u16) -> Result<Value, String> {
 
     // === 读取响应 ===
     // 1. 读取包长度
-    let packet_len = read_varint(&mut stream)
+    let _packet_len = read_varint(&mut stream)
         .await
         .map_err(|e| format!("读取长度失败: {}", e))?;
 

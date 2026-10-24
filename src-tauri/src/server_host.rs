@@ -16,6 +16,9 @@ use tokio::sync::oneshot;
 use crate::download::download_with_mirror;
 use crate::storage;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 // ============== 路径辅助 ==============
 
 fn servers_root() -> PathBuf {
@@ -43,6 +46,7 @@ fn now_ms() -> u64 {
 
 // ============== 全局运行中进程表 ==============
 
+#[allow(dead_code)]
 struct RunningServer {
     stdin: Arc<tokio::sync::Mutex<Option<ChildStdin>>>,
     exit_rx: Mutex<Option<oneshot::Receiver<()>>>,
@@ -204,8 +208,7 @@ fn resolve_server_download(version_id: &str) -> Option<Value> {
         if let Some(server) = data
             .get("downloads")
             .and_then(|d| d.get("server"))
-        {
-            if server.get("url").and_then(|u| u.as_str()).map(|s| !s.is_empty()).unwrap_or(false) {
+            && server.get("url").and_then(|u| u.as_str()).map(|s| !s.is_empty()).unwrap_or(false) {
                 let id = data
                     .get("id")
                     .and_then(|v| v.as_str())
@@ -219,7 +222,6 @@ fn resolve_server_download(version_id: &str) -> Option<Value> {
                     "chain": visited.iter().cloned().collect::<Vec<_>>()
                 }));
             }
-        }
         cur = data
             .get("inheritsFrom")
             .and_then(|v| v.as_str())
@@ -278,11 +280,10 @@ fn detect_client_loader(version_id: &str) -> Value {
                     if let Some(next) = args.get(i + 1).and_then(|v| v.as_str()) {
                         fml_forge = Some(next.to_string());
                     }
-                } else if v == "--fml.mcVersion" {
-                    if let Some(next) = args.get(i + 1).and_then(|v| v.as_str()) {
+                } else if v == "--fml.mcVersion"
+                    && let Some(next) = args.get(i + 1).and_then(|v| v.as_str()) {
                         fml_mc = Some(next.to_string());
                     }
-                }
             }
             if fml_neo.is_some() || fml_forge.is_some() {
                 break;
@@ -316,26 +317,22 @@ fn detect_client_loader(version_id: &str) -> Value {
     // 兜底：从 versionId 正则提取
     if mc_version.as_deref().map(|s| !is_valid_mc_ver(s)).unwrap_or(true) {
         let re = regex::Regex::new(r"(\d+\.\d+(?:\.\d+)?(?:-pre\d+|-rc\d+)?)").ok();
-        if let Some(re) = re {
-            if let Some(captures) = re.captures(version_id) {
+        if let Some(re) = re
+            && let Some(captures) = re.captures(version_id) {
                 mc_version = Some(captures.get(1).map(|m| m.as_str().to_string()).unwrap_or_default());
             }
-        }
-        if mc_version.as_deref().map(|s| !is_valid_mc_ver(s)).unwrap_or(true) {
-            if let Some(fmc) = &fml_mc {
+        if mc_version.as_deref().map(|s| !is_valid_mc_ver(s)).unwrap_or(true)
+            && let Some(fmc) = &fml_mc {
                 mc_version = Some(fmc.clone());
             }
-        }
-        if mc_version.as_deref().map(|s| !is_valid_mc_ver(s)).unwrap_or(true) {
-            if let Some(ff) = &fml_forge {
+        if mc_version.as_deref().map(|s| !is_valid_mc_ver(s)).unwrap_or(true)
+            && let Some(ff) = &fml_forge {
                 let re = regex::Regex::new(r"^(\d+\.\d+(?:\.\d+)?)-").ok();
-                if let Some(re) = re {
-                    if let Some(c) = re.captures(ff) {
+                if let Some(re) = re
+                    && let Some(c) = re.captures(ff) {
                         mc_version = Some(c.get(1).map(|m| m.as_str().to_string()).unwrap_or_default());
                     }
-                }
             }
-        }
     }
 
     // NeoForge 检测
@@ -366,13 +363,11 @@ fn detect_client_loader(version_id: &str) -> Value {
             loader_version = Some(v.clone());
         } else if let Some(c) = &neo_match {
             let mut v = c.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
-            if v.to_lowercase().contains("neoforge") {
-                if let Some(re) = regex::Regex::new(r"(\d+\.\d+\.\d+[\w.-]*)").ok() {
-                    if let Some(c2) = re.captures(&v) {
+            if v.to_lowercase().contains("neoforge")
+                && let Ok(re) = regex::Regex::new(r"(\d+\.\d+\.\d+[\w.-]*)")
+                    && let Some(c2) = re.captures(&v) {
                         v = c2.get(1).map(|m| m.as_str().to_string()).unwrap_or(v);
                     }
-                }
-            }
             loader_version = Some(v);
         }
     } else {
@@ -408,20 +403,17 @@ fn detect_client_loader(version_id: &str) -> Value {
             } else if let Some(c) = &forge_match {
                 let v = c.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
                 loader_version = Some(v.clone());
-                if mc_version.is_none() {
-                    if let Some(re) = regex::Regex::new(r"^(\d+\.\d+(?:\.\d+)?)-").ok() {
-                        if let Some(c2) = re.captures(&v) {
+                if mc_version.is_none()
+                    && let Ok(re) = regex::Regex::new(r"^(\d+\.\d+(?:\.\d+)?)-")
+                        && let Some(c2) = re.captures(&v) {
                             mc_version = Some(c2.get(1).map(|m| m.as_str().to_string()).unwrap_or_default());
                         }
-                    }
-                }
             } else if let Some(v) = &fml_forge {
                 loader_version = Some(v.clone());
-                if mc_version.is_none() {
-                    if let Some(fmc) = &fml_mc {
+                if mc_version.is_none()
+                    && let Some(fmc) = &fml_mc {
                         mc_version = Some(fmc.clone());
                     }
-                }
             }
         } else {
             // Fabric 检测
@@ -459,16 +451,15 @@ fn detect_client_loader(version_id: &str) -> Value {
     if loader == "fabric"
         && mc_version.as_deref().map(|s| !is_valid_mc_ver(s)).unwrap_or(true)
     {
+        let intermediary_re = regex::Regex::new(r"intermediary:(\d+\.\d+(?:\.\d+)?)").ok();
         for l in &all_libs {
             let name = l.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            if name.to_lowercase().contains("net.fabricmc:intermediary:") {
-                if let Some(re) = regex::Regex::new(r"intermediary:(\d+\.\d+(?:\.\d+)?)").ok() {
-                    if let Some(c) = re.captures(name) {
+            if name.to_lowercase().contains("net.fabricmc:intermediary:")
+                && let Some(re) = intermediary_re.as_ref()
+                    && let Some(c) = re.captures(name) {
                         mc_version = Some(c.get(1).map(|m| m.as_str().to_string()).unwrap_or_default());
                         break;
                     }
-                }
-            }
         }
     }
 
@@ -492,11 +483,10 @@ fn detect_client_loader(version_id: &str) -> Value {
         && loader != "fabric"
     {
         let lv = loader_version.clone().unwrap_or_default();
-        if let Some(re) = regex::Regex::new(r"^(\d+\.\d+(?:\.\d+)?)(?:-|$)").ok() {
-            if let Some(c) = re.captures(&lv) {
+        if let Ok(re) = regex::Regex::new(r"^(\d+\.\d+(?:\.\d+)?)(?:-|$)")
+            && let Some(c) = re.captures(&lv) {
                 mc_version = Some(c.get(1).map(|m| m.as_str().to_string()).unwrap_or_default());
             }
-        }
     }
 
     let mc_final = mc_version
@@ -551,8 +541,8 @@ fn resolve_required_java_major(version_id: &str) -> u32 {
     }
     // 兜底：按 MC 版本映射
     let re = regex::Regex::new(r"(\d+)(?:\.(\d+))?").ok();
-    if let Some(re) = re {
-        if let Some(c) = re.captures(version_id) {
+    if let Some(re) = re
+        && let Some(c) = re.captures(version_id) {
             let major: u32 = c.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
             let minor: u32 = c
                 .get(2)
@@ -576,7 +566,6 @@ fn resolve_required_java_major(version_id: &str) -> u32 {
                 return 17;
             }
         }
-    }
     17
 }
 
@@ -691,9 +680,11 @@ fn detect_launch_kind(dir: &std::path::Path) -> String {
     }
     if let Ok(files) = std::fs::read_dir(dir) {
         let mut shim: Option<String> = None;
+        let shim_re = regex::Regex::new(r"(?i)^forge-.*(-shim)?\.jar$").ok();
         for entry in files.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            let is_shim = regex::Regex::new(r"(?i)^forge-.*(-shim)?\.jar$")
+            let is_shim = shim_re
+                .as_ref()
                 .map(|r| r.is_match(&name) && !name.to_lowercase().contains("installer") && name != "server.jar")
                 .unwrap_or(false);
             if is_shim {
@@ -794,39 +785,32 @@ fn read_jar_entry(jar_path: &std::path::Path, entry_name: &str) -> Option<String
 /// 判断模组是否仅客户端（fabric.mod.json 的 environment 或 mods.toml 的 clientSideOnly）
 fn is_mod_client_only(jar_path: &std::path::Path) -> bool {
     // fabric.mod.json
-    if let Some(content) = read_jar_entry(jar_path, "fabric.mod.json") {
-        if let Ok(j) = serde_json::from_str::<Value>(&content) {
+    if let Some(content) = read_jar_entry(jar_path, "fabric.mod.json")
+        && let Ok(j) = serde_json::from_str::<Value>(&content) {
             let env = j.get("environment");
             // 字符串形式："client" | "server" | "*"
-            if let Some(env_str) = env.and_then(|v| v.as_str()) {
-                if env_str == "client" {
+            if let Some(env_str) = env.and_then(|v| v.as_str())
+                && env_str == "client" {
                     return true;
                 }
-            }
             // 数组形式（少见）
-            if let Some(arr) = env.and_then(|v| v.as_array()) {
-                if arr.len() == 1 && arr[0].as_str() == Some("client") {
+            if let Some(arr) = env.and_then(|v| v.as_array())
+                && arr.len() == 1 && arr[0].as_str() == Some("client") {
                     return true;
                 }
-            }
             // environment 字段可能也写成对象
-            if let Some(obj) = env.and_then(|v| v.as_object()) {
-                if let Some(client) = obj.get("client").and_then(|v| v.as_str()) {
-                    if client == "client" {
+            if let Some(obj) = env.and_then(|v| v.as_object())
+                && let Some(client) = obj.get("client").and_then(|v| v.as_str())
+                    && client == "client" {
                         return true;
                     }
-                }
-            }
         }
-    }
     // META-INF/mods.toml
-    if let Some(content) = read_jar_entry(jar_path, "META-INF/mods.toml") {
-        if let Ok(re) = regex::Regex::new(r"(?i)clientSideOnly\s*=\s*true") {
-            if re.is_match(&content) {
+    if let Some(content) = read_jar_entry(jar_path, "META-INF/mods.toml")
+        && let Ok(re) = regex::Regex::new(r"(?i)clientSideOnly\s*=\s*true")
+            && re.is_match(&content) {
                 return true;
             }
-        }
-    }
     false
 }
 
@@ -866,7 +850,7 @@ async fn sync_client_mods_to_server(
     let mut client_only_count = 0u32;
 
     for (i, name) in files.iter().enumerate() {
-        let pct = if total > 0 { ((i + 1) * 100 / total) as u8 } else { 100 };
+        let pct = ((i + 1) * 100).checked_div(total).map(|v| v as u8).unwrap_or(100);
         emit_status(
             sink,
             server_id,
@@ -947,7 +931,6 @@ async fn run_installer(
     cmd.stderr(std::process::Stdio::piped());
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
@@ -1009,11 +992,10 @@ async fn download_with_fallback(
         let result = download_with_mirror(url, dest, sha1, size, "auto", 600, None).await;
         match result {
             Ok(()) => {
-                if let Ok(meta) = std::fs::metadata(dest) {
-                    if meta.len() > 1024 {
+                if let Ok(meta) = std::fs::metadata(dest)
+                    && meta.len() > 1024 {
                         return Ok(());
                     }
-                }
                 last_err = "下载文件过小".into();
             }
             Err(e) => {
@@ -1057,14 +1039,12 @@ async fn install_modded_server(
             if ver.is_empty() {
                 return Err("无法解析 Forge/NeoForge 版本号，请确认客户端版本完整".into());
             }
-            if !is_neo && !mc_version.is_empty() && !ver.contains(mc_version) {
-                if let Some(re) = regex::Regex::new(r"^.*?(\d+\.\d+[\w.-]*)$").ok() {
-                    if let Some(c) = re.captures(&ver) {
+            if !is_neo && !mc_version.is_empty() && !ver.contains(mc_version)
+                && let Ok(re) = regex::Regex::new(r"^.*?(\d+\.\d+[\w.-]*)$")
+                    && let Some(c) = re.captures(&ver) {
                         let suffix = c.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
                         ver = format!("{}-{}", mc_version, suffix);
                     }
-                }
-            }
 
             let installer_name = if is_neo {
                 format!("neoforge-{}-installer.jar", ver)
@@ -1160,10 +1140,10 @@ async fn install_modded_server(
                 ];
                 let mut fetched: Option<String> = None;
                 for url in &urls {
-                    if let Ok(body) = crate::modloaders::shared::fetch_json(url).await {
-                        if let Some(arr) = body.as_array() {
-                            if let Some(first) = arr.first() {
-                                if let Some(v) = first
+                    if let Ok(body) = crate::modloaders::shared::fetch_json(url).await
+                        && let Some(arr) = body.as_array()
+                            && let Some(first) = arr.first()
+                                && let Some(v) = first
                                     .get("loader")
                                     .and_then(|l| l.get("version"))
                                     .and_then(|v| v.as_str())
@@ -1171,9 +1151,6 @@ async fn install_modded_server(
                                     fetched = Some(v.to_string());
                                     break;
                                 }
-                            }
-                        }
-                    }
                 }
                 fetched.ok_or_else(|| "无法解析 Fabric Loader 版本".to_string())?
             };
@@ -1383,7 +1360,7 @@ pub async fn host_create(
         idx["servers"][pos]["id"]
             .as_str()
             .map(|s| s.to_string())
-            .unwrap_or_else(|| gen_id())
+            .unwrap_or_else(gen_id)
     } else {
         gen_id()
     };
@@ -1480,16 +1457,14 @@ pub async fn host_create(
 
                 // 更新 index
                 let mut idx_m = load_index();
-                if let Some(arr) = idx_m.get_mut("servers").and_then(|v| v.as_array_mut()) {
-                    if let Some(pos) = arr.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id)) {
-                        if let Some(obj) = arr[pos].as_object_mut() {
+                if let Some(arr) = idx_m.get_mut("servers").and_then(|v| v.as_array_mut())
+                    && let Some(pos) = arr.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id))
+                        && let Some(obj) = arr[pos].as_object_mut() {
                             obj.insert("loader".into(), json!(loader));
                             obj.insert("loaderVersion".into(), json!(loader_ver));
                             obj.insert("launchKind".into(), json!(launch_kind));
                             obj.insert("updatedAt".into(), json!(now_ms()));
                         }
-                    }
-                }
                 save_index(&idx_m);
 
                 // 同步模组
@@ -1591,13 +1566,11 @@ pub async fn host_create(
 
     // 更新 index
     let mut idx2 = load_index();
-    if let Some(arr) = idx2.get_mut("servers").and_then(|v| v.as_array_mut()) {
-        if let Some(pos) = arr.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id)) {
-            if let Some(obj) = arr[pos].as_object_mut() {
+    if let Some(arr) = idx2.get_mut("servers").and_then(|v| v.as_array_mut())
+        && let Some(pos) = arr.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id))
+            && let Some(obj) = arr[pos].as_object_mut() {
                 obj.insert("updatedAt".into(), json!(now_ms()));
             }
-        }
-    }
     save_index(&idx2);
 
     emit_status(sink.as_ref(), &id, "ready", json!({ "message": "服务端已准备就绪", "path": dir.to_string_lossy() }));
@@ -1717,7 +1690,6 @@ pub async fn host_start(sink: &Arc<dyn HostSink>, server_id: String) -> Value {
     cmd.env("JAVA_TOOL_OPTIONS", "");
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
@@ -1813,15 +1785,13 @@ pub async fn host_start(sink: &Arc<dyn HostSink>, server_id: String) -> Value {
 
     // 更新 index: lastStartedAt
     let mut idx2 = load_index();
-    if let Some(arr) = idx2.get_mut("servers").and_then(|v| v.as_array_mut()) {
-        if let Some(pos) = arr.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(&server_id)) {
-            if let Some(obj) = arr[pos].as_object_mut() {
+    if let Some(arr) = idx2.get_mut("servers").and_then(|v| v.as_array_mut())
+        && let Some(pos) = arr.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(&server_id))
+            && let Some(obj) = arr[pos].as_object_mut() {
                 obj.insert("lastStartedAt".into(), json!(now_ms()));
                 obj.insert("port".into(), json!(port));
                 obj.insert("maxMem".into(), json!(max_mem));
             }
-        }
-    }
     save_index(&idx2);
 
     json!({
@@ -2071,14 +2041,14 @@ pub async fn host_open_dir(server_id: Option<String>) -> Value {
     let dir = match server_id {
         Some(id) if !id.is_empty() => {
             let idx = load_index();
-            let entry_dir = idx
+            
+            idx
                 .get("servers")
                 .and_then(|v| v.as_array())
                 .and_then(|arr| arr.iter().find(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id)))
                 .and_then(|s| s.get("dir").and_then(|v| v.as_str()).map(|s| s.to_string()))
                 .map(PathBuf::from)
-                .unwrap_or_else(|| server_dir_of(&id));
-            entry_dir
+                .unwrap_or_else(|| server_dir_of(&id))
         }
         _ => servers_root(),
     };
@@ -2207,11 +2177,10 @@ fn gen_id() -> String {
 
 fn set_starting(id: &str, starting: bool) {
     let mut guard = running_map();
-    if let Some(m) = guard.as_mut() {
-        if let Some(r) = m.get_mut(id) {
+    if let Some(m) = guard.as_mut()
+        && let Some(r) = m.get_mut(id) {
             r.starting = starting;
         }
-    }
 }
 
 fn list_local_ips() -> Vec<String> {
@@ -2232,7 +2201,6 @@ fn list_local_ips() -> Vec<String> {
 async fn kill_process_tree(pid: u32) {
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         let _ = std::process::Command::new("taskkill")
             .args(["/PID", &pid.to_string(), "/T", "/F"])

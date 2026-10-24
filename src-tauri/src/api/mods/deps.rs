@@ -1,15 +1,10 @@
 // api/mods/deps.rs — 依赖解析（Modrinth / CurseForge）
 use std::collections::{HashSet, VecDeque};
-use std::path::PathBuf;
 use std::time::Duration;
 
 use serde_json::{json, Value};
-use tauri::AppHandle;
 
 use crate::api::ApiResult;
-use crate::download::{download_with_mirror, download_with_mirror_cancellable, resources_session};
-use crate::mods;
-use crate::resource::wiki;
 use crate::storage;
 
 use super::{MODRINTH_API, CURSEFORGE_API, DEFAULT_CF_API_KEY, MAX_DEPENDENCY_DEPTH, MODRINTH_BUNDLED_DEPS, CURSEFORGE_BUNDLED_DEPS};
@@ -207,14 +202,13 @@ pub(crate) fn cf_file_loaders(file: &Value) -> Vec<String> {
     let mut loaders: Vec<String> = Vec::new();
     if let Some(arr) = file.get("modLoaders").and_then(|v| v.as_array()) {
         for ml in arr {
-            if let Some(id) = ml.get("modLoader").and_then(|v| v.as_u64()) {
-                if let Some(name) = cf_loader_name(id) {
+            if let Some(id) = ml.get("modLoader").and_then(|v| v.as_u64())
+                && let Some(name) = cf_loader_name(id) {
                     let name = name.to_string();
                     if !loaders.contains(&name) {
                         loaders.push(name);
                     }
                 }
-            }
         }
     }
     if loaders.is_empty() {
@@ -468,11 +462,10 @@ pub(crate) async fn fetch_cf_files(
             urlencoding::encode(game_version)
         ));
     }
-    if loaders.len() == 1 {
-        if let Some(loader_id) = cf_loader_id(&loaders[0]) {
+    if loaders.len() == 1
+        && let Some(loader_id) = cf_loader_id(&loaders[0]) {
             url.push_str(&format!("&modLoaderType={}", loader_id));
         }
-    }
 
     let resp = client
         .get(&url)
@@ -837,9 +830,9 @@ pub(crate) async fn handle_resolve_deps(params: &Option<Value>) -> ApiResult {
     // 批量查询项目信息
     let batch_url = format!("{}/projects?ids={}", MODRINTH_API, serde_json::to_string(&ids).unwrap_or_default());
     let batch_resp = client.get(&batch_url).send().await.ok();
-    if let Some(resp) = batch_resp {
-        if resp.status().is_success() {
-            if let Ok(arr) = resp.json::<Vec<Value>>().await {
+    if let Some(resp) = batch_resp
+        && resp.status().is_success()
+            && let Ok(arr) = resp.json::<Vec<Value>>().await {
                 for p in arr {
                     let pid = p.get("id").and_then(|v| v.as_str()).unwrap_or("");
                     if pid.is_empty() {
@@ -854,8 +847,6 @@ pub(crate) async fn handle_resolve_deps(params: &Option<Value>) -> ApiResult {
                     }));
                 }
             }
-        }
-    }
 
     // 批量失败或缺失时逐个兜底
     for id in &ids {
@@ -863,9 +854,9 @@ pub(crate) async fn handle_resolve_deps(params: &Option<Value>) -> ApiResult {
             continue;
         }
         let url = format!("{}/project/{}", MODRINTH_API, id);
-        if let Ok(resp) = client.get(&url).send().await {
-            if resp.status().is_success() {
-                if let Ok(p) = resp.json::<Value>().await {
+        if let Ok(resp) = client.get(&url).send().await
+            && resp.status().is_success()
+                && let Ok(p) = resp.json::<Value>().await {
                     let pid = p.get("id").and_then(|v| v.as_str()).unwrap_or(id.as_str());
                     result.insert(pid.to_string(), json!({
                         "id": pid,
@@ -875,8 +866,6 @@ pub(crate) async fn handle_resolve_deps(params: &Option<Value>) -> ApiResult {
                         "downloads": p.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0)
                     }));
                 }
-            }
-        }
         // 仍然缺：补占位
         result.entry(id.clone()).or_insert(json!({
             "id": id,

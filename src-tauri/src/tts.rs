@@ -133,7 +133,7 @@ pub async fn synthesize(text: &str, voice: &str) -> Result<Vec<u8>, String> {
     // 接收音频数据
     let mut audio_chunks: Vec<Vec<u8>> = Vec::new();
     let mut turn_ended = false;
-    let mut timeout = tokio::time::timeout(
+    let timeout = tokio::time::timeout(
         std::time::Duration::from_secs(15),
         async {
             loop {

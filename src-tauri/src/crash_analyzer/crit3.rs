@@ -35,7 +35,7 @@ pub fn analyze(logs: &PreparedLogs) -> HashMap<CrashReason, Vec<String>> {
             let name = regex_seek_group(lm, r"Failed to create mod instance\. ModID: ([^,]+)", 1)
                 .or_else(|| regex_seek_group(lm, r"Failed to create mod instance\. ModId ([^\n]+)(?= for )", 1));
             if let Some(n) = name {
-                let names = try_analyze_mod_name_one(&n.trim_end_matches('\n'), log_crash, log_mc_debug);
+                let names = try_analyze_mod_name_one(n.trim_end_matches('\n'), log_crash, log_mc_debug);
                 append_reason(&mut reasons, CrashReason::ModInitError, Some(names));
             } else {
                 append_reason(&mut reasons, CrashReason::ModInitError, None);

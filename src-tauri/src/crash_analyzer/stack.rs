@@ -61,8 +61,7 @@ pub fn analyze_stack_keyword(error_stack: &str) -> Vec<String> {
     for stack in &possible_stacks {
         let splited: Vec<&str> = stack.split('.').collect();
         let max = std::cmp::min(3, splited.len() - 1);
-        for i in 0..=max {
-            let word = splited[i];
+        for &word in &splited[..=max] {
             if word.len() <= 2 || word.starts_with("func_") {
                 continue;
             }
@@ -120,8 +119,8 @@ pub fn analyze_mod_name(
     }
 
     // 从崩溃报告获取 Mod 信息
-    if let Some(lc) = log_crash {
-        if lc.contains("A detailed walkthrough of the error") {
+    if let Some(lc) = log_crash
+        && lc.contains("A detailed walkthrough of the error") {
             let details = lc.replace("A detailed walkthrough of the error", "¨");
             let is_fabric_detail = details.contains("Fabric Mods");
             let details = if is_fabric_detail {
@@ -180,14 +179,12 @@ pub fn analyze_mod_name(
                         1,
                     )
                 };
-                if let Some(n) = name {
-                    if !mod_file_names.contains(&n) {
+                if let Some(n) = name
+                    && !mod_file_names.contains(&n) {
                         mod_file_names.push(n);
                     }
-                }
             }
         }
-    }
 
     // 从 debug.log 获取 Mod 信息
     if let Some(debug) = log_mc_debug {
@@ -207,11 +204,10 @@ pub fn analyze_mod_name(
         hint_lines.retain(|s| seen.insert(s.clone()));
 
         for line in &hint_lines {
-            if let Some(name) = regex_seek(line, r".*(?= with)") {
-                if !mod_file_names.contains(&name) {
+            if let Some(name) = regex_seek(line, r".*(?= with)")
+                && !mod_file_names.contains(&name) {
                     mod_file_names.push(name);
                 }
-            }
         }
     }
 

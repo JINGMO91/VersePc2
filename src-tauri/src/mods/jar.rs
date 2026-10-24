@@ -13,7 +13,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use md5::Context as Md5Context;
-use serde_json::{json, Value};
+use serde_json::Value;
 use sha1::{Digest, Sha1};
 use zip::ZipArchive;
 
@@ -39,11 +39,10 @@ pub fn parse_mod_jar(jar_path: &Path) -> ModMeta {
     let cache_key = jar_path.to_string_lossy().to_string();
     {
         let g = MOD_META_CACHE.lock().unwrap();
-        if let Some(map) = g.as_ref() {
-            if let Some(meta) = map.get(&cache_key) {
+        if let Some(map) = g.as_ref()
+            && let Some(meta) = map.get(&cache_key) {
                 return meta.clone();
             }
-        }
     }
 
     // 缓存上限检查
@@ -52,15 +51,14 @@ pub fn parse_mod_jar(jar_path: &Path) -> ModMeta {
         if g.is_none() {
             *g = Some(HashMap::new());
         }
-        if let Some(map) = g.as_mut() {
-            if map.len() > CACHE_MAX {
+        if let Some(map) = g.as_mut()
+            && map.len() > CACHE_MAX {
                 // 清空一半（简化 LRU）
                 let keys: Vec<String> = map.keys().take(CACHE_MAX / 2).cloned().collect();
                 for k in keys {
                     map.remove(&k);
                 }
             }
-        }
     }
 
     let mut result = ModMeta {
@@ -69,12 +67,11 @@ pub fn parse_mod_jar(jar_path: &Path) -> ModMeta {
     };
 
     // 文件过大跳过（>100MB）
-    if let Ok(stat) = fs::metadata(jar_path) {
-        if stat.len() > 100 * 1024 * 1024 {
+    if let Ok(stat) = fs::metadata(jar_path)
+        && stat.len() > 100 * 1024 * 1024 {
             cache_meta(&cache_key, result.clone());
             return result;
         }
-    }
 
     let file = match fs::File::open(jar_path) {
         Ok(f) => f,
@@ -115,11 +112,11 @@ pub fn parse_mod_jar(jar_path: &Path) -> ModMeta {
     // 解析 fabric.mod.json
     let mut icon_path: Option<String> = None;
     let mut fabric_project_id = String::new();
-    if let Some(idx) = fabric_json_entry {
-        if let Ok(mut file) = archive.by_index(idx) {
+    if let Some(idx) = fabric_json_entry
+        && let Ok(mut file) = archive.by_index(idx) {
             let mut text = String::new();
-            if file.read_to_string(&mut text).is_ok() {
-                if let Ok(json) = serde_json::from_str::<Value>(&text) {
+            if file.read_to_string(&mut text).is_ok()
+                && let Ok(json) = serde_json::from_str::<Value>(&text) {
                     result.name = json
                         .get("name")
                         .and_then(|v| v.as_str())
@@ -162,12 +159,11 @@ pub fn parse_mod_jar(jar_path: &Path) -> ModMeta {
                             let mut best_size = 0;
                             let mut best_key: Option<String> = None;
                             for (k, _v) in obj {
-                                if let Some(size) = k.parse::<u32>().ok() {
-                                    if size <= 128 && size > best_size {
+                                if let Ok(size) = k.parse::<u32>()
+                                    && size <= 128 && size > best_size {
                                         best_size = size;
                                         best_key = Some(k.clone());
                                     }
-                                }
                             }
                             if let Some(k) = best_key {
                                 icon_path = obj.get(&k).and_then(|v| v.as_str()).map(|s| s.to_string());
@@ -177,20 +173,17 @@ pub fn parse_mod_jar(jar_path: &Path) -> ModMeta {
                         }
                     }
                 }
-            }
         }
-    }
 
     // fabric.mod.json 无 icon 字段时找 assets/<id>/icon.png（在 archive 借用外搜索）
     if icon_path.is_none() && !fabric_project_id.is_empty() {
         let expected = format!("assets/{}/icon.png", fabric_project_id);
         for i in 0..archive.len() {
-            if let Ok(f) = archive.by_index_raw(i) {
-                if f.name() == expected {
+            if let Ok(f) = archive.by_index_raw(i)
+                && f.name() == expected {
                     icon_path = Some(expected);
                     break;
                 }
-            }
         }
     }
 
@@ -238,8 +231,8 @@ pub fn parse_mod_jar(jar_path: &Path) -> ModMeta {
     if let Some(ip) = icon_path {
         let normalized = ip.replace('\\', "/");
         for i in 0..archive.len() {
-            if let Ok(mut f) = archive.by_index(i) {
-                if f.name().replace('\\', "/") == normalized {
+            if let Ok(mut f) = archive.by_index(i)
+                && f.name().replace('\\', "/") == normalized {
                     // 读取图标数据
                     let mut buf = Vec::new();
                     if f.read_to_end(&mut buf).is_ok() {
@@ -261,7 +254,6 @@ pub fn parse_mod_jar(jar_path: &Path) -> ModMeta {
                     }
                     break;
                 }
-            }
         }
     }
 
@@ -272,50 +264,40 @@ pub fn parse_mod_jar(jar_path: &Path) -> ModMeta {
 /// 解析 mods.toml（正则提取字段）
 fn parse_toml_mod(text: &str, result: &mut ModMeta, icon_path: &mut Option<String>) {
     // displayName
-    if result.name.is_empty() {
-        if let Some(caps) = regex::Regex::new(r#"displayName\s*=\s*"([^"]+)""#)
+    if result.name.is_empty()
+        && let Some(caps) = regex::Regex::new(r#"displayName\s*=\s*"([^"]+)""#)
             .ok()
             .and_then(|re| re.captures(text))
-        {
-            if let Some(m) = caps.get(1) {
+            && let Some(m) = caps.get(1) {
                 result.name = m.as_str().to_string();
             }
-        }
-    }
 
     // description（优先 """...""" 多行，其次 "..." 单行）
     if result.desc.is_empty() {
         let re_multi = regex::Regex::new(r#"description\s*=\s*"""([\s\S]*?)""""#).ok();
-        if let Some(re) = re_multi {
-            if let Some(caps) = re.captures(text) {
-                if let Some(m) = caps.get(1) {
+        if let Some(re) = re_multi
+            && let Some(caps) = re.captures(text)
+                && let Some(m) = caps.get(1) {
                     result.desc = m.as_str().trim().to_string();
                 }
-            }
-        }
         if result.desc.is_empty() {
             let re_single = regex::Regex::new(r#"description\s*=\s*"([^"]+)""#).ok();
-            if let Some(re) = re_single {
-                if let Some(caps) = re.captures(text) {
-                    if let Some(m) = caps.get(1) {
+            if let Some(re) = re_single
+                && let Some(caps) = re.captures(text)
+                    && let Some(m) = caps.get(1) {
                         result.desc = m.as_str().trim().to_string();
                     }
-                }
-            }
         }
     }
 
     // version
-    if result.version == "1.0" {
-        if let Some(caps) = regex::Regex::new(r#"version\s*=\s*"([^"]+)""#)
+    if result.version == "1.0"
+        && let Some(caps) = regex::Regex::new(r#"version\s*=\s*"([^"]+)""#)
             .ok()
             .and_then(|re| re.captures(text))
-        {
-            if let Some(m) = caps.get(1) {
+            && let Some(m) = caps.get(1) {
                 result.version = m.as_str().to_string();
             }
-        }
-    }
 
     // authors（数组或单值）
     if result.author.is_empty() {
@@ -334,36 +316,28 @@ fn parse_toml_mod(text: &str, result: &mut ModMeta, icon_path: &mut Option<Strin
         } else if let Some(caps) = regex::Regex::new(r#"author\s*=\s*"([^"]+)""#)
             .ok()
             .and_then(|re| re.captures(text))
-        {
-            if let Some(m) = caps.get(1) {
+            && let Some(m) = caps.get(1) {
                 result.author = m.as_str().to_string();
             }
-        }
     }
 
     // modId
-    if result.project_id.is_empty() {
-        if let Some(caps) = regex::Regex::new(r#"modId\s*=\s*"([^"]+)""#)
+    if result.project_id.is_empty()
+        && let Some(caps) = regex::Regex::new(r#"modId\s*=\s*"([^"]+)""#)
             .ok()
             .and_then(|re| re.captures(text))
-        {
-            if let Some(m) = caps.get(1) {
+            && let Some(m) = caps.get(1) {
                 result.project_id = m.as_str().to_string();
             }
-        }
-    }
 
     // logoFile
-    if icon_path.is_none() {
-        if let Some(caps) = regex::Regex::new(r#"logoFile\s*=\s*"([^"]+)""#)
+    if icon_path.is_none()
+        && let Some(caps) = regex::Regex::new(r#"logoFile\s*=\s*"([^"]+)""#)
             .ok()
             .and_then(|re| re.captures(text))
-        {
-            if let Some(m) = caps.get(1) {
+            && let Some(m) = caps.get(1) {
                 *icon_path = Some(m.as_str().to_string());
             }
-        }
-    }
 }
 
 /// 写入缓存

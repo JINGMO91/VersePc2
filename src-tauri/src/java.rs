@@ -11,12 +11,10 @@
 
 use serde_json::{json, Value};
 use std::collections::HashSet;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
 
-use crate::download;
 use crate::modloaders::shared;
 use crate::storage;
 use crate::utils;
@@ -30,6 +28,7 @@ static JAVA_CACHE: Mutex<Option<JavaCache>> = Mutex::new(None);
 static CANCELLED_SESSIONS: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct JavaCache {
     java_list: Vec<Value>,
     cached_at: u64,
@@ -87,12 +86,11 @@ fn scan_common_java_paths() -> Vec<PathBuf> {
             add(&mut paths, &mut found, direct);
             // 如果 PATH 目录名包含 java/jdk 关键字，很可能是 .../bin，父目录就是 javaHome
             let dir_lower = trimmed.to_lowercase();
-            if dir_lower.contains("java") || dir_lower.contains("jdk") {
-                if let Some(parent) = dir_path.parent() {
+            if (dir_lower.contains("java") || dir_lower.contains("jdk"))
+                && let Some(parent) = dir_path.parent() {
                     let parent_java = PathBuf::from(parent).join("bin").join(java_bin_name());
                     add(&mut paths, &mut found, parent_java);
                 }
-            }
         }
     }
 
@@ -251,8 +249,7 @@ fn scan_common_java_paths() -> Vec<PathBuf> {
             .args(["logicaldisk", "get", "caption", "/value"])
             .creation_flags(0x08000000)
             .output()
-        {
-            if out.status.success() {
+            && out.status.success() {
                 let stdout = String::from_utf8_lossy(&out.stdout);
                 if let Ok(re) = regex::Regex::new(r"Caption=(\w:)") {
                     for cap in re.captures_iter(&stdout) {
@@ -262,7 +259,6 @@ fn scan_common_java_paths() -> Vec<PathBuf> {
                     }
                 }
             }
-        }
         if drives.is_empty() {
             // wmic 失败时回退到常见盘符
             for d in &["C:", "D:", "E:", "F:", "G:", "H:", "I:", "J:"] {
@@ -407,8 +403,8 @@ fn scan_common_java_paths() -> Vec<PathBuf> {
         c.arg("java");
         c
     };
-    if let Ok(out) = cmd.output() {
-        if out.status.success() {
+    if let Ok(out) = cmd.output()
+        && out.status.success() {
             let stdout = String::from_utf8_lossy(&out.stdout);
             for line in stdout.lines() {
                 let p = PathBuf::from(line.trim());
@@ -417,7 +413,6 @@ fn scan_common_java_paths() -> Vec<PathBuf> {
                 }
             }
         }
-    }
 
     // 9. Windows 注册表 JavaSoft（用户用安装器装的 Java 会写入注册表，但可能不在 PATH/常见目录）
     //    避免"装了 Java 却检测不到"
@@ -625,7 +620,7 @@ fn parse_version_major(version: &str) -> u32 {
 ///   - 去除开头的 1.（旧式版本号）
 ///   - 补齐 4 段
 fn normalize_version_string(raw: &str) -> Option<String> {
-    let mut v = raw.replace('_', ".").replace('+', ".");
+    let mut v = raw.replace(['_', '+'], ".");
     if let Some(idx) = v.find('-') {
         v.truncate(idx);
     }
@@ -655,11 +650,10 @@ pub fn inspect_java(java_exe: &Path) -> Option<(String, u32, bool)> {
         return None;
     }
     // 先试读 release 文件（不执行 java，速度快）
-    if let Some(java_home) = java_exe.parent().and_then(|p| p.parent()) {
-        if let Some((v, m, is64)) = read_release_version(java_home) {
+    if let Some(java_home) = java_exe.parent().and_then(|p| p.parent())
+        && let Some((v, m, is64)) = read_release_version(java_home) {
             return Some((v, m, is64));
         }
-    }
 
     // 尝试运行 java -XshowSettings:properties -version 获取完整信息
     let mut cmd = Command::new(java_exe);
@@ -683,8 +677,8 @@ pub fn inspect_java(java_exe: &Path) -> Option<(String, u32, bool)> {
         }
 
         // 提取版本号
-        if let Some(version) = extract_version_from_output(&combined) {
-            if let Some(normalized) = normalize_version_string(&version) {
+        if let Some(version) = extract_version_from_output(&combined)
+            && let Some(normalized) = normalize_version_string(&version) {
                 let major = parse_version_major(&normalized);
                 // 检查 64 位（含 macOS/Linux 的 aarch64/arm64）
                 let is64 = combined.contains("os.arch = x86_64")
@@ -695,7 +689,6 @@ pub fn inspect_java(java_exe: &Path) -> Option<(String, u32, bool)> {
                     || combined.contains("64-bit");
                 return Some((normalized, major, is64));
             }
-        }
     }
 
     // 回退：仅运行 java -version 解析版本号
@@ -711,13 +704,12 @@ pub fn inspect_java(java_exe: &Path) -> Option<(String, u32, bool)> {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let combined = format!("{}\n{}", stderr, stdout);
 
-    if let Some(version) = extract_version_from_output(&combined) {
-        if let Some(normalized) = normalize_version_string(&version) {
+    if let Some(version) = extract_version_from_output(&combined)
+        && let Some(normalized) = normalize_version_string(&version) {
             let major = parse_version_major(&normalized);
             let is64 = combined.contains("64-Bit") || combined.contains("64-bit");
             return Some((normalized, major, is64));
         }
-    }
     None
 }
 
@@ -729,9 +721,9 @@ fn extract_version_from_output(output: &str) -> Option<String> {
         return Some(cap[1].to_string());
     }
     // 回退匹配 openjdk <number>
-    let re2 = regex::Regex::new(r"(?i)(?<=openjdk )\d+").ok()?;
-    if let Some(m) = re2.find(output) {
-        return Some(m.as_str().to_string());
+    let re2 = regex::Regex::new(r"(?i)openjdk\s+(\d+)").ok()?;
+    if let Some(cap) = re2.captures(output) {
+        return Some(cap[1].to_string());
     }
     None
 }
@@ -740,11 +732,10 @@ fn extract_version_from_output(output: &str) -> Option<String> {
 fn candidate_folders() -> Vec<String> {
     let mut folders: Vec<String> = Vec::new();
     let mut push = |p: Option<String>| {
-        if let Some(s) = p {
-            if !s.is_empty() {
+        if let Some(s) = p
+            && !s.is_empty() {
                 folders.push(s);
             }
-        }
     };
 
     let appdata = std::env::var("APPDATA").ok();
@@ -824,7 +815,7 @@ fn is_in_candidate_folder(java_exe: &Path, candidates: &[String]) -> bool {
 /// 排序 Java 列表：
 /// 1. 候选文件夹中的 Java 优先
 /// 2. 其次主版本号接近 21 的 Java 优先
-fn sort_java_list(list: &mut Vec<Value>) {
+fn sort_java_list(list: &mut [Value]) {
     let candidates = candidate_folders();
     list.sort_by(|a, b| {
         let pa = a.get("path").and_then(|v| v.as_str()).unwrap_or("");
@@ -977,6 +968,7 @@ pub fn detect_all() -> Vec<Value> {
 /// 2. 收集候选：用户指定 Java + 系统检测到的所有 Java
 /// 3. 过滤出主版本在范围内的候选
 /// 4. 按"距离需求版本最近、64 位优先"排序，取最优
+#[allow(dead_code)]
 pub fn select_java_for_version(game_version: &str) -> Option<String> {
     let (min_version, max_version) = crate::launch::get_java_version_range(game_version);
 
@@ -987,8 +979,8 @@ pub fn select_java_for_version(game_version: &str) -> Option<String> {
     let current_java_path = utils::get_str(&settings, "javaPath");
     if !current_java_path.is_empty() {
         let p = PathBuf::from(&current_java_path);
-        if p.exists() {
-            if let Some((version, major, is64)) = inspect_java(&p) {
+        if p.exists()
+            && let Some((version, major, is64)) = inspect_java(&p) {
                 candidates.push(json!({
                     "path": p.to_string_lossy(),
                     "version": version,
@@ -997,7 +989,6 @@ pub fn select_java_for_version(game_version: &str) -> Option<String> {
                     "source": "user",
                 }));
             }
-        }
     }
 
     // 2. 系统检测到的所有 Java
@@ -1048,8 +1039,8 @@ pub fn select_java_candidates_for_version(game_version: &str) -> Vec<String> {
     let current_java_path = utils::get_str(&settings, "javaPath");
     if !current_java_path.is_empty() {
         let p = PathBuf::from(&current_java_path);
-        if p.exists() {
-            if let Some((version, major, is64)) = inspect_java(&p) {
+        if p.exists()
+            && let Some((version, major, is64)) = inspect_java(&p) {
                 candidates.push(json!({
                     "path": p.to_string_lossy(),
                     "version": version,
@@ -1058,7 +1049,6 @@ pub fn select_java_candidates_for_version(game_version: &str) -> Vec<String> {
                     "source": "user",
                 }));
             }
-        }
     }
 
     // 2. 系统检测到的所有 Java
@@ -1106,13 +1096,11 @@ pub fn select_java_candidates_for_version(game_version: &str) -> Vec<String> {
 /// 读取自定义 Java 列表（custom-java-list.json）
 fn load_custom_java() -> Value {
     let path = storage::resolve_data_dir().join("custom-java-list.json");
-    if let Ok(content) = std::fs::read_to_string(&path) {
-        if let Ok(v) = serde_json::from_str::<Value>(&content) {
-            if let Some(arr) = v.get("entries").and_then(|v| v.as_array()) {
+    if let Ok(content) = std::fs::read_to_string(&path)
+        && let Ok(v) = serde_json::from_str::<Value>(&content)
+            && let Some(arr) = v.get("entries").and_then(|v| v.as_array()) {
                 return Value::Array(arr.clone());
             }
-        }
-    }
     Value::Array(vec![])
 }
 
@@ -1237,11 +1225,10 @@ fn find_java_exe_recursive(dir: &Path, depth: u32) -> Option<PathBuf> {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let p = entry.path();
-            if p.is_dir() {
-                if let Some(found) = find_java_exe_recursive(&p, depth - 1) {
+            if p.is_dir()
+                && let Some(found) = find_java_exe_recursive(&p, depth - 1) {
                     return Some(found);
                 }
-            }
         }
     }
     None
@@ -1283,7 +1270,7 @@ async fn import_java_async(session_id: &str, import_type: &str, source_path: &st
 
     // 导入的 Java 最终落位：java/imported-jdk-{major}-{timestamp}
     let import_root = java_dir.join(format!("_import_{}", chrono::Local::now().timestamp_millis()));
-    let mut java_exe: Option<PathBuf> = None;
+    let java_exe: Option<PathBuf>;
     let mut found_home: Option<PathBuf> = None;
 
     if import_type == "archive" {
@@ -1582,6 +1569,7 @@ fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<(), String> {
 
 /// 在解压目录中查找真正的 javaHome
 /// 有些 ZIP 解压后 extract_dir 本身就是 javaHome，有些则包含一个子目录
+#[allow(dead_code)]
 fn find_java_home(extract_dir: &Path) -> PathBuf {
     // extract_dir/bin/java.exe 存在，直接用
     let direct = extract_dir.join("bin").join(java_bin_name());
@@ -1698,7 +1686,7 @@ async fn install_mojang_runtime(
         let dest = target_dir.join(file_path);
         // 清单中的 link 项：macOS/Linux 创建符号链接（如 legal 目录），不是空文件
         if info.get("type").and_then(|v| v.as_str()) == Some("link") {
-            if let Some(target) = info.get("target").and_then(|v| v.as_str()) {
+            if let Some(_target) = info.get("target").and_then(|v| v.as_str()) {
                 if let Some(parent) = dest.parent() {
                     let _ = std::fs::create_dir_all(parent);
                 }
@@ -1792,7 +1780,7 @@ async fn install_mojang_runtime(
 /// 完整流程：获取链接 → 下载 → 解压 → 刷新缓存
 async fn install_java_async(session_id: String, major_version: u64) {
     let data_dir = storage::resolve_data_dir();
-    let java_dir = data_dir.join("java");
+    let _java_dir = data_dir.join("java");
     let started_at = utils::now_iso();
 
     macro_rules! fail {
@@ -1895,8 +1883,9 @@ async fn install_java_async(session_id: String, major_version: u64) {
 
 /// Tauri 命令：java_detect
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn java_detect() -> Value {
-    let java_list = tokio::task::spawn_blocking(|| detect_all()).await.unwrap_or_default();
+    let java_list = tokio::task::spawn_blocking(detect_all).await.unwrap_or_default();
 
     let has_java = !java_list.is_empty();
     let has_java17 = java_list
@@ -2056,8 +2045,8 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
 
             // 仅 source=imported 且请求删除文件时才删除目录；manual 是原位引用不删。
             // 再叠加托管目录校验，避免条目里的 javaHome 指向系统目录时误删
-            if delete_files {
-                if let Some(entry) = &removed_entry {
+            if delete_files
+                && let Some(entry) = &removed_entry {
                     let source = utils::get_str(entry, "source");
                     if source == "imported" {
                         let java_home = utils::get_str(entry, "javaHome");
@@ -2066,7 +2055,6 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                         }
                     }
                 }
-            }
             Some(ApiResult::ok(json!({ "success": true })))
         }
 
@@ -2284,11 +2272,10 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
             }
             // 允许传 java 可执行文件或 javaHome
             let mut home = PathBuf::from(&java_home_str);
-            if !home.join("bin").join(java_bin_name()).exists() {
-                if let Some(p) = home.parent().and_then(|p| p.parent()) {
+            if !home.join("bin").join(java_bin_name()).exists()
+                && let Some(p) = home.parent().and_then(|p| p.parent()) {
                     home = p.to_path_buf();
                 }
-            }
 
             // 关键护栏：只允许删除启动器托管目录（data_dir/java）内的 Java。
             // 否则对 java.exe 取 parent().parent() 会把系统 JDK
@@ -2363,9 +2350,9 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
             // 同步更新状态文件为已取消
             let data_dir = crate::storage::resolve_data_dir();
             let status_file = data_dir.join(format!("java-download-{}.json", session_id));
-            if status_file.exists() {
-                if let Ok(content) = std::fs::read_to_string(&status_file) {
-                    if let Ok(mut st) = serde_json::from_str::<Value>(&content) {
+            if status_file.exists()
+                && let Ok(content) = std::fs::read_to_string(&status_file)
+                    && let Ok(mut st) = serde_json::from_str::<Value>(&content) {
                         let current_status = st
                             .get("status")
                             .and_then(|v| v.as_str())
@@ -2382,8 +2369,6 @@ pub fn handle(method: &str, path: &str, params: &Option<Value>, body: &Option<Va
                             let _ = std::fs::write(&status_file, st.to_string());
                         }
                     }
-                }
-            }
 
             Some(crate::api::ApiResult::ok(json!({
                 "success": true,

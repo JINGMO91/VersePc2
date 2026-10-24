@@ -39,28 +39,25 @@ pub fn collect(params: CollectParams) -> Vec<RawLogFile> {
     let crash_reports_dir = mc_dir.join("crash-reports");
     if let Ok(entries) = std::fs::read_dir(&crash_reports_dir) {
         for entry in entries.flatten() {
-            if let Some(name) = entry.file_name().to_str() {
-                if name.starts_with("crash-") && name.ends_with(".txt") {
+            if let Some(name) = entry.file_name().to_str()
+                && name.starts_with("crash-") && name.ends_with(".txt") {
                     possible_logs.push(entry.path());
                 }
-            }
         }
     }
 
     // 2. 搜索版本目录下的日志
     if !params.version_path_index.is_empty() {
         let version_dir = mc_dir.join("versions").join(params.version_path_index);
-        if version_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&version_dir) {
+        if version_dir.exists()
+            && let Ok(entries) = std::fs::read_dir(&version_dir) {
                 for entry in entries.flatten() {
-                    if let Some(name) = entry.file_name().to_str() {
-                        if name.ends_with(".log") {
+                    if let Some(name) = entry.file_name().to_str()
+                        && name.ends_with(".log") {
                             possible_logs.push(entry.path());
                         }
-                    }
                 }
             }
-        }
     }
 
     // 3. 添加 latest.log 和 debug.log
@@ -70,11 +67,10 @@ pub fn collect(params: CollectParams) -> Vec<RawLogFile> {
     // 4. 搜索 hs_err_pid*.log
     if let Ok(entries) = std::fs::read_dir(mc_dir) {
         for entry in entries.flatten() {
-            if let Some(name) = entry.file_name().to_str() {
-                if name.starts_with("hs_err_pid") && name.ends_with(".log") {
+            if let Some(name) = entry.file_name().to_str()
+                && name.starts_with("hs_err_pid") && name.ends_with(".log") {
                     possible_logs.push(entry.path());
                 }
-            }
         }
     }
 
@@ -90,24 +86,21 @@ pub fn collect(params: CollectParams) -> Vec<RawLogFile> {
             if meta.len() == 0 {
                 continue;
             }
-            if let Ok(mtime) = meta.modified() {
-                if let Ok(duration) = now.duration_since(mtime) {
-                    if duration.as_secs() < 30 * 60 {
+            if let Ok(mtime) = meta.modified()
+                && let Ok(duration) = now.duration_since(mtime)
+                    && duration.as_secs() < 30 * 60 {
                         right_logs.push(log_path.clone());
                     }
-                }
-            }
         }
     }
 
     // 7. 若无最近修改的日志，放宽时间限制，使用所有非空文件
     if right_logs.is_empty() {
         for log_path in &possible_logs {
-            if let Ok(meta) = std::fs::metadata(log_path) {
-                if meta.len() > 0 {
+            if let Ok(meta) = std::fs::metadata(log_path)
+                && meta.len() > 0 {
                     right_logs.push(log_path.clone());
                 }
-            }
         }
     }
 
@@ -161,6 +154,7 @@ pub fn import_file(file_path: &Path) -> Option<RawLogFile> {
 }
 
 /// 将 RawLogFile 序列化为 JSON（供调试或前端展示）
+#[allow(dead_code)]
 pub fn raw_log_file_to_json(file: &RawLogFile) -> serde_json::Value {
     json!({
         "path": file.path,

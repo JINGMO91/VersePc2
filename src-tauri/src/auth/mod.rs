@@ -19,7 +19,7 @@ use serde_json::{json, Value};
 
 use self::error::AuthError;
 use self::minecraft::McProfile;
-use self::microsoft::{MsTokenResponse, DeviceCodeResponse};
+use self::microsoft::MsTokenResponse;
 use self::xbox::XstsResult;
 
 /// 完整登录结果（poll 端点成功后返回）

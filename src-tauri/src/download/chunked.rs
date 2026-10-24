@@ -129,7 +129,7 @@ impl ChunkScheduler {
 /// 返回 (file_size, supports_range)
 async fn probe(client: &reqwest::Client, url: &str, timeout_secs: u64) -> Result<(u64, bool), String> {
     // 探测用独立短超时（最多 15 秒），避免服务器不响应头时长时间卡住
-    let probe_timeout = Duration::from_secs(timeout_secs.min(15).max(5));
+    let probe_timeout = Duration::from_secs(timeout_secs.clamp(5, 15));
     let resp = client
         .get(url)
         .header("Range", "bytes=0-0")
@@ -164,6 +164,7 @@ fn calc_chunk_count(file_size: u64, max_chunks: usize) -> usize {
 
 /// 多线程分块下载单个 URL
 /// 仅当文件支持 Range 且大于阈值时使用；否则返回 None 让上层走单流
+#[allow(clippy::too_many_arguments)]
 async fn download_chunked_once(
     client: &reqwest::Client,
     url: &str,
@@ -183,7 +184,7 @@ async fn download_chunked_once(
     let file_size = if file_size > 0 { file_size } else {
         expected_size.unwrap_or(0)
     };
-    if file_size <= 0 {
+    if file_size == 0 {
         return Ok(false); // 拿不到大小，回退单流
     }
     if !supports_range || file_size < CHUNK_THRESHOLD {
@@ -232,7 +233,6 @@ async fn download_chunked_once(
         let cancel = cancel.cloned();
         let on_progress = on_progress.clone();
         let last_report = last_report.clone();
-        let file_size = file_size;
         let scheduler = scheduler.clone();
 
         handles.push(tokio::spawn(async move {
@@ -244,11 +244,10 @@ async fn download_chunked_once(
                 if failed.load(Ordering::SeqCst) {
                     return Ok::<(), String>(());
                 }
-                if let Some(c) = &cancel {
-                    if c.load(Ordering::SeqCst) {
+                if let Some(c) = &cancel
+                    && c.load(Ordering::SeqCst) {
                         return Err("已取消".to_string());
                     }
-                }
                 tokio::time::sleep(Duration::from_millis(50)).await;
             }
             scheduler.mark_launched();
@@ -271,11 +270,10 @@ async fn download_chunked_once(
             if failed.load(Ordering::SeqCst) {
                 return Ok::<(), String>(());
             }
-            if let Some(c) = &cancel {
-                if c.load(Ordering::SeqCst) {
+            if let Some(c) = &cancel
+                && c.load(Ordering::SeqCst) {
                     return Err("已取消".to_string());
                 }
-            }
 
             // 续传：检查已下载部分
             let mut start = s;
@@ -329,12 +327,11 @@ async fn download_chunked_once(
             };
 
             let mut stream = resp.bytes_stream();
-            let mut finished = false;
             // 记录本分块实际写入的字节数，用于校验是否下载完整
             let mut written: u64 = 0;
             // 用超时包裹每次读取：服务器滴漏（慢速挤数据）时也能及时中断，
             // 避免循环永远出不来导致"一直下载中"
-            while !finished {
+            loop {
                 let waited = tokio::time::timeout(
                     Duration::from_secs(CHUNK_STALL_SECS),
                     stream.next(),
@@ -352,7 +349,6 @@ async fn download_chunked_once(
                                 idx, expected_len, written
                             ));
                         }
-                        finished = true;
                         break;
                     }
                     Err(_) => {
@@ -360,12 +356,11 @@ async fn download_chunked_once(
                         return Err(format!("分块 {} stall 超时", idx));
                     }
                 };
-                if let Some(c) = &cancel {
-                    if c.load(Ordering::SeqCst) {
+                if let Some(c) = &cancel
+                    && c.load(Ordering::SeqCst) {
                         failed.store(true, Ordering::SeqCst);
                         return Err("已取消".to_string());
                     }
-                }
                 let chunk = match chunk_result {
                     Ok(c) => c,
                     Err(e) => {
@@ -446,23 +441,21 @@ async fn download_chunked_once(
         let _ = tokio::fs::remove_file(dest).await;
         return Err(format!("分块合并后大小不匹配: 期望 {} 实际 {}", file_size, actual_size));
     }
-    if let Some(expected) = expected_size {
-        if expected > 0 && actual_size != expected {
+    if let Some(expected) = expected_size
+        && expected > 0 && actual_size != expected {
             let _ = tokio::fs::remove_file(dest).await;
             return Err(format!("大小不匹配: 期望 {} 实际 {}", expected, actual_size));
         }
-    }
 
     // 校验 SHA1
-    if let Some(expected_sha1) = sha1 {
-        if !expected_sha1.is_empty() {
-            let actual = compute_sha1(dest).await.map_err(|e| e)?;
+    if let Some(expected_sha1) = sha1
+        && !expected_sha1.is_empty() {
+            let actual = compute_sha1(dest).await?;
             if actual.to_lowercase() != expected_sha1.to_lowercase() {
                 let _ = tokio::fs::remove_file(dest).await;
                 return Err("SHA1 校验失败".to_string());
             }
         }
-    }
 
     // 最终进度
     if let Some(cb) = &on_progress {
@@ -478,6 +471,7 @@ async fn download_chunked_once(
 
 /// 多线程分块下载（带镜像回退）
 /// 返回 true 表示成功；false/Err 表示无法分块或失败，上层决定回退单流
+#[allow(clippy::too_many_arguments)]
 pub async fn download_chunked_with_mirror(
     urls: &[String],
     dest: &Path,
@@ -501,13 +495,12 @@ pub async fn download_chunked_with_mirror(
         // 重试（分块文件保留可续传），避免轻易掉到下一个慢源、导致大文件尾部卡住。
         // 只有"源本身速度过低"才立即换源。
         for attempt in 0..3usize {
-            if let Some(c) = cancel {
-                if c.load(Ordering::SeqCst) {
+            if let Some(c) = cancel
+                && c.load(Ordering::SeqCst) {
                     return Err("已取消".to_string());
                 }
-            }
             let handled = download_chunked_once(
-                &client,
+                client,
                 url,
                 dest,
                 sha1,

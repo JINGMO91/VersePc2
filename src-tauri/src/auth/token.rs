@@ -100,11 +100,10 @@ pub fn decrypt_account_token(token: &str) -> String {
     if token == "0" || token.is_empty() {
         return token.to_string();
     }
-    if let Some(stripped) = token.strip_prefix("enc:") {
-        if let Some(decrypted) = decrypt_token(stripped) {
+    if let Some(stripped) = token.strip_prefix("enc:")
+        && let Some(decrypted) = decrypt_token(stripped) {
             return decrypted;
         }
-    }
     token.to_string()
 }
 
@@ -131,7 +130,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 }
 
 fn hex_decode(hex: &str) -> Option<Vec<u8>> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return None;
     }
     let mut result = Vec::with_capacity(hex.len() / 2);

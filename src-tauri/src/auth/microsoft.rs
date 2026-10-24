@@ -36,6 +36,7 @@ pub struct DeviceCodeResponse {
 
 /// Token 响应（步骤 3，poll 返回）
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct MsTokenResponse {
     pub access_token: Option<String>,
     pub refresh_token: Option<String>,
@@ -119,7 +120,7 @@ pub async fn poll_device_code(
             "expired_token" => Err(AuthError::DeviceCodeExpired),
             "slow_down" => Err(AuthError::RateLimit(10)),
             "authorization_declined" => Err(AuthError::AuthorizationDeclined),
-            "invalid_grant" | "expired_token" => Err(AuthError::TokenExpired),
+            "invalid_grant" => Err(AuthError::TokenExpired),
             _ => Err(AuthError::Other(format!(
                 "OAuth 错误: {} - {}",
                 err,
@@ -196,7 +197,7 @@ mod urlencoding {
                 b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
                     result.push(b as char);
                 }
-                b' ' => result.push_str("+"),
+                b' ' => result.push('+'),
                 _ => result.push_str(&format!("%{:02X}", b)),
             }
         }
@@ -205,6 +206,7 @@ mod urlencoding {
 }
 
 /// 构造 MsTokenResponse 的 JSON 序列化（供调试）
+#[allow(dead_code)]
 pub fn token_response_to_json(resp: &MsTokenResponse) -> serde_json::Value {
     json!({
         "hasAccessToken": resp.access_token.is_some(),

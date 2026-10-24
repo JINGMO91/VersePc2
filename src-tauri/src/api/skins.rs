@@ -188,11 +188,10 @@ fn handle_skin_head(params: &Option<Value>) -> ApiResult {
 
     // 再找用户自定义皮肤（DATA_DIR/img/<file>）
     let custom_path = storage::resolve_data_dir().join("img").join(&file);
-    if let Ok(bytes) = std::fs::read(&custom_path) {
-        if is_png(&bytes) {
+    if let Ok(bytes) = std::fs::read(&custom_path)
+        && is_png(&bytes) {
             return png_response(&bytes);
         }
-    }
 
     ApiResult::err(404, "Skin not found")
 }
@@ -340,8 +339,8 @@ async fn handle_skin_texture(params: &Option<Value>) -> ApiResult {
 
     // 1. 优先用账号本地存储的皮肤文件（skinFile）或 skinUrl（微软账号）
     let accounts = storage::load_accounts();
-    if let Some(arr) = accounts.as_array() {
-        if let Some(acc) = arr
+    if let Some(arr) = accounts.as_array()
+        && let Some(acc) = arr
             .iter()
             .find(|a| utils::get_str(a, "uuid").replace('-', "") == clean_uuid)
         {
@@ -352,28 +351,24 @@ async fn handle_skin_texture(params: &Option<Value>) -> ApiResult {
                 }
                 // 用户自定义皮肤
                 let custom_path = storage::resolve_data_dir().join("img").join(&skin_file);
-                if let Ok(bytes) = std::fs::read(&custom_path) {
-                    if is_png(&bytes) {
+                if let Ok(bytes) = std::fs::read(&custom_path)
+                    && is_png(&bytes) {
                         return png_response_with_model(&bytes, utils::get_str(acc, "skinModel"));
                     }
-                }
             }
 
             // 1b. 微软/外置账号的 skinUrl 字段：从 Mojang texture URL 直接拉取整皮
             //   这是登录时从 https://api.minecraftservices.com/minecraft/profile 拿到的
             //   textures.SKIN.url 字段
             let skin_url = utils::get_str(acc, "skinUrl");
-            if !skin_url.is_empty() {
-                if let Some(bytes) = fetch_remote_bytes(&skin_url).await {
-                    if is_png(&bytes) {
+            if !skin_url.is_empty()
+                && let Some(bytes) = fetch_remote_bytes(&skin_url).await
+                    && is_png(&bytes) {
                         let model = utils::get_str(acc, "skinModel");
                         return png_response_with_model(&bytes, model);
                     }
-                }
                 // skinUrl 拉取失败继续尝试后续数据源
-            }
         }
-    }
 
     // 2. 外置服务器：从 /skin/{username}.png 拉取
     if !server_url.is_empty() && !username.is_empty() {
@@ -382,11 +377,10 @@ async fn handle_skin_texture(params: &Option<Value>) -> ApiResult {
             server_url.trim_end_matches('/'),
             username
         );
-        if let Some(bytes) = fetch_remote_bytes(&url).await {
-            if is_png(&bytes) {
+        if let Some(bytes) = fetch_remote_bytes(&url).await
+            && is_png(&bytes) {
                 return png_response_with_model(&bytes, "default".to_string());
             }
-        }
     }
 
     // 3. 公共皮肤服务（按 UUID 拉取整张皮肤）
@@ -399,11 +393,10 @@ async fn handle_skin_texture(params: &Option<Value>) -> ApiResult {
     ];
     for tmpl in skin_services {
         let url = tmpl.replace("{uuid}", &clean_uuid);
-        if let Some(bytes) = fetch_remote_bytes(&url).await {
-            if is_png(&bytes) {
+        if let Some(bytes) = fetch_remote_bytes(&url).await
+            && is_png(&bytes) {
                 return png_response_with_model(&bytes, "default".to_string());
             }
-        }
     }
 
     // 4. 全部失败，回退到 Steve 整皮
@@ -480,11 +473,10 @@ fn ms_skins_dir(account_id: &str) -> PathBuf {
 /// 读取皮肤库 meta.json
 fn load_ms_skin_meta(account_id: &str) -> Value {
     let meta_file = ms_skins_dir(account_id).join("meta.json");
-    if let Ok(content) = std::fs::read_to_string(&meta_file) {
-        if let Ok(v) = serde_json::from_str::<Value>(&content) {
+    if let Ok(content) = std::fs::read_to_string(&meta_file)
+        && let Ok(v) = serde_json::from_str::<Value>(&content) {
             return v;
         }
-    }
     json!({ "skins": [] })
 }
 
@@ -703,12 +695,11 @@ async fn handle_ms_skins_apply(body: &Option<Value>) -> ApiResult {
         UploadResult::Success(new_skin_url) => {
             // 更新账号 skinUrl / skinModel
             let mut accounts = storage::load_accounts();
-            if let Some(arr) = accounts.as_array_mut() {
-                if let Some(acc) = arr
+            if let Some(arr) = accounts.as_array_mut()
+                && let Some(acc) = arr
                     .iter_mut()
                     .find(|a| utils::get_str(a, "id") == account_id)
-                {
-                    if let Some(obj) = acc.as_object_mut() {
+                    && let Some(obj) = acc.as_object_mut() {
                         if !new_skin_url.is_empty() {
                             obj.insert("skinUrl".to_string(), json!(new_skin_url));
                         }
@@ -717,8 +708,6 @@ async fn handle_ms_skins_apply(body: &Option<Value>) -> ApiResult {
                             json!(if variant == "slim" { "slim" } else { "default" }),
                         );
                     }
-                }
-            }
             storage::save_accounts(&accounts);
 
             write_skin_log(&format!(
@@ -743,7 +732,7 @@ async fn handle_ms_skins_apply(body: &Option<Value>) -> ApiResult {
                 account_id, skin_id, retry_after
             ));
             let wait_seconds = retry_after.unwrap_or(60);
-            let wait_minutes = (wait_seconds + 59) / 60;
+            let wait_minutes = wait_seconds.div_ceil(60);
             let msg = if wait_minutes > 1 {
                 format!(
                     "操作过于频繁，Mojang 限制每分钟只能更换一次皮肤，请 {} 分钟后再试",
@@ -1086,11 +1075,10 @@ fn handle_capes_import(body: &Option<Value>) -> ApiResult {
     if !is_png(&buf) {
         return ApiResult::err(400, "File must be PNG");
     }
-    if let Some((w, _h)) = png_dimensions(&buf) {
-        if w != 64 && w != 92 {
+    if let Some((w, _h)) = png_dimensions(&buf)
+        && w != 64 && w != 92 {
             return ApiResult::err(400, "不是有效的披风纹理（宽度需为 64 或 92）");
         }
-    }
     let dir = capes_dir(&account_id);
     let _ = std::fs::create_dir_all(&dir);
     let ts = std::time::SystemTime::now()
@@ -1158,16 +1146,14 @@ fn handle_capes_delete(body: &Option<Value>) -> ApiResult {
     let _ = std::fs::remove_file(capes_dir(&account_id).join(&file));
     let mut accounts = storage::load_accounts();
     let mut changed = false;
-    if let Some(arr) = accounts.as_array_mut() {
-        if let Some(acc) = arr.iter_mut().find(|a| utils::get_str(a, "id") == account_id) {
-            if utils::get_str(acc, "capeFile") == file {
+    if let Some(arr) = accounts.as_array_mut()
+        && let Some(acc) = arr.iter_mut().find(|a| utils::get_str(a, "id") == account_id)
+            && utils::get_str(acc, "capeFile") == file {
                 if let Some(obj) = acc.as_object_mut() {
                     obj.remove("capeFile");
                 }
                 changed = true;
             }
-        }
-    }
     if changed {
         storage::save_accounts(&accounts);
     }

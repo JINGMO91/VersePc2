@@ -1,22 +1,11 @@
 // api/resources/detail.rs — 项目详情与版本列表
-use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
-use sha1::Digest;
-use tauri::{AppHandle, Listener};
-use tokio::sync::Mutex;
 
 use crate::api::ApiResult;
-use crate::download::{download_with_mirror, download_with_mirror_cancellable, resources_session};
-use crate::modpack;
-use crate::resource::{matcher, mcversion, wiki};
-use crate::resource::matcher::SearchSource;
 use crate::storage;
 
-use super::{MODRINTH_API, MODRINTH_API_MIRROR, CURSEFORGE_API, CURSEFORGE_API_MIRROR, DEFAULT_CF_API_KEY, shared_client, cached_fetch_json, fetch_json_with_mirror};
+use super::{MODRINTH_API, CURSEFORGE_API, DEFAULT_CF_API_KEY, cached_fetch_json, fetch_json_with_mirror};
 
 /// GET /api/resources/detail — Modrinth 项目详情
 ///
@@ -99,7 +88,7 @@ pub(crate) async fn handle_detail(params: &Option<Value>) -> ApiResult {
         "title": project.get("title").and_then(|v| v.as_str()).unwrap_or(""),
         "description": project.get("description").and_then(|v| v.as_str()).unwrap_or(""),
         "body": body_text,
-        "icon": to_modrinth_cdn_mirror(&project.get("icon_url").and_then(|v| v.as_str()).unwrap_or("")),
+        "icon": to_modrinth_cdn_mirror(project.get("icon_url").and_then(|v| v.as_str()).unwrap_or("")),
         "downloads": project.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0),
         "followers": project.get("followers").and_then(|v| v.as_u64()).unwrap_or(0),
         "categories": project.get("categories").and_then(|v| v.as_array()).cloned().unwrap_or_default(),
@@ -149,7 +138,7 @@ pub(crate) async fn handle_versions(params: &Option<Value>) -> ApiResult {
         .unwrap_or("");
 
     if source == "curseforge" {
-        return handle_versions_curseforge(&project_id).await;
+        return handle_versions_curseforge(project_id).await;
     }
     if source != "modrinth" {
         // 其他来源暂不支持版本列表，返回空
@@ -249,7 +238,7 @@ pub(crate) async fn handle_versions_curseforge(project_id: &str) -> ApiResult {
     eprintln!("[resources][curseforge] 拉取版本: {}", url);
 
     let mut headers = reqwest::header::HeaderMap::new();
-    if let Ok(v) = reqwest::header::HeaderValue::from_str(&cf_api_key) {
+    if let Ok(v) = reqwest::header::HeaderValue::from_str(cf_api_key) {
         headers.insert("x-api-key", v);
     }
     headers.insert("Accept", reqwest::header::HeaderValue::from_static("application/json"));

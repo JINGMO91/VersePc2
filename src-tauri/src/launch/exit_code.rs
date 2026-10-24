@@ -1,11 +1,12 @@
 // launch/exit_code.rs — 退出码分析
 // 1:1 翻译自 server/launch/shared.js 的 analyzeExitCode
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use serde_json::{json, Value};
 
 /// 退出分析结果
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct ExitAnalysis {
     pub code: i32,
     pub reason: String,
@@ -14,6 +15,7 @@ pub struct ExitAnalysis {
     pub crash_log_file: Option<String>,
 }
 
+#[allow(dead_code)]
 impl ExitAnalysis {
     pub fn to_json(&self) -> Value {
         let mut v = json!({
@@ -86,7 +88,7 @@ pub fn analyze_exit_code(code: i32, version_id: &str, data_dir: &Path) -> ExitAn
         if !dir.exists() {
             continue;
         }
-        if let Ok(mut entries) = std::fs::read_dir(dir) {
+        if let Ok(entries) = std::fs::read_dir(dir) {
             let mut files: Vec<_> = entries
                 .filter_map(|e| e.ok())
                 .filter(|e| {
@@ -97,7 +99,7 @@ pub fn analyze_exit_code(code: i32, version_id: &str, data_dir: &Path) -> ExitAn
                 })
                 .collect();
             // 按文件名倒序，取最新
-            files.sort_by(|a, b| b.file_name().cmp(&a.file_name()));
+            files.sort_by_key(|f| std::cmp::Reverse(f.file_name()));
 
             if let Some(latest) = files.first() {
                 let path = latest.path();

@@ -12,7 +12,6 @@
 //   - 降级路径：installer 内无 version.json，手动构建 fallback JSON（launchwrapper + tweakClass）
 
 use serde_json::{json, Value};
-use std::path::PathBuf;
 
 use super::shared;
 
@@ -111,11 +110,10 @@ async fn optifine_versions_from_official(game_version: &str) -> Option<Vec<Value
 /// Vec<{version, gameVersion, fileName}>（version 形如 "HD_U_I5"、"HD_U_I5_pre4"）
 pub async fn get_optifine_versions(game_version: &str) -> Vec<Value> {
     // BMCLAPI 源优先，官方源兜底
-    if let Some(v) = optifine_versions_from_bmclapi(game_version).await {
-        if !v.is_empty() {
+    if let Some(v) = optifine_versions_from_bmclapi(game_version).await
+        && !v.is_empty() {
             return v;
         }
-    }
     if let Some(mut v) = optifine_versions_from_official(game_version).await {
         v.truncate(12);
         return v;
@@ -263,15 +261,13 @@ pub async fn install_optifine(
                                 || name == format!("{}.json", version_id)
                             {
                                 let mut buf = Vec::with_capacity(entry.size() as usize);
-                                if std::io::copy(&mut entry, &mut buf).is_ok() {
-                                    if let Ok(content) = String::from_utf8(buf) {
-                                        if let Ok(json) = serde_json::from_str::<Value>(&content)
+                                if std::io::copy(&mut entry, &mut buf).is_ok()
+                                    && let Ok(content) = String::from_utf8(buf)
+                                        && let Ok(json) = serde_json::from_str::<Value>(&content)
                                         {
                                             version_json = Some(json);
                                             eprintln!("[OptiFine] 从 installer 中读取 {}", name);
                                         }
-                                    }
-                                }
                             }
                             // 降级路径所需：提取 launchwrapper-*.jar
                             if name.starts_with("launchwrapper") && name.ends_with(".jar") {
@@ -302,13 +298,11 @@ pub async fn install_optifine(
     let of_lib_name = format!("optifine:OptiFine:{}_{}", game_version, optifine_type);
 
     // 复制 installer JAR 到 libraries 目录
-    if let Some(parent) = of_lib_path.parent() {
-        if !parent.exists() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
+    if let Some(parent) = of_lib_path.parent()
+        && !parent.exists()
+            && let Err(e) = std::fs::create_dir_all(parent) {
                 eprintln!("[OptiFine] 创建库目录失败: {}", e);
             }
-        }
-    }
     if let Err(e) = std::fs::copy(&installer_path, &of_lib_path) {
         let _ = std::fs::remove_file(&installer_path);
         return json!({ "success": false, "error": format!("复制 OptiFine 库失败: {}", e) });
@@ -319,15 +313,14 @@ pub async fn install_optifine(
     let loader_json: Value = if let Some(mut profile) = version_json.take() {
         // 兼容旧格式：minecraftArguments → arguments
         if let Some(obj) = profile.as_object_mut() {
-            if obj.get("arguments").is_none() {
-                if let Some(mc_args) = obj.get("minecraftArguments").and_then(|v| v.as_str()) {
+            if obj.get("arguments").is_none()
+                && let Some(mc_args) = obj.get("minecraftArguments").and_then(|v| v.as_str()) {
                     let game_args: Vec<String> = mc_args.split(' ').map(|s| s.to_string()).collect();
                     obj.insert(
                         "arguments".to_string(),
                         json!({ "game": game_args, "jvm": [] }),
                     );
                 }
-            }
             obj.remove("inheritsFrom");
             obj.remove("jar");
         }
