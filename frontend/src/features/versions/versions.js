@@ -29,6 +29,7 @@ import { appState } from '../../core/app-state.js';
 import { isPinned, PIN_ICONS, pinBtnToggle } from './pinned-store.js';
 import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
 import { modDetailState } from '../mods/detail-state.js';
+import { getVersionCardStyle } from './version-card-utils.js';
 
 let versionsLoadFailed = false;
 let versionsRetryTimer = null;
@@ -415,11 +416,6 @@ function renderInstalledVersionsInto(container) {
 
   container.innerHTML = html;
   _loadVersionIcons(container);
-}
-
-// 版本卡片样式开关：true=新版卡片（宣传图样式），false=旧版列表
-function getVersionCardStyle() {
-  try { return localStorage.getItem('versepc_version_card_style') !== 'list'; } catch (e) { return true; }
 }
 
 // Mojang 官方版本宣传图（javaPatchNotes.json，CORS 开放），映射 versionId -> 完整图片 URL
