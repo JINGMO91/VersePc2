@@ -35,7 +35,9 @@ function openReleasePage() {
 const PageSettingsOther = {
   components: { VButton, VInput },
   setup() {
-    return { openSponsorDino, toggleShowMoreSponsors, copyFeedbackEmail, browseFolder, doMemoryOptimize, openFolder, cleanupScan, cleanupRun, handleCheckUpdate, handleSkipVersion, handleDownloadUpdate, handleInstallUpdate, showUpdateAnnouncement, createDesktopShortcut, saveOtherSettings, resetOtherSettings, openExternalUrl, openUrl, openReleasePage };
+    return { openSponsorDino, toggleShowMoreSponsors, copyFeedbackEmail, browseFolder, doMemoryOptimize, openFolder, cleanupScan, cleanupRun, handleCheckUpdate, handleSkipVersion, handleDownloadUpdate, handleInstallUpdate, showUpdateAnnouncement, createDesktopShortcut, saveOtherSettings, resetOtherSettings, openExternalUrl, openUrl, openReleasePage,
+      // 原先通过内联 oninput 调用，靠 window 全局名解析但并未挂载，改为模板事件后需暴露
+      filterSponsors, updateSpeedLimitLabel };
   },
   template: `
           <div class="page-header">
@@ -78,7 +80,7 @@ const PageSettingsOther = {
               <div class="sponsor-divider"></div>
               <div class="sponsor-search">
                 <svg class="sponsor-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="sponsor-search-input" class="sponsor-search-input" placeholder="搜索赞助者..." oninput="filterSponsors(this.value)">
+                <input type="text" id="sponsor-search-input" class="sponsor-search-input" placeholder="搜索赞助者..." @input="filterSponsors($event.target.value)">
               </div>
               <div class="sponsor-grid" id="sponsor-list">
               </div>
@@ -136,7 +138,7 @@ const PageSettingsOther = {
               </div>
               <div class="form-group">
                 <label>速度限制: <span id="speed-limit-value">无限制</span></label>
-                <input type="range" id="setting-speed-limit" min="0" max="100" value="0" class="slider-input" oninput="updateSpeedLimitLabel(this.value)">
+                <input type="range" id="setting-speed-limit" min="0" max="100" value="0" class="slider-input" @input="updateSpeedLimitLabel($event.target.value)">
                 <span class="form-hint">0 = 无限制, 1-100 = MB/s</span>
               </div>
               <div class="form-group">

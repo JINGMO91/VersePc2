@@ -11,7 +11,9 @@ import VTextarea from '@/components/verse/VTextarea.vue';
 const PageSettingsLaunch = {
   components: { VButton, VInput, VTextarea },
   setup() {
-    return { browseDataDir, resetDataDir, detectJava, browseJavaPath, toggleAdvancedOptions, optimizeJvmArgs, generateCdsArchive, saveLaunchSettings, resetLaunchSettings };
+    return { browseDataDir, resetDataDir, detectJava, browseJavaPath, toggleAdvancedOptions, optimizeJvmArgs, generateCdsArchive, saveLaunchSettings, resetLaunchSettings,
+      // 原先通过内联 onchange/oninput 调用，靠 window 全局名解析但并未挂载，改为模板事件后需暴露
+      toggleMemoryMode, updateMemoryDisplay };
   },
   template: `
           <div class="page-header">
@@ -133,11 +135,11 @@ const PageSettingsLaunch = {
               </div>
               <div class="vset-radio-group">
                 <label class="vset-radio">
-                  <input type="radio" name="globalMemoryMode" value="auto" checked onchange="toggleMemoryMode()">
+                  <input type="radio" name="globalMemoryMode" value="auto" checked @change="toggleMemoryMode()">
                   <span>自动配置</span>
                 </label>
                 <label class="vset-radio">
-                  <input type="radio" name="globalMemoryMode" value="custom" onchange="toggleMemoryMode()">
+                  <input type="radio" name="globalMemoryMode" value="custom" @change="toggleMemoryMode()">
                   <span>自定义</span>
                 </label>
               </div>
@@ -152,7 +154,7 @@ const PageSettingsLaunch = {
                     <div id="memory-slider-fill" style="position: absolute; top: 50%; left: 0; height: 6px; background: linear-gradient(90deg, #4ade80 0%, #fbbf24 70%, #ef4444 100%); border-radius: 3px; transform: translateY(-50%); pointer-events: none; width: 25%;"></div>
                     <div id="memory-used-marker" style="position: absolute; top: 50%; width: 2px; height: 14px; background: var(--text-primary); transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 2;"></div>
                     <div id="memory-used-label" style="position: absolute; top: -22px; transform: translateX(-50%); font-size: 11px; color: var(--text-muted); pointer-events: none; display: none; white-space: nowrap; background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px;">已用</div>
-                    <input type="range" id="memory-slider" min="512" max="16384" value="4096" step="256" class="vset-slider" oninput="updateMemoryDisplay()">
+                    <input type="range" id="memory-slider" min="512" max="16384" value="4096" step="256" class="vset-slider" @input="updateMemoryDisplay()">
                   </div>
                   <div class="vset-slider-info">
                     <span style="font-size: 12px; color: var(--text-muted);">512 MB</span>

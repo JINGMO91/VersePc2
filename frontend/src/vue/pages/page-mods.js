@@ -14,7 +14,9 @@ import VInput from '@/components/verse/VInput.vue';
 const PageMods = {
   components: { VButton, VInput },
   setup() {
-    return { toggleModMultiSelect, openFolder, batchDownloadMods, enterFavSubPage, exitFavSubPage, showFavManageMenu, toggleFavSubMultiSelect, showFavImportModal, exportCurrentFav, batchRemoveFavSub, batchDownloadFavSub, onFavSubSearch };
+    return { toggleModMultiSelect, openFolder, batchDownloadMods, enterFavSubPage, exitFavSubPage, showFavManageMenu, toggleFavSubMultiSelect, showFavImportModal, exportCurrentFav, batchRemoveFavSub, batchDownloadFavSub, onFavSubSearch,
+      // 原先通过内联 onchange 调用，靠 window 全局名解析但并未挂载，改为模板事件后需暴露
+      toggleSelectAllMods, onFavSubFolderChange, toggleFavSubSelectAll };
   },
   template: `
           <div class="page-header">
@@ -36,7 +38,7 @@ const PageMods = {
           </div>
           <div id="mod-multiselect-bar" class="mod-multiselect-bar" style="display:none">
             <label class="mod-select-all-label">
-              <input type="checkbox" id="mod-select-all" onchange="toggleSelectAllMods(this.checked)">
+              <input type="checkbox" id="mod-select-all" @change="toggleSelectAllMods($event.target.checked)">
               <span>全选</span>
             </label>
             <span class="mod-selected-count" id="mod-selected-count">已选 0 个</span>
@@ -138,7 +140,7 @@ const PageMods = {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
                 <h3 class="section-title" style="margin:0">我的收藏</h3>
-                <select id="fav-sub-folder-select" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:13px;" onchange="onFavSubFolderChange(this.value)"></select>
+                <select id="fav-sub-folder-select" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:13px;" @change="onFavSubFolderChange($event.target.value)"></select>
                 <div style="flex:1"></div>
                 <VButton variant="secondary" size="sm" @click="showFavManageMenu()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -153,7 +155,7 @@ const PageMods = {
               </div>
               <div id="fav-sub-multi-bar" class="mod-multiselect-bar" style="display:none">
                 <label class="mod-select-all-label">
-                  <input type="checkbox" id="fav-sub-select-all" onchange="toggleFavSubSelectAll(this.checked)">
+                  <input type="checkbox" id="fav-sub-select-all" @change="toggleFavSubSelectAll($event.target.checked)">
                   <span>全选</span>
                 </label>
                 <span class="mod-selected-count" id="fav-sub-selected-count">已选 0 个</span>

@@ -10,7 +10,9 @@ import VInput from '@/components/verse/VInput.vue';
 const PageModFavorites = {
   components: { VButton, VInput },
   setup() {
-    return { showFavManageMenu, toggleFavMultiSelect, showFavImportModal, exportCurrentFav, batchRemoveFavorites, batchDownloadFavorites };
+    return { showFavManageMenu, toggleFavMultiSelect, showFavImportModal, exportCurrentFav, batchRemoveFavorites, batchDownloadFavorites,
+      // 原先通过内联 onchange 调用，靠 window 全局名解析但并未挂载，改为模板事件后需暴露
+      toggleFavSelectAll };
   },
   template: `
           <div class="page-header">
@@ -32,7 +34,7 @@ const PageModFavorites = {
           </div>
           <div id="fav-multiselect-bar" class="mod-multiselect-bar" style="display:none">
             <label class="mod-select-all-label">
-              <input type="checkbox" id="fav-select-all" onchange="toggleFavSelectAll(this.checked)">
+              <input type="checkbox" id="fav-select-all" @change="toggleFavSelectAll($event.target.checked)">
               <span>全选</span>
             </label>
             <span class="mod-selected-count" id="fav-selected-count">已选 0 个</span>
