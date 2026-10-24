@@ -322,7 +322,8 @@
     font-weight: 500;
 }
 
-.vset-select, .vset-input {
+/* 版本设置页的 select 仍为原生控件；原同组的 .vset-input 已迁移为组件，规则移除 */
+.vset-select {
     flex: 1;
     max-width: 300px;
     padding: 9px 12px;
@@ -335,7 +336,7 @@
     transition: border-color var(--transition);
 }
 
-.vset-select:focus, .vset-input:focus {
+.vset-select:focus {
     border-color: var(--accent);
 }
 
@@ -627,9 +628,7 @@
     display: block;
 }
 
-.export-field .vset-input {
-    max-width: unset;
-}
+/* 导出字段的输入框已迁移为组件，尺寸由组件与工具类控制，此处不再需要覆盖 */
 
 .export-section-title {
     font-size: 15px;

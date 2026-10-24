@@ -201,21 +201,28 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 | 阶段 | 状态 | 完成日期 | 备注 |
 | --- | --- | --- | --- |
 | P0 基建 | 已完成 | 2026-10-24 | 只引 theme + utilities，跳过 preflight；token 经 `@theme inline` 映射到现有变量 |
-| P1 组件基座 | 已完成 | 2026-10-24 | 已生成 15 个组件；预览页 `frontend/dev-components.html` |
+| P1 组件基座 | 已完成 | 2026-10-24 | 已生成 16 个组件；预览页 `frontend/dev-components.html` |
 | P2 试点页 | 已完成 | 2026-10-24 | 试点页「问题反馈」，产出迁移 playbook |
-| P3 批量迁移 | 未开始 | - | 按 playbook 分四批推进 |
-| P4 收尾 | 未开始 | - | - |
+| P3 批量迁移 | 已完成 | 2026-10-24 | 4 批共 19 个页面；100+ 通用控件迁移完成 |
+| P4 收尾 | 部分完成 | 2026-10-24 | 已加护栏与死类清理；整站死 CSS 收敛留待后续 |
 
 ### 执行记录
 
 - P0：`vue` 别名保留，新增 `@` → `frontend/src`。Tailwind 用 `source(none)` 关闭自动扫描，只扫 `src/vue` 与 `src/components`，避免旧文案被误判成工具类名。
 - P1：`components.json` 的风格名必须写 `reka-vega`（`vega` 在 registry 里不存在）。CLI 会误生成 `import { cn } from "cn"` 并安装同名 npm 包，已统一改为 `@/lib/utils` 并移除该包。
-- P1：预览入口有两个。`frontend/dev-components.html` 看组件基座，`frontend/dev-page.html?p=<页面名>` 看单个真实页面；两者都是 dev-only，不参与构建。之所以需要独立入口：纯浏览器下 `tauri-bridge` 返回空对象，`updater-ui.js` 模块顶层调用 `api.updater.onStatusChanged` 会中断整个模块图，`npm run dev:web` 无法加载主应用（既有问题，与本次迁移无关）。
+- P1：预览入口有两个。`frontend/dev-components.html` 看组件基座，`frontend/dev-page.html?p=<页面名>` 看单个真实页面；两者都是 dev-only，不参与构建。之所以需要独立入口：纯浏览器下 `tauri-bridge` 返回空对象，`updater-ui.js` 模块顶层调用 `api.updater.onStatusChanged` 会中断整个模块图，`npm run dev:web` 无法加载主应用（既有问题，与本次迁移无关）。预览页会给 `window.__TAURI__` 注入最小桩，让依赖 bridge 的页面也能渲染。
 - P2：反馈类型与问题分类磁贴改为 Tailwind 工具类，新增 `is-active:` 变体对接现有 `classList` 切换逻辑，旧 CSS 中两组磁贴规则已删除。试点页原有 3 处内联 `oninput=` 与 1 处 `onchange=` 因绑不到组件作用域而失效（既有 bug），改为 `@input` / `@change` 后修复。
 - P2：跳过 preflight 导致 `input/textarea/select` 不继承文字颜色，暗色主题下黑字不可读，已在 `tailwind.css` 补最小重置。
-- 待办：`vue-sonner` 的 Toaster 暂未接入。现有 `#toast-container` 体系继续生效，等有页面真正需要 sonner 时再单独初始化一次。
+- P3：19 个页面分批迁移，100+ 个通用控件换成 `components/verse` 封装。识别出**命令式样式切换**这一类隐患：`#mod-multiselect-toggle` 与 `#md-fav-btn` 的激活态由 features 层用 `classList` 切换 `.btn-primary/.btn-secondary` 并重写 `innerHTML`，换成组件后切换将失去视觉反馈，故保留原生按钮与旧类。另写脚本扫描全部 88 个转换后带 id 的元素，确认无其他同类依赖。
+- P3：又修复多处失效的内联事件绑定（settings-other 的 `onkeydown`、mods 的 `oninput`、cloud 的 `@input`、accounts 的 `@change` 等）。**仍有存量失效项**：`#sponsor-search-input` 的 `oninput="filterSponsors(...)"`、`page-mods` / `page-mod-favorites` 上 4 处 checkbox/select 的内联处理器，这些是非替换元素上的绑定，留给后续单独处理。
+- P4：`check-architecture.mjs` 增加存量样式快照校验，未登记的新 CSS 文件会直接报错，阻止「继续堆手写 CSS」。删除已无引用的 `.vset-input` 相关规则；整站 31 个 CSS 的收敛（`.btn` / `.card` / `.text-input` 等全局类）依赖所有页面迁移完毕，本轮按域删除了页面专有规则，全局类仍需保留。
+- 待办：`vue-sonner` 的 Toaster 未接入，通知继续用现有 `#toast-container`。
+- 待办：自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`。它们的显示状态与选项由 features 层命令式驱动（`style.display`、`customSelectInstances`），替换需要同步改写交互代码，风险独立，建议单独立项。
 
 ### 验证方式
 
-每个阶段用 `frontend/dev-page.html` 做亮色 / 暗色 / 自定义三态视觉回归，再跑 `npm run verify`。P2 实测项：磁贴选中态切换、字数统计、表单校验提示、提交按钮启用逻辑、暗色对比度、文本域高度。
+每个阶段用 `frontend/dev-page.html` 做亮色 / 暗色 / 自定义三态视觉回归，再跑 `npm run verify`。
+
+- P2 实测项：磁贴选中态切换、字数统计、表单校验提示、提交按钮启用逻辑、暗色对比度、文本域高度。
+- P3 实测项：19 个页面全部在预览页渲染成功（无「页面渲染失败」横幅、按钮数量非零）；抽样检查按钮 computed style（边框 1px、圆角 6px、高 36px、图标可见）、暗色主题适配、server-host 表单默认值（MyServer / 25565 / 2048）保留。
 

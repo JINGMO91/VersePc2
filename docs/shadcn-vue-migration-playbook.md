@@ -63,22 +63,36 @@ npm run dev:web
 - 禁止 `!important` 覆盖组件样式；需要新样式时在 `verse` 层加 `variant`
 - 禁止覆盖 shadcn 组件内部的 `data-*` 选择器
 - 单个 `.vue` 文件 ≤ 200 行，超出即拆子组件；上限受架构护栏约束（单文件 ≤ 800 行）
-- 事件绑定一律用 `@click` / `@input` / `@change`，**不要用内联 `onclick=` / `oninput=`**（模板字符串里的内联处理器默认绑不到作用域，试点页原有三处内联 `oninput=` 和一处 `onchange=` 就因此失效）
+- 事件绑定一律用 `@click` / `@input` / `@change`，**不要用内联 `onclick=` / `oninput=`**（模板字符串里的内联处理器是普通 HTML 属性，靠 window 全局名解析，试点页原有三处内联 `oninput=` 和一处 `onchange=` 就因此失效）
 - 组件暴露的方法必须写进 `setup()` 的返回对象，模板才能访问
+- 迁移任一控件前，先按第 6 节的清单确认它没有被 features 层命令式操作样式
 
-## 5. 常见坑（试点页实际踩到的）
+## 5. 常见坑（试点页与批量迁移实际踩到的）
 
 | 现象 | 原因 | 解法 |
 | --- | --- | --- |
 | 输入框在暗色主题下黑字不可读 | 跳过 preflight 后 input 不继承文字颜色 | 已在 `tailwind.css` 补最小的 `color/font: inherit`，不要再删 |
-| 输入内容、字数统计、按钮启用态全不响应 | 内联 `oninput=` 绑定不到组件作用域 | 改成 `@input`，并把函数加入 `setup()` 返回对象 |
+| 输入内容、字数统计、按钮启用态全不响应 | 模板字符串里的 `oninput=` / `onchange=` 被 Vue 当作普通 HTML 属性，靠 window 全局名解析，而这些函数并没挂到 window | 改成 `@input` / `@change` / `@keydown`，并把函数加入 `setup()` 返回对象 |
+| **按钮点了没反应、或点了之后外观不再变化** | 元素的激活态由 features 层用 `classList` 切换 `.btn-primary` / `.btn-secondary`，或直接重写 `innerHTML` | **不要**把这类元素换成 `VButton`；保留原生 `<button>` 与旧类。迁移前先 grep `classList.add/remove/toggle('btn` |
 | Tailwind 生成了 `.table` / `.hidden` / `.flex` 等意外规则 | 自动扫描把旧文案数据误判为类名 | 用 `@import "tailwindcss/utilities.css" source(none)` + `@source` 限定目录，新目录要显式加 `@source` |
 | 工具类压不住旧的 `button {...}` 规则 | 层内样式输给无层样式 | utilities 已不放进 layer，保持现状即可 |
 | shadcn CLI 生成 `import { cn } from "cn"` | CLI 在该环境下的已知问题 | 统一改为 `@/lib/utils`，不要安装 `cn` 包 |
 | 状态高亮要重写一套 CSS | 业务代码用 `classList` 切换 `.active` | 已提供 `is-active:` 变体，直接写 `is-active:border-primary` |
+| 受控输入框把业务代码读到的值清空 | `VInput` 的 `modelValue` 默认 `undefined`，非受控；一旦传值就会被 Vue 回写 | 业务按 `id` 直接读 DOM 的输入框不要传 `modelValue`；需要默认值时用 `default-value` |
+| `.vset-input` 等旧类删除后布局塌陷 | 旧类里带了 `flex:1` / `max-width` 这类布局约束 | 替换时把布局约束用工具类补回（如 `max-w-[300px]`、`flex-1`） |
+| 反引号模板里出现 `\"` | 用脚本批量替换时按转义字符串模板生成的 | 反引号模板不需要转义引号，替换后清理 |
 
-## 6. 已知未完成项
+## 6. 迁移前的必做检查（清单）
+
+1. `grep -n "classList.add\\|classList.remove\\|classList.toggle" features/ core/` —— 确认目标元素没有命令式 class 切换
+2. `grep -n "<id>" features/ core/` —— 确认 `id` 只被读取（`disabled` / `textContent` / `value` 都安全），没有被改 class 或整体重写 `innerHTML`
+3. `grep -n "oninput=\\|onchange=\\|onclick=\\|onkeydown=" <page>.js` —— 逐个确认目标函数是否在 `plugin-compat.js` 里挂到了 window；没挂的就是「改成 `@input` 并加进 `setup()` 返回对象」
+4. 替换后跑 `node .scratch/check-markup.mjs`（若仍保留该脚本）确认标签开闭配对
+
+## 7. 已知未完成项
 
 - `vue-sonner` 的 `Toaster` 未接入，通知继续用现有 `#toast-container` 与 `showToast()`
 - shadcn 的 `--color-destructive` 只映射了 `var(--red)`，没有配套的 `-foreground`，用到危险色文字时注意对比度
-- 全站 31 个 CSS 尚未收敛，`.btn` / `.card` / `.text-input` 等全局类要等所有页面迁移完（P4）才能删
+- 自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`：显示状态与选项由 features 层命令式驱动，替换需同步改写交互代码
+- 全站 31 个 CSS 尚未收敛，`.btn` / `.card` / `.text-input` 等全局类仍被未迁移结构（JS 动态生成的标记、自研模态框）使用，需要等这些结构迁移完才能删
+- 存量失效的内联事件绑定：`#sponsor-search-input` 的 `oninput="filterSponsors(...)"`，以及 `page-mods` / `page-mod-favorites` 上 4 处 checkbox/select 的内联处理器

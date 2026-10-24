@@ -78,7 +78,52 @@ if (windowAssignments.length) {
   errors.push(`legacy 层以外仍有 ${total} 处 window.* 赋值（涉及 ${windowAssignments.length} 个文件）`);
 }
 
-// 4. 超大业务文件报告（只警告，不阻断）
+// 4. 组件层约束：迁移到 components/verse 之后，不再新增独立 CSS 文件
+//    下面的名单是迁移完成时的存量快照（全部为迁移前遗留），仅作登记用途。
+//    新页面请使用 components/verse + Tailwind 工具类；确需新增样式文件时必须在此登记，
+//    以便评审时能看出「这又是一份手写 CSS」。
+const LEGACY_CSS_SNAPSHOT = new Set([
+  'frontend/public/css/base.css',
+  'frontend/public/css/classic-nav.css',
+  'frontend/public/css/file-browser.css',
+  'frontend/public/css/launch.css',
+  'frontend/public/css/layout.css',
+  'frontend/public/css/modal.css',
+  'frontend/public/css/mods.css',
+  'frontend/public/css/plugins.css',
+  'frontend/public/css/private-server.css',
+  'frontend/public/css/redstone.css',
+  'frontend/public/css/server-host.css',
+  'frontend/public/css/settings.css',
+  'frontend/public/css/splash.css',
+  'frontend/public/css/sponsor.css',
+  'frontend/public/css/themes.css',
+  'frontend/public/css/versions.css',
+  'frontend/public/css/components/accounts.css',
+  'frontend/public/css/components/base-ui.css',
+  'frontend/public/css/components/cloud.css',
+  'frontend/public/css/components/dialogs.css',
+  'frontend/public/css/components/downloads.css',
+  'frontend/public/css/components/favorites.css',
+  'frontend/public/css/components/lan.css',
+  'frontend/public/css/components/mod-detail.css',
+  'frontend/public/css/components/resource-detail.css',
+  'frontend/public/css/components/theme.css',
+  'frontend/public/css/components/toolbox.css',
+  'frontend/public/css/components/version-settings.css',
+  'frontend/public/css/components/version-ui.css',
+  'frontend/public/dino/index.css',
+  'frontend/public/v-island/dynamic-island.css',
+]);
+for (const file of walk(join(root, 'frontend', 'public'))) {
+  if (!file.endsWith('.css')) continue;
+  const rel = relative(root, file).replace(/\\/g, '/');
+  if (!LEGACY_CSS_SNAPSHOT.has(rel)) {
+    errors.push(`${rel} 未登记在存量样式快照中，新页面请改用 components/verse 与 Tailwind 工具类`);
+  }
+}
+
+// 5. 超大业务文件报告（只警告，不阻断）
 const sizeTargets = [
   [join(root, 'frontend', 'js', 'app'), 800],
   [join(root, 'frontend', 'js', 'vue'), 800],
