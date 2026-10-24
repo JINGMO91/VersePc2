@@ -135,11 +135,18 @@ pub async fn perform_installation(
         }
     };
 
-    // 写入版本 JSON（原版基础文件写入基础版本目录，如 versions/26.2，
-    // 这样 Forge/NeoForge 检查"原版已安装"时能找到；加载器版本目录由安装器生成）
+    // 版本 JSON 的落地方式区分加载器类型：
+    // - Forge/NeoForge 安装器需要真实版本目录里存在原版 JSON 与 client.jar，因此先写入基础版本目录；
+    // - Fabric/OptiFine 由加载器安装阶段直接拉取原版 JSON 并合并成单一实例，
+    //   不需要也不应该在真实版本目录里留下独立原版条目。
     // 基础版本号：整合包用 inheritsFrom，普通版本用原始下载版本号。
     // 注意不能回退到 actual_version_id（自定义名，如 "26.2-Forge-65.1.0"），
     // 否则原版会被装到带加载器后缀的目录，导致 Forge 找不到原版。
+    let merge_only_loader = loader_info
+        .as_ref()
+        .and_then(|l| l.get("type"))
+        .and_then(|v| v.as_str())
+        .is_some_and(|t| t == "fabric" || t == "optifine");
     let game_version = version_details
         .get("inheritsFrom")
         .and_then(|v| v.as_str())
@@ -148,25 +155,27 @@ pub async fn perform_installation(
     let version_dir = versions_dir.join(&game_version);
     // 记录版本目录是否由本次安装新建：只有本次新建的目录，失败/取消时才允许整目录清理。
     // 否则会连用户已有的 mods/、saves/、options.txt 一起删掉。
-    let version_dir_was_new = !version_dir.exists();
-    let version_json_path = version_dir.join(format!("{}.json", game_version));
-    if let Err(e) = tokio::fs::create_dir_all(&version_dir).await {
-        append_install_log(&data_dir, &format!("[{}] 创建版本目录失败: {} — {}", log_now(), version_dir.display(), e));
-        session::update_session(&app, &session_id, |s| {
-            s.stage = session::InstallStage::Failed;
-            s.message = format!("创建版本目录失败: {}", e);
-        });
-        return;
-    }
-    let json_str = serde_json::to_string_pretty(&version_details).unwrap_or_default();
-    if let Err(e) = tokio::fs::write(&version_json_path, &json_str).await {
-        cleanup_failed_version_dir(&version_dir, version_dir_was_new);
-        append_install_log(&data_dir, &format!("[{}] 写入版本 JSON 失败: {} — {}", log_now(), version_json_path.display(), e));
-        session::update_session(&app, &session_id, |s| {
-            s.stage = session::InstallStage::Failed;
-            s.message = format!("写入版本 JSON 失败: {}", e);
-        });
-        return;
+    let version_dir_was_new = !merge_only_loader && !version_dir.exists();
+    if !merge_only_loader {
+        let version_json_path = version_dir.join(format!("{}.json", game_version));
+        if let Err(e) = tokio::fs::create_dir_all(&version_dir).await {
+            append_install_log(&data_dir, &format!("[{}] 创建版本目录失败: {} — {}", log_now(), version_dir.display(), e));
+            session::update_session(&app, &session_id, |s| {
+                s.stage = session::InstallStage::Failed;
+                s.message = format!("创建版本目录失败: {}", e);
+            });
+            return;
+        }
+        let json_str = serde_json::to_string_pretty(&version_details).unwrap_or_default();
+        if let Err(e) = tokio::fs::write(&version_json_path, &json_str).await {
+            cleanup_failed_version_dir(&version_dir, version_dir_was_new);
+            append_install_log(&data_dir, &format!("[{}] 写入版本 JSON 失败: {} — {}", log_now(), version_json_path.display(), e));
+            session::update_session(&app, &session_id, |s| {
+                s.stage = session::InstallStage::Failed;
+                s.message = format!("写入版本 JSON 失败: {}", e);
+            });
+            return;
+        }
     }
     update!(session::InstallStage::VersionJson, 100, "版本信息已获取");
     check_cancel!();
@@ -189,7 +198,8 @@ pub async fn perform_installation(
         .unwrap_or(0);
     let client_jar_path = version_dir.join(format!("{}.jar", game_version));
 
-    if !client_jar_url.is_empty() {
+    // 合并式加载器不在此处下载原版 client.jar：加载器安装阶段会把原版 JAR 直接落到合并后的版本目录
+    if !client_jar_url.is_empty() && !merge_only_loader {
         let version_id_for_cb = actual_version_id.clone();
         let app_for_cb = app.clone();
         let session_id_for_cb = session_id.clone();
@@ -478,6 +488,7 @@ pub async fn perform_installation(
                     .and_then(|v| v.as_str())
                     .unwrap_or("模组加载器安装失败")
                     .to_string();
+                cleanup_failed_version_dir(&version_dir, version_dir_was_new);
                 session::update_session(&app, &session_id, |s| {
                     s.stage = session::InstallStage::Failed;
                     s.message = format!("{}安装失败: {}", loader_display, err);
@@ -486,6 +497,12 @@ pub async fn perform_installation(
                 return;
             }
             update!(session::InstallStage::Loader, 100, "模组加载器安装完成");
+
+            // 加载器已把原版内容合并进目标实例：清理本次安装新建的原版目录。
+            // 用户此前已安装的原版目录（version_dir_was_new=false）保持不动。
+            if version_dir_was_new && !game_version.is_empty() && game_version != actual_version_id {
+                modloaders::shared::cleanup_orphan_vanilla(&game_version);
+            }
 
             // Fabric API 自动安装：detail 流程选择 Fabric 加载器时可选一并安装 Fabric API
             if loader_type == "fabric" {

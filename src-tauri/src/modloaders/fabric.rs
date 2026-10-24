@@ -280,21 +280,9 @@ async fn install_fabric_impl(
     // 4. 与对应原版合并，产出单一独立版本（自含原版内容，删除 inheritsFrom）
     match shared::install_merged_loader(game_version, &version_id, &profile, None).await {
         Ok(_) => {
+            // 合并安装只产出目标实例，原版内容已并入其中；
+            // 不在此处删除任何既有版本目录，避免误删用户已安装的版本。
             eprintln!("[Fabric] 合并式安装完成: {}", version_id);
-            // 清理不再被引用的原版目录（合并后目标版本自含，不遗留独立原版目录）
-            if !game_version.is_empty() && game_version != version_id {
-                shared::cleanup_orphan_vanilla(game_version);
-            }
-            // 合并模式下（显式指定了 targetVersionId），清理残留的标准加载器版本目录
-            // fabric-loader-<loader>-<game>。该版本在合并前可能作为中间/历史版本存在，
-            // 合并完成后若不再被任何版本以 inheritsFrom / jar 引用，则应一并删除，
-            // 避免在版本列表中遗留孤立的加载器版本。
-            if target_version_id.is_some() {
-                let standard_loader_id = format!("fabric-loader-{}-{}", loader_version, game_version);
-                if standard_loader_id != version_id && !standard_loader_id.is_empty() {
-                    crate::modloaders::shared::cleanup_orphan_vanilla(&standard_loader_id);
-                }
-            }
             json!({
                 "success": true,
                 "versionId": version_id

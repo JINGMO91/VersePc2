@@ -403,11 +403,9 @@ pub async fn install_optifine(
     // 9. 与对应原版合并，产出单一独立版本（自含原版内容，删除 inheritsFrom）
     match shared::install_merged_loader(game_version, &version_id, &loader_json, None).await {
         Ok(_) => {
+            // 合并安装只产出目标实例，原版内容已并入其中；
+            // 不在此处删除任何既有版本目录，避免误删用户已安装的版本。
             eprintln!("[OptiFine] 合并式安装完成: {}", version_id);
-            // 清理不再被引用的原版目录（合并后目标版本自含，不遗留独立原版目录）
-            if !game_version.is_empty() && game_version != version_id {
-                shared::cleanup_orphan_vanilla(game_version);
-            }
             json!({
                 "success": true,
                 "versionId": version_id
