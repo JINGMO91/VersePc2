@@ -982,7 +982,7 @@ pub fn run() {
             avatar::get_avatar,
             avatar::get_skin_texture,
             // 版本图标
-            versions::get_version_icon,
+            versions::icons::get_version_icon,
             // 网站图标
             favicon::get_favicon,
             // 开发工具
