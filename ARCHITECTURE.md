@@ -64,8 +64,8 @@ npm run verify
 | 步骤 | 命令 | 当前结果 |
 | --- | --- | --- |
 | ESLint | `npm run lint` | 0 error / 0 warning |
-| 单元测试 | `npm run test` | 33 个文件 / 180 项通过 |
-| 覆盖率棘轮 | `npm run test:coverage:check` | core 36.5% / features 3.0% / 总 4.5% 基线 |
+| 单元测试 | `npm run test` | 79 个文件 / 767 项通过 |
+| 覆盖率棘轮 | `npm run test:coverage:check` | core 62.3% / features 37.9% / 总 39.0% 基线 |
 | 循环依赖 | `npm run arch:cycles`（madge） | 0 条 |
 | 生产构建 | `npm run build:web` | 成功，无构建警告 |
 | 架构护栏 | `node scripts/check-architecture.mjs --strict` | 通过 |
@@ -93,29 +93,31 @@ CI（`.github/workflows/verify.yml`）包含：Lint、前端单测、循环依�
 - 新增未登记的独立 CSS 文件（存量样式以快照名单登记，新页面必须使用 Tailwind / 语义组件）。
 - 页面模板中超长内联 `style` 超过基线（只允许下降）。
 - 首屏 JS 总量超过 800 KB，或单个分包超过 600 KB。
-- 400/800/1500 行级超大文件以警告形式报告，提示继续拆分。
+- 650/900 行级超大业务文件以警告形式报告，提示继续拆分（前端 650 行、Rust 900 行）。
 - `core` 层反向 import `features` 或 `vue`（`plugin-compat.js` 为唯一登记例外）。
+- `features` 层反向 import `vue/pages` 或 `vue/modals`。
+- `components` 层 import `features`、`vue` 或 `core`。
 - 覆盖率与测试密度低于 `scripts/coverage-baseline.json` / `scripts/test-density-baseline.json`（只升不降）。
 
 ## 当前指标
 
 | 指标 | 数值 |
 | --- | --- |
-| 前端业务 JS/MJS 文件 | 222 |
+| 前端业务 JS/MJS 文件 | 229 |
 | Vue SFC | 61 |
-| Rust 文件 | 171 |
-| 前端最大业务文件 | `page-version-settings.js` 735 行 |
-| Rust 最大文件 | `api/skins.rs` 1266 行 |
-| 首屏 JS（入口 + modulepreload） | 17 个文件，545.5 KB（上限 800 KB） |
-| 最大生产分包 | `vue.esm-bundler` 173.2 KB；业务入口 `main` 166.2 KB（上限 600 KB） |
+| Rust 文件 | 185 |
+| 前端最大业务文件 | `core/tauri-bridge.js` 674 行 |
+| Rust 最大文件 | `transfer.rs` 961 行 |
+| 首屏 JS（入口 + modulepreload） | 17 个文件，548 KB（上限 800 KB） |
+| 最大生产分包 | `vue.esm-bundler` 173.2 KB；业务入口 `main` 166.5 KB（上限 600 KB） |
 | JS 循环依赖 | 0 |
 | ESLint | 0 warning |
 | npm 依赖漏洞 | 0 |
 | Rust Clippy | `-D warnings` 通过 |
-| Rust 测试 | 80 项通过（含安装链路 mock 服务集成测试） |
-| 前端单测 | 33 个文件 / 180 项 |
-| 前端行覆盖 | core 36.6% / features 3.0% / 总计 4.5%（棘轮基线） |
-| Playwright E2E | 5 个 spec（启动、导航、设置、版本错误、模组） |
+| Rust 测试 | 103 项通过（含基础版本安装、重复安装、缺失版本等 5 个 mock 服务集成场景） |
+| 前端单测 | 85 个文件 / 1030 项 |
+| 前端行覆盖 | core 62.3% / features 37.9% / 总计 39.0%（棘轮基线） |
+| Playwright E2E | 7 个 spec（启动、导航、设置、版本错误、模组、Java、云盘） |
 
 ## 测试策略
 
@@ -123,7 +125,7 @@ CI（`.github/workflows/verify.yml`）包含：Lint、前端单测、循环依�
 - **Playwright**：以 mock `window.__TAURI_INTERNALS__` 的方式启动真实构建产物，验证静态模板注入、全页面导航、设置开关、版本接口失败提示、模组页渲染，以及“无未注册动作”的运行期约束。
 - **Rust**：单元测试与 axum mock server 集成测试；测试通过 `storage::override_data_dir` 隔离数据目录，并覆盖“原版 + 加载器合并安装只产生单一实例”等关键行为。
 - **手动验证**：涉及 UI 与启动链路的改动，按“构建 → 启动软件 → 进入对应页面操作”的流程实测。
-- **本轮实测记录（2026-10-24）**：便携构建启动后通过 WebView2 调试端口依次打开 20 个页面，并完成“模组列表 → 模组详情 → 返回”链路；结果为 0 个未捕获异常、0 个控制台错误、0 个中转层缺失警告。
+- **本轮实测记录（2026-10-24）**：便携构建启动后通过 WebView2 调试端口完成 20 个页面导航，并覆盖版本设置五页签、收藏页/子页、反馈页、资源列表与详情、账户皮肤/披风、整合包与已安装版本、启动诊断/依赖检查/JVM CDS/崩溃分析/路径命令；结果为 0 个未捕获异常。
 
 ## 存量边界
 
@@ -131,7 +133,7 @@ CI（`.github/workflows/verify.yml`）包含：Lint、前端单测、循环依�
 
 - `frontend/public/js/*.bundle.js`：第三方运行时（Three.js、skinview3d 等）的生成产物，不手改；首屏与页面按需加载均不包含它们。
 - `frontend/public/css/**`：历史页面样式，已在架构检查中登记为快照；新页面禁止新增独立 CSS，存量随页面迁移逐步减少。
-- 超大业务文件：`page-version-settings.js`、`api/skins.rs`、`modpack/curseforge_shared.rs` 仍超过 600 行，已纳入后续拆分清单；当前先保证依赖方向、循环与测试门禁不再回退。
+- 超大业务文件：核心拆分（版本设置、收藏、反馈、资源、皮肤 API、CurseForge 工具、依赖/启动/系统/游戏接口）已完成，前端最大业务文件降至 `core/tauri-bridge.js` 674 行；Rust 超过 900 行告警线的仅剩 `transfer.rs` 961、`server_host/mod.rs` 951、`updater.rs` 905，均不属于本次拆分范围，列为后续可选优化项。
 
 ## 约定
 

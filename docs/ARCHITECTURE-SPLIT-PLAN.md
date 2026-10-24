@@ -207,4 +207,4 @@ src-tauri/src/api/skins/
 | P5 皮肤 API 模块化 | 已完成 | 本次提交 | `api/skins.rs` 1265 行改为 `api/skins/`：mod.rs 447、ms.rs 473、capes.rs 288、common.rs 84；`cargo check --release`、103 项 Rust 测试、clippy `-D warnings` 均通过，便携版皮肤/披风接口与账户详情实测通过 |
 | P6 CurseForge 共享工具拆分 | 已完成 | 本次提交 | `curseforge_shared.rs` 1260 行收缩为 23 行门面；新增 fs/repair/chain/compat 模块（281/439/147/413 行），`pub use` 保持 `curseforge_shared::*` 路径不变；cargo check、103 项测试、clippy `-D warnings` 与便携版整合包页/已安装版本冒烟通过（未重跑大体量导入下载） |
 | P7 其余 Rust 大文件 | 已完成 | 本次提交 | `api/mods/deps.rs` 1061→34 行门面（parse 364/fetch 244/resolve 448）；`api/launch.rs` 1053→824（preflight 246）；`api/system.rs` 1014→632（jvm 395）；`api/game.rs` 1007→684（crash 338）；`lib.rs` 1099→815（commands_paths 291）。cargo check、103 项测试、clippy `-D warnings` 与便携版启动诊断/依赖检查/JVM CDS/崩溃分析/依赖路由/路径命令实测通过 |
-| P8 门禁收紧 | 待开始 | — | 最后执行 |
+| P8 门禁收紧 | 已完成 | 本次提交 | 超大文件阈值下调为 JS 650 / Rust 900；`npm run verify` 通过（lint、85 文件/1030 项单测、循环依赖 0、构建、架构检查）；`ARCHITECTURE.md` 指标与存量边界同步，剩余超大文件仅在告警中列出 |

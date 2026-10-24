@@ -150,10 +150,10 @@ const INLINE_STYLE_LIMIT = 29;
 
 // 6. 超大业务文件报告（只警告，不阻断）
 const sizeTargets = [
-  [join(root, 'frontend', 'js', 'app'), 800],
-  [join(root, 'frontend', 'js', 'vue'), 800],
-  [join(root, 'frontend', 'src'), 800],
-  [join(root, 'src-tauri', 'src'), 1500],
+  [join(root, 'frontend', 'js', 'app'), 650],
+  [join(root, 'frontend', 'js', 'vue'), 650],
+  [join(root, 'frontend', 'src'), 650],
+  [join(root, 'src-tauri', 'src'), 900],
 ];
 for (const [dir, limit] of sizeTargets) {
   for (const file of walk(dir)) {
