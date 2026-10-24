@@ -68,4 +68,9 @@ window.addEventListener('DOMContentLoaded', function () {
     const schedule = window.requestIdleCallback || ((cb) => setTimeout(cb, 16));
     schedule(() => mountBatch(state), { timeout: 100 });
   }, 0);
+
+  // 开发环境追加组件基座预览页（生产构建由 DEV 判断短路）
+  if (import.meta.env.DEV) {
+    import('./dev-preview.js').then((m) => m.mountDevPreview()).catch(() => {});
+  }
 });

@@ -2,6 +2,8 @@
 // 1. 按原加载顺序导入功能模块；
 // 2. 安装统一事件委托与错误提示通道；
 // 3. 启动 DOMContentLoaded 初始化流程。
+// 样式入口：Tailwind 变量与工具类（含 shadcn 语义 token 映射），需最先执行
+import './styles/tailwind.css';
 import './features/misc/rose-loader.js';
 import './features/registry.js';
 import './core/plugin-compat.js';

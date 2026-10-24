@@ -1,0 +1,63 @@
+/**
+ * tailwind.css - Tailwind CSS v4 入口
+ * ----------------------------------------------------------------------------
+ * 只引入 theme（变量）与 utilities（工具类）两层，**不引入 preflight**。
+ * 原因：项目现有 31 个手写 CSS 按自己的排版方式设计，preflight 会重置
+ * button / input / border / 行高，导致全站视觉崩坏。
+ *
+ * 另外不把 utilities 放进 cascade layer：现有 CSS 全部是无层样式，
+ * 而层内样式永远输给无层样式，会导致 bg-primary 之类的工具类压不住
+ * 旧的 button 规则。
+ */
+
+@import 'tailwindcss/theme.css';
+/* source(none)：关闭自动扫描。旧页面与 features 里的中文文案数据会被误判成
+ * 工具类名（hidden / flex / table / border 等），从而生成与现有类名冲突的规则。
+ * 只显式扫描确定会写 Tailwind 类的目录。 */
+@import 'tailwindcss/utilities.css' source(none);
+@source '../vue';
+@source '../components';
+
+/* 暗色变体：Tailwind 默认用 .dark 类，项目用 data-theme，这里对齐 */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * 语义 token 映射：shadcn-vue 组件读取 --background 等语义变量，
+ * 这里全部指向项目现有主题变量（base.css / themes.css），不新建第二套主题。
+ */
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+
+  --color-card: var(--bg-card);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--bg-card);
+  --color-popover-foreground: var(--text-primary);
+
+  /* shadcn 的 primary 对应项目主色 --accent */
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-text);
+
+  /* shadcn 的 accent 是悬停底色，不是品牌色，注意区分 */
+  --color-accent: var(--bg-hover);
+  --color-accent-foreground: var(--text-primary);
+
+  --color-secondary: var(--bg-secondary);
+  --color-secondary-foreground: var(--text-primary);
+
+  --color-muted: var(--bg-secondary);
+  --color-muted-foreground: var(--text-muted);
+
+  --color-destructive: var(--red);
+
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--accent);
+
+  /* 圆角尺度对齐现有 --radius（8px）与 --radius-sm / --radius-lg */
+  --radius-xs: var(--radius-sm);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius-lg);
+}
