@@ -115,7 +115,6 @@ docs/templates/page-template.js  # 新增页面模板，复制后按注释步骤
 - **自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`**：显示状态与选项由 features 层命令式驱动（`style.display`、`customSelectInstances`）。换成组件会改变焦点管理与动画行为，与计划自身「交互行为不变」的约束冲突；且当前环境跑不了真实 Tauri 应用，这类改造无法验证。建议单独立项、在能跑真机的环境里做。
 - 全站 31 个 CSS 尚未收敛，`.btn` / `.card` / `.text-input` 等全局类仍被未迁移结构（JS 动态生成的标记、自研模态框）使用，需要等这些结构迁移完才能删
 - 页面模板里还有 29 处超长内联 `style`（已由架构检查的棘轮守住，只减不增）
-- 存量失效的内联事件绑定：`#sponsor-search-input` 的 `oninput="filterSponsors(...)"`，以及 `page-mods` / `page-mod-favorites` 上 4 处 checkbox/select 的内联处理器
 
 ## 9. 本期已确认可用的行为（回归证据）
 
