@@ -231,3 +231,12 @@ P3 原先的完成标准写成「该批页面无旧 `.btn` / `.modal` / `.custom
 - P2 实测项：磁贴选中态切换、字数统计、表单校验提示、提交按钮启用逻辑、暗色对比度、文本域高度。
 - P3 实测项：19 个页面全部在预览页渲染成功（无「页面渲染失败」横幅、按钮数量非零）；抽样检查按钮 computed style（边框 1px、圆角 6px、高 36px、图标可见）、暗色主题适配、server-host 表单默认值（MyServer / 25565 / 2048）保留。
 
+### 收尾验收（移除 sonner 与 `cn` 残留之后）
+
+- 浏览器实测：`dev-components.html`（含亮/暗主题切换）、`dev-page.html?p=feedback`、`dev-page.html?p=version-settings` 均正常渲染，关键控件无一空白或输出未解析的自定义标签；console 无 error 级日志（仅一条 Tauri 桥接桩 info）。组件基座暗色下无黑底黑字。
+- `npm run lint`：0 error（83 条 warning 为存量未使用变量，非本次引入）。
+- `npm run test`：8 个测试文件、40 条用例全部通过。
+- `npm run verify`（含 `vite build` 与 `check-architecture.mjs --strict`）：通过。首屏 JS 实测 751.9 KB（main 538.0 + vue.esm-bundler 168.4 + ui-components 16.7 + custom-download 14.9 + api 13.8），在 800 KB 预算内、未触发 760 KB 预警。
+- `package.json` 中 CLI 误装的 `cn` 包（无任何引用）已卸载，依赖仅保留 `@lucide/vue`、`@vueuse/core`、`reka-ui`、`class-variance-authority`、`clsx`、`tailwind-merge`。
+- 说明：`npm run build` 走的是 `scripts/build-portable.mjs` → `npx tauri build`，本机未安装 cargo 故无法执行；前端侧构建以 `npm run build:web` 为准。
+
