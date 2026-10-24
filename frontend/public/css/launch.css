@@ -328,14 +328,16 @@
 .vset-select {
     flex: 1;
     max-width: 300px;
-    padding: 9px 12px;
+    height: 36px;
+    padding: 0 12px;
+    box-sizing: border-box;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     color: var(--text-primary);
     font-size: 13px;
     outline: none;
-    transition: border-color var(--transition);
+    transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .vset-select:focus {
@@ -446,19 +448,21 @@
 
 .modmgr-search-input {
     width: 100%;
-    padding: 8px 12px 8px 32px;
+    height: 36px;
+    padding: 0 12px 0 32px;
+    box-sizing: border-box;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: 13px;
     outline: none;
     transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .modmgr-search-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.12);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .modmgr-search-input::placeholder {

@@ -86,3 +86,22 @@
   --popover: var(--bg-card);
   --popover-foreground: var(--text-primary);
 }
+
+/*
+ * 封装组件与旧控件的视觉对齐：
+ * shadcn 默认圆角是 --radius - 2，和旧 .btn / .text-input 差 2px；
+ * 输入框底色也统一到 --bg-tertiary，避免同屏出现两种输入框外观。
+ */
+.v-btn {
+  border-radius: var(--radius);
+}
+
+.v-input {
+  border-radius: var(--radius);
+  background-color: var(--bg-tertiary);
+}
+
+.v-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}

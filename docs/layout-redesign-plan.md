@@ -1,6 +1,6 @@
 # VersePC2 布局重做计划（Modrinth App 风格）
 
-> 状态：执行中（P1、P2、P3 已完成）
+> 状态：执行中（P1–P4 已完成，P5 待执行）
 > 基准：Modrinth App（Theseus）— `modrinth/code` → `apps/app-frontend`，Tauri 2 + Vue 3 + Tailwind
 > 约束：**主页 `page-home` 不改**，保留现有可拖动控件与位置记忆体系
 
@@ -97,12 +97,16 @@
 - 版本设置：头部 32px 圆形按钮 + 32 内边距；侧栏 200px，选中项 `--bg-secondary`；内容区限宽 1200 居中；卡片统一 20 padding / 14 圆角
 - 验收：1600×900、2560×1440 均无横向溢出；页签与侧栏滚动吸顶生效；构建与冒烟通过
 
-### P4 表单控件视觉收敛
+### P4 表单控件视觉收敛（已执行）
 
-- 不替换业务控件实现，统一**视觉**：原生 `input`/`select` 与 shadcn 输入框统一高度（32–36px）、圆角 `--radius`、1px 边框、聚焦环 `--accent`
-- 设置页里遗留的 `.btn` 与 `VButton` 统一高度/圆角/内边距（旧按钮样式通过覆盖类收敛，不改元素类型）
+- 统一直高：`.text-input`、`.search-input`、`.select-input`、`.folder-selector-select`、`.vset-select`、`.modmgr-search-input`、`.sponsor-search-input` 统一 36px 高、`box-sizing: border-box`、圆角 `--radius`；`.select-sm` 32px、`.dl-search-input` 圆角由 10 收到 `--radius`
+- `.custom-select-trigger` 由 padding 10/14 收到 `min-height: 36px` + padding 7/12，`gap: 8px`，与原生下拉同高
+- 聚焦环统一为 `0 0 0 3px color-mix(--accent 16%)`（原生输入、下拉、搜索框）
+- VButton / VInput 通过 `.v-btn` / `.v-input` 覆盖把 shadcn 的 `rounded-md`（半径 −2）收敛到 `--radius`；VInput 底色统一为 `--bg-tertiary`，与 `.text-input` 一致，并补齐同款聚焦环
+- 旧按钮去掉装饰性位移与光晕：`.btn-primary` 移除内阴影/外发光/上浮，只保留底色变化；`.btn-secondary` 底色由 `--bg-tertiary` 调到 `--bg-card`，与 VButton 的 outline 同色
+- 版本行悬停移除 `translateX(4px)` 位移，改为仅底色变化
 - 命令式 `classList` 切换的元素（`#mod-multiselect-toggle`、`#md-fav-btn` 等）保持原样
-- 验收：同屏控件高度与圆角一致；`npm run verify` 通过；交互回归
+- 验收：同屏输入/下拉实测 36×r8 一致（设置、启动、版本设置、模组页），按钮按语义分 32/36/40；构建与 5 项 e2e 通过
 
 ### P5 细节巡检
 
