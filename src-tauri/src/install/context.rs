@@ -71,6 +71,15 @@ pub(crate) fn log_now() -> String {
     chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
+/// 是否为合并式加载器：Fabric/OptiFine 直接与原版合并成单一实例，不落地独立原版目录
+pub(crate) fn is_merge_only_loader(loader_info: &Option<Value>) -> bool {
+    loader_info
+        .as_ref()
+        .and_then(|l| l.get("type"))
+        .and_then(|v| v.as_str())
+        .is_some_and(|t| t == "fabric" || t == "optifine")
+}
+
 /// 安装上下文：一次安装会话内共享的路径、设置与状态
 pub(crate) struct InstallCtx {
     pub app: AppHandle,
@@ -107,11 +116,7 @@ impl InstallCtx {
         let actual_version_id = custom_name
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| version_id.clone());
-        let merge_only_loader = loader_info
-            .as_ref()
-            .and_then(|l| l.get("type"))
-            .and_then(|v| v.as_str())
-            .is_some_and(|t| t == "fabric" || t == "optifine");
+        let merge_only_loader = is_merge_only_loader(&loader_info);
         Self {
             app,
             session_id,
@@ -253,6 +258,17 @@ mod tests {
         assert!(dir.join("options.txt").exists(), "已有 options.txt 不应被删除");
         assert!(dir.join("mods").is_dir(), "已有 mods 目录不应被删除");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 合并式加载器判定：Fabric/OptiFine 不落地原版目录，Forge/NeoForge 需要
+    #[test]
+    fn merge_only_loader_detection() {
+        let loader = |t: &str| Some(serde_json::json!({ "type": t, "version": "1.0.0" }));
+        assert!(is_merge_only_loader(&loader("fabric")));
+        assert!(is_merge_only_loader(&loader("optifine")));
+        assert!(!is_merge_only_loader(&loader("forge")));
+        assert!(!is_merge_only_loader(&loader("neoforge")));
+        assert!(!is_merge_only_loader(&None));
     }
 
     /// 本次新建的版本目录在安装失败时应被清理

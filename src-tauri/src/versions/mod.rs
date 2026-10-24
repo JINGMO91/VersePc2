@@ -31,6 +31,8 @@ mod repair;
 mod scan;
 
 pub(crate) use manifest::fetch_remote_manifest;
+#[cfg(test)]
+pub(crate) use manifest::set_test_manifest_url;
 pub(crate) use scan::{scan_external_versions, scan_local_versions};
 
 use serde_json::{json, Value};

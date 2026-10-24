@@ -12,9 +12,23 @@ pub(crate) const MOJANG_MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/
 
 pub(crate) const BMCLAPI_MANIFEST_URL: &str = "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json";
 
+/// 测试专用：把版本清单指向本地 mock 服务
+#[cfg(test)]
+static TEST_MANIFEST_URL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+#[cfg(test)]
+pub(crate) fn set_test_manifest_url(url: &str) {
+    let _ = TEST_MANIFEST_URL.set(url.to_string());
+}
+
 /// 拉取远程版本清单（同步阻塞，但通过 spawn_blocking 在 Tauri 异步上下文里调用）
 /// 按下载源选择优先顺序：china-first → BMCLAPI 优先；其他 → Mojang 优先
 pub(crate) fn fetch_remote_manifest(refresh: bool) -> Option<Value> {
+    #[cfg(test)]
+    if let Some(url) = TEST_MANIFEST_URL.get() {
+        return fetch_json_racing(&[url.as_str()], Duration::from_secs(6));
+    }
+
     let settings = storage::load_settings();
     let source = utils::get_str(&settings, "downloadSource");
     let cache_path = storage::resolve_data_dir().join("cache").join("version-manifest.json");
