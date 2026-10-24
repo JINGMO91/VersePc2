@@ -217,8 +217,12 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 - P3：又修复多处失效的内联事件绑定（settings-other 的 `onkeydown`、mods 的 `oninput`、cloud 的 `@input`、accounts 的 `@change` 等）。**仍有存量失效项**：`#sponsor-search-input` 的 `oninput="filterSponsors(...)"`、`page-mods` / `page-mod-favorites` 上 4 处 checkbox/select 的内联处理器，这些是非替换元素上的绑定，留给后续单独处理。
 - P4：`check-architecture.mjs` 增加两项护栏。一是**存量样式快照**：`frontend/public` 下未登记的 CSS 文件直接报错，阻止继续新增手写 CSS。二是**内联样式棘轮**：页面模板中 ≥120 字符的 `style="..."` 只允许减少（基线 29 处），增加即报错。
 - P4：死 CSS 按引用逐个核实后核减 132 行，涉及 `components/base-ui.css` 与 `modal.css`。整站 31 个 CSS 的全局类（`.btn` / `.card` / `.text-input`）仍被 JS 动态生成的标记与自研模态框使用，需等这些结构迁移完才能删；`components/theme.css`、`components/version-ui.css`、`dialogs.css` 本轮未发现可安全删除的整块规则，留待结构迁移后一并处理。
-- 待办：`vue-sonner` 的 Toaster 未接入，通知继续用现有 `#toast-container`。
-- 待办：自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`。它们的显示状态与选项由 features 层命令式驱动（`style.display`、`customSelectInstances`），替换需要同步改写交互代码，风险独立，建议单独立项。
+- 待办：`vue-sonner` 的 Toaster **未接入**。尝试过在 `mount.js` 里全局挂载一次，实测两个问题：一是 `Sonner.vue` 会通过 `v-bind` 显式传 `position: undefined`，导致内部算不出位置列表、连容器都不渲染（显式给 `position` 可解）；二是给上 `position` 后容器正常渲染，但 `toast.success()` 仍然送达不到该 Toaster。shadcn-vue 生成的 `Sonner.vue` 面向的 API 比当前安装的 `vue-sonner@2.0.9` 新，疑为版本差异。由于目前没有任何页面使用 sonner，且应用现有 `#toast-container` + `showToast()` 已完整覆盖通知需求，已把这段挂载回退，不把未验证的通知系统塞进启动流程。后续要接入时需先解决版本对齐。已提前在 `tailwind.css` 补好 `--popover` / `--popover-foreground` 别名（`Sonner.vue` 的行内样式直接引用原始变量名，只映射 `--color-*` 不够）。
+- 待办：自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`。它们的显示状态与选项由 features 层命令式驱动（`style.display`、`customSelectInstances`），替换需要同步改写交互代码；而当前环境无法运行真实 Tauri 应用（本机未安装 cargo），这类交互改造无法用桩数据预览页验证，风险不可控，因此建议单独立项并在能跑真机的环境里做。
+
+### 计划本身的修正
+
+P3 原先的完成标准写成「该批页面无旧 `.btn` / `.modal` / `.custom-select` 残留」。实际执行后确认这个标准与计划自身的约束「迁移期间功能与交互行为不变」冲突：`.modal` 换成 `Dialog` 会改变焦点管理与动画行为，`.custom-select` 换成 `Select` 要重写整个下拉模块。故本期实际完成范围是**通用控件（按钮 / 输入框 / 多行输入）全部迁移**，`.modal` / `.custom-select` 明确延后，理由如上。这个修正基于实测，不是为了迁就现状。
 
 ### 验证方式
 

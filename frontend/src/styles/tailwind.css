@@ -76,3 +76,13 @@
   --radius-lg: var(--radius);
   --radius-xl: var(--radius-lg);
 }
+
+/*
+ * 少数 shadcn 组件在行内样式里直接引用原始变量名（如 sonner 用 var(--popover)），
+ * 而上面的 @theme inline 只生成 --color-* 系列。这里补上别名，保持与语义 token 同源。
+ * 注意不要给 --accent 造别名：shadcn 的 accent 是悬停底色，与本项目的品牌色 --accent 含义不同。
+ */
+:root {
+  --popover: var(--bg-card);
+  --popover-foreground: var(--text-primary);
+}
