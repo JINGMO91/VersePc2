@@ -298,6 +298,20 @@ Gitee 附件总配额约 1GB，曾因超限删除 v1.1.x～v1.6.0 共 12 个旧 
 
 1. 若发版：版本升到 `1.8.0`，同步 Cargo.toml / tauri.conf.json / Info.plist，重新构建 Windows 包，按第 4 节流程发布
 2. 可选：修文件浏览器驱动器 403、隐藏非 Windows 的内存优化卡片；补 Linux arm64 构建矩阵
-3. 可选：处理 `index.html` 中仍残留的少量内联 `onclick`（启动取消、日志导出、修复、支持/更新弹窗、翻译弹窗等），改为 data-action 委托
+3. 已完成：`index.html` 内联 `onclick` 已全部迁移为 `data-action`（当前 0 处），并新增 Playwright 冒烟覆盖
 4. 可选：给前端纯逻辑模块继续补 Vitest（下载任务状态机、依赖聚合、主题色计算）
 5. 继续处理后台用户反馈时，先查日志和相关源码，不要直接猜
+
+## 11. 架构加固 Phase 16–19（2026-10-24）
+
+- 提交链：
+  - `122f042` 统一文本文件行尾并新增 `.gitattributes`
+  - `b31f1ac` 拆分安装编排为 `InstallCtx` + `install/stages/*`（`perform_installation` 约 40 行）
+  - `3724d45` 首屏按页面懒加载功能模块 + 静态弹窗/SVG 图标注入（`index.html` 710 → 483 行）
+  - `0c4093f` 安装链路 mock 服务集成测试（只产出单一实例、保留已有原版）
+  - `e825f51` Playwright 前端冒烟与 CI `frontend-e2e` job
+- 实测：
+  - 首屏 JS 846 KB → 约 752 KB；新增护栏：单 chunk >600 KB 或首屏 >800 KB 判失败
+  - `cargo clippy -- -D warnings` 零告警；`cargo test` 27 项通过
+  - `npm run verify` 通过；`npm run test:e2e` 通过
+  - 便携版实测：24 个页面导航、版本设置打开、弹窗动作、下载页切换均无模块加载/引用错误
