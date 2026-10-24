@@ -12,12 +12,14 @@
     "build:setup": "tauri build --bundles nsis",
     "build:portable": "node scripts/build-portable.mjs",
     "test": "vitest run",
+    "test:e2e": "npm run build:web && playwright test",
     "lint": "eslint frontend/src scripts/*.mjs vite.config.mjs",
     "verify": "npm run lint && npm run test && npm run build:web && node scripts/check-architecture.mjs --strict",
     "tauri": "tauri"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.0.0",
     "@vitejs/plugin-vue": "^6.0.10",

@@ -42,6 +42,27 @@ jobs:
         shell: bash
         run: node scripts/check-architecture.mjs --strict
 
+  frontend-e2e:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        shell: bash
+        run: |
+          git clone --depth 1 --branch "$GITHUB_REF_NAME" https://github.com/doujie081231/VersePc2.git .
+          git rev-parse --short HEAD
+
+      - name: Install frontend deps
+        shell: bash
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        shell: bash
+        run: npx playwright install --with-deps chromium
+
+      - name: Frontend E2E smoke
+        shell: bash
+        run: npm run test:e2e
+
   rust-test:
     runs-on: windows-latest
     steps:

@@ -29,3 +29,7 @@ scripts/_androidwork/
 
 frontend-dist/
 frontend-tauri/
+
+# Playwright
+test-results/
+playwright-report/
