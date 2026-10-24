@@ -203,7 +203,7 @@ src-tauri/src/api/skins/
 | P1 版本设置页方法拆分 | 已完成 | 本次提交 | `page-version-settings.js` 735→146 行；新增 core/mods/export 三模块（309/160/144 行），48 个方法名与拆分前一致，lint/test/build/架构检查与便携版五页签实测均通过 |
 | P2 收藏页拆分 | 已完成 | 本次提交 | `favorites.js` 724→59 行；新增 data/manage/selection/state 四模块（276/243/197/7 行），公开函数全部经门面 re-export，Playwright 模组页冒烟与便携版收藏页/子页实测通过 |
 | P3 问题反馈页拆分 | 已完成 | 本次提交 | `feedback.js` 700→77 行；新增 logs/form/attachments/validate/state 五模块（186/288/88/71/35 行），公开导出保持门面转发，便携版反馈页环境信息、自动日志、校验与附件实测通过 |
-| P4 资源页拆分 | 待开始 | — | — |
+| P4 资源页拆分 | 已完成 | 本次提交 | `resource.js` 700→30 行；新增 list/detail/install/import-modal/state 五模块（184/145/120/235/21 行），动作注册与懒加载登记保留门面；Playwright 冒烟与便携版材质包列表、详情、返回、光影置顶实测通过。架构检查的内联样式棘轮因并行改动 `page-settings-other.js` 暂报 30/29，与本阶段无关 |
 | P5 皮肤 API 模块化 | 待开始 | — | — |
 | P6 CurseForge 共享工具拆分 | 待开始 | — | — |
 | P7 其余 Rust 大文件 | 待开始 | — | 需先审计 |
