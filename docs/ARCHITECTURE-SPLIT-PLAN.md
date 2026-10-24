@@ -201,7 +201,7 @@ src-tauri/src/api/skins/
 | 阶段 | 状态 | 提交 | 备注 |
 | --- | --- | --- | --- |
 | P1 版本设置页方法拆分 | 已完成 | 本次提交 | `page-version-settings.js` 735→146 行；新增 core/mods/export 三模块（309/160/144 行），48 个方法名与拆分前一致，lint/test/build/架构检查与便携版五页签实测均通过 |
-| P2 收藏页拆分 | 待开始 | — | — |
+| P2 收藏页拆分 | 已完成 | 本次提交 | `favorites.js` 724→59 行；新增 data/manage/selection/state 四模块（276/243/197/7 行），公开函数全部经门面 re-export，Playwright 模组页冒烟与便携版收藏页/子页实测通过 |
 | P3 问题反馈页拆分 | 待开始 | — | — |
 | P4 资源页拆分 | 待开始 | — | — |
 | P5 皮肤 API 模块化 | 待开始 | — | — |
