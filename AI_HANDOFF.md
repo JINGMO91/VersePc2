@@ -1,27 +1,27 @@
 # VersePC2 AI 交接文档
 
-- 更新时间：2026-10-23
+- 更新时间：2026-10-24
 - 适用对象：接手本项目的下一个 AI / 开发者
 - 对话语言：简体中文
 
 ## 1. 项目概况
 
-VersePC2 是一个基于 **Tauri 2 + Rust + Vue 3（原生 JS，无构建器）** 的 Minecraft 启动器。
+VersePC2 是一个基于 **Tauri 2 + Rust + Vue 3（原生 JS 模板 + Vite 构建）** 的 Minecraft 启动器。
 
 - 项目路径：`d:\Verse Explorer X\versepc2`
 - 当前版本：`1.7.2`（`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`、`src-tauri/Info.plist` 三处保持一致）
 - GitHub：`doujie081231/VersePc2`
 - Gitee：`doujie081231/verse-pc2`
-- 当前主分支：`main`，HEAD `45ecf3f`，工作区干净
+- 当前主分支：`main`
 - 发布状态：1.7.2 已发布；1.7.3 尚未发布
-- `dist\VersePC2.exe` 是 1.7.2 的旧构建，**不包含 2026-10-23 的跨平台修复**，需要时重新构建
+- 2026-10-24 已完成架构重构 Phase 1–6：前端全量 ES Modules、移除全局暴露、Rust 大文件拆分、编译告警与 Clippy 清零
 
 ## 2. 关键目录与模块
 
 | 路径 | 职责 |
 | --- | --- |
-| `frontend/` | Vite 前端工程：`src/main.js` 入口、`src/core/`、`src/features/`、`src/vue/`、`src/legacy/` |
-| `frontend/public/` | 原样复制的静态资源（css、旧版 js、vendor、img 等） |
+| `frontend/` | Vite 前端工程：`src/main.js` 入口、`src/core/`、`src/features/`、`src/vue/` |
+| `frontend/public/` | 原样复制的静态资源（css、图片、`js/` 下的 vendor 库） |
 | `frontend-dist/` | Vite 构建产物（gitignore，不再入库） |
 | `src-tauri/src/lib.rs` | Tauri 入口、窗口状态、协议注册、命令注册 |
 | `src-tauri/src/storage.rs` | 数据目录、默认 `.minecraft` 目录、settings/accounts 读写 |
@@ -30,8 +30,10 @@ VersePC2 是一个基于 **Tauri 2 + Rust + Vue 3（原生 JS，无构建器）*
 | `src-tauri/src/launch/dep_check.rs` | 依赖完整性检查、平台/架构规则匹配 |
 | `src-tauri/src/updater.rs` | 三平台自动更新（Windows .bat、macOS .app 替换、Linux 二进制替换） |
 | `src-tauri/src/filesystem.rs` | 文件浏览白名单、打开文件夹、驱动器列表 |
-| `src-tauri/src/versions.rs` | 版本目录、外部版本识别、回收站、导出脚本/整合包 |
-| `src-tauri/src/modpack/` | CurseForge / Modrinth / theseus 整合包导入 |
+| `src-tauri/src/versions/` | 版本目录、扫描、外部版本识别、修复、诊断、导出（`mod.rs` 统一分发） |
+| `src-tauri/src/api/mods/` | 模组列表/搜索/详情/下载/依赖/管理路由（按域拆分） |
+| `src-tauri/src/api/resources/` | 资源搜索/详情/下载/图片代理路由（按域拆分） |
+| `src-tauri/src/modpack/` | CurseForge / Modrinth / theseus 整合包导入；`mrpack_native/` 已拆分 |
 | `src-tauri/src/modloaders/` | Forge / NeoForge / Fabric / OptiFine 安装 |
 | `.github/workflows/release-build.yml` | macOS（x86_64/arm64）与 Linux 构建 |
 | `scripts/winstubs.c` | 非 Windows 构建时为 Windows 库提供空实现 |
@@ -76,7 +78,7 @@ $env:LIB = (@("$MSVC\lib\x64","$MSVC\atlmfc\lib\x64","$SDK\Lib\$SDKV\ucrt\x64","
 
 由 CI 完成，核心步骤：
 
-1. `node scripts/prepare-frontend.mjs`
+1. `npm ci && npm run build:web`（Vite 输出 `frontend-dist`）
 2. 编译 `scripts/winstubs.c`，生成 `libkernel32.a` / `libshell32.a`，加入 `RUSTFLAGS=-L`
 3. `cargo build --release --bin verse-tauri --manifest-path src-tauri/Cargo.toml`
 4. macOS 手工组装 `VersePC2.app`，写 Info.plist 版本、复制 `icon.icns`、`codesign --force --deep --sign -`
@@ -187,12 +189,15 @@ Gitee 附件总配额约 1GB，曾因超限删除 v1.1.x～v1.6.0 共 12 个旧 
 ### 6.3 前端架构现状（2026-10-24 重构后）
 
 - 构建：Vite 8 + ES Modules，唯一入口 `frontend/src/main.js`，产物 `frontend-dist`。
-- `frontend/public/js` 仍保留 `app.js`、`rose-loader.js`、`mod-slug-map.js`、懒加载脚本与 vendor 库。
-- 业务模块在 `frontend/src/features/`，Vue 页面在 `frontend/src/vue/pages/`，由 `src/vue/mount.js` 分批挂载。
-- `frontend/src/legacy/globals.js` 是过渡层：集中把 core 与 feature 导出暴露为全局名，供旧脚本和模板 `onclick` 使用；最终目标是删除。
-- `frontend/style` 仍以 `<link>` 方式引用 `public/css`，尚未按页面拆分。
-- 共享个性化状态在 `src/features/settings/personalize-state.js`，页面与业务模块共同 import。
-- 遗留待办：清空模板 `onclick` 属性、删除 legacy 层与 `app.js` 全局状态、CSS 按域拆分。
+- 所有业务脚本已迁入 `frontend/src/features/`，`public/js` 只保留 vendor 库（three、skinview3d、marked）。
+- Vue 页面在 `frontend/src/vue/pages/`，由 `src/vue/mount.js` 分批挂载；页面模板不再使用 `onclick`，统一 `@click` / 组件方法。
+- 动态 HTML 使用 `data-action` 事件委托（`src/core/actions.js`），不再向 window 挂业务函数。
+- `src/legacy/globals.js` 与 `public/js/app.js` 已删除。
+- 跨模块共享状态：`core/app-state.js`、`core/game-store.js`、`core/vm-holders.js`、`core/feature-bridge.js`、`features/mods/detail-state.js`。
+- `core/vue-ready.js` 提供挂载完成等待（支持多个等待方）。
+- `core/plugin-compat.js` 是唯一允许向 window 暴露插件接口的兼容层，供已安装插件继续调用 `initServerHostPage` / `showToast` 等既有函数。
+- 插件组件仍通过 `window.VersePC['Plugin_<id>_<page>']` 注册，由 `plugin-runtime.js` 同步到内部组件表后挂载。
+- 样式仍以 `<link>` 方式引用 `public/css`。
 
 ### 6.4 已知小问题（未修，优先级低）
 
@@ -260,10 +265,16 @@ Gitee 附件总配额约 1GB，曾因超限删除 v1.1.x～v1.6.0 共 12 个旧 
 ## 9. 验证记录
 
 - 2026-10-23 Windows `cargo check`：通过
+- 2026-10-24 架构重构后：
+  - `npm run verify`（ESLint + Vitest + Vite 构建 + 架构硬性检查）：通过
+  - `cargo test`：25 项通过
+  - `cargo clippy -- -D warnings`：零告警
+  - 便携版构建成功，启动实测通过：主页、版本列表、版本设置、模组搜索/详情、账户切换、设置各标签、联机页、插件页（开服/内网穿透/种子地图）
+  - 下载链路实测：通过 `/api/mods/download-version` 下载 Sodium 至临时目录，进度 100%、文件大小 1912496 字节，校验通过
 - CI run `39972225672`（commit `2729331`）：Linux x86_64 / macOS arm64 / macOS x86_64 全部 success
 - CI run `39977012044`（commit `d470688`）：三平台全部 success
 - CI run `39977760242`（commit `8f07e29`）：三平台全部 success
-- CI run `39978543107`（commit `45ecf3f`）：三平台全部 success（当前最终验证）
+- CI run `39978543107`（commit `45ecf3f`）：三平台全部 success
 - 最新跨平台提交链：
   - `3b4b273` 完善 macOS/Linux 跨平台适配
   - `3b2fe6e` 修复原生库选择与 Java 运行时细节
@@ -274,9 +285,8 @@ Gitee 附件总配额约 1GB，曾因超限删除 v1.1.x～v1.6.0 共 12 个旧 
 
 ## 10. 建议的下一步
 
-1. 继续前端收尾：清理模板 `onclick`、删除 `legacy/globals.js` 与 `app.js` 全局状态、CSS 按域拆分
-2. 拆分 Rust 大文件：`versions.rs`、`api/mods.rs`、`api/resources.rs`、`modpack/mrpack_native.rs`
-3. 清理剩余编译警告（当前仍有大量 dead_code / unused 项），再启用 `clippy -D warnings`
-4. 若要发版：版本升到 `1.8.0`，重新构建 Windows 包，按第 4 节流程发布
-5. 可选：修文件浏览器驱动器 403、隐藏非 Windows 的内存优化卡片；补 Linux arm64 构建矩阵
-6. 继续处理后台用户反馈时，先查日志和相关源码，不要直接猜
+1. 若发版：版本升到 `1.8.0`，同步 Cargo.toml / tauri.conf.json / Info.plist，重新构建 Windows 包，按第 4 节流程发布
+2. 可选：继续拆分仍超过 1500 行的 Rust 文件（`java.rs`、`args_builder.rs`、`dep_check.rs`、`curseforge.rs`、`server_host.rs`）
+3. 可选：把前端 800 行以上的模块继续按域拆分
+4. 可选：修文件浏览器驱动器 403、隐藏非 Windows 的内存优化卡片；补 Linux arm64 构建矩阵
+5. 继续处理后台用户反馈时，先查日志和相关源码，不要直接猜

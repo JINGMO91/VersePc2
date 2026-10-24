@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.7.2-blue" alt="Version">
   <img src="https://img.shields.io/badge/platform-Windows-lightgrey" alt="Platform">
   <img src="https://img.shields.io/badge/license-GPL--3.0-green" alt="License">
   <img src="https://img.shields.io/badge/framework-Tauri%202-orange" alt="Framework">
@@ -69,23 +69,23 @@
 verse
 ├── frontend/                # Vite 前端工程
 │   ├── index.html           # 主页面（唯一 HTML 入口）
-│   ├── public/              # 原样复制的静态资源（css/js/vendor/img 等）
+│   ├── public/              # 原样复制的静态资源（css/js vendor/img 等）
 │   └── src/
 │       ├── main.js          # 模块入口
-│       ├── core/            # tauri-bridge / api / utils / store
+│       ├── core/            # tauri-bridge / api / utils / store / actions / 共享状态
 │       ├── features/        # 按领域拆分的业务模块（launch/versions/mods/...）
-│       ├── legacy/          # 迁移过渡层（全局别名，最终删除）
 │       └── vue/             # Vue 页面组件与统一挂载
 ├── frontend-dist/           # Vite 构建产物（gitignore，勿手动修改）
 ├── src-tauri/               # Rust 后端
 │   ├── src/
 │   │   ├── lib.rs       # Tauri 入口与命令注册
 │   │   ├── main.rs
-│   │   ├── api/         # HTTP-like API 路由层
+│   │   ├── api/         # HTTP-like API 路由层（mods/resources 按域拆分子模块）
 │   │   ├── launch/      # 游戏启动流程（参数、进程、会话）
-│   │   ├── modpack/     # 整合包导入（CurseForge / mrpack）
+│   │   ├── modpack/     # 整合包导入（CurseForge / mrpack / theseus）
 │   │   ├── mods/        # 模组管理
 │   │   ├── modloaders/  # 加载器（Forge / Fabric / NeoForge / OptiFine）
+│   │   ├── versions/    # 版本扫描、修复、诊断、导出
 │   │   ├── easytier/    # 陶瓦联机 / 内网穿透
 │   │   ├── network/     # 网络（UPnP / 公网 IP）
 │   │   ├── java.rs      # Java 检测与安装
