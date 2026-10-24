@@ -206,5 +206,5 @@ src-tauri/src/api/skins/
 | P4 资源页拆分 | 已完成 | 本次提交 | `resource.js` 700→30 行；新增 list/detail/install/import-modal/state 五模块（184/145/120/235/21 行），动作注册与懒加载登记保留门面；Playwright 冒烟与便携版材质包列表、详情、返回、光影置顶实测通过。架构检查的内联样式棘轮因并行改动 `page-settings-other.js` 暂报 30/29，与本阶段无关 |
 | P5 皮肤 API 模块化 | 已完成 | 本次提交 | `api/skins.rs` 1265 行改为 `api/skins/`：mod.rs 447、ms.rs 473、capes.rs 288、common.rs 84；`cargo check --release`、103 项 Rust 测试、clippy `-D warnings` 均通过，便携版皮肤/披风接口与账户详情实测通过 |
 | P6 CurseForge 共享工具拆分 | 已完成 | 本次提交 | `curseforge_shared.rs` 1260 行收缩为 23 行门面；新增 fs/repair/chain/compat 模块（281/439/147/413 行），`pub use` 保持 `curseforge_shared::*` 路径不变；cargo check、103 项测试、clippy `-D warnings` 与便携版整合包页/已安装版本冒烟通过（未重跑大体量导入下载） |
-| P7 其余 Rust 大文件 | 待开始 | — | 需先审计 |
+| P7 其余 Rust 大文件 | 已完成 | 本次提交 | `api/mods/deps.rs` 1061→34 行门面（parse 364/fetch 244/resolve 448）；`api/launch.rs` 1053→824（preflight 246）；`api/system.rs` 1014→632（jvm 395）；`api/game.rs` 1007→684（crash 338）；`lib.rs` 1099→815（commands_paths 291）。cargo check、103 项测试、clippy `-D warnings` 与便携版启动诊断/依赖检查/JVM CDS/崩溃分析/依赖路由/路径命令实测通过 |
 | P8 门禁收紧 | 待开始 | — | 最后执行 |
