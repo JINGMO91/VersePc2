@@ -1,6 +1,6 @@
 # VersePC2 布局重做计划（Modrinth App 风格）
 
-> 状态：待执行
+> 状态：执行中（P1 已完成）
 > 基准：Modrinth App（Theseus）— `modrinth/code` → `apps/app-frontend`，Tauri 2 + Vue 3 + Tailwind
 > 约束：**主页 `page-home` 不改**，保留现有可拖动控件与位置记忆体系
 
@@ -66,12 +66,14 @@
 
 ## 5. 阶段计划
 
-### P1 页头收口（先做，改动小、收益最大）
+### P1 页头收口（已执行）
 
-- 给 `page-versions`、`page-accounts`、`page-downloads` 补统一 `.page-header`（现由页签或自定义标题承担）
-- `page-mod-detail` 的 `.moddetail-page-header` 对齐第 4 节规格
-- `page-version-settings` 补页头（左侧设置导航保持）
-- 验收：23 个页面页头高度一致；滚动吸顶；无横向溢出
+- 已核对：`page-versions`、`page-downloads` 实际已有 `.page-header`（盘点脚本因类名带附加 class 而漏计），无需新增
+- `page-installed-versions`、`page-version-detail`：去掉页头内联 `gap/padding` 覆盖，改用 `.page-header.detail-header`（左对齐紧凑排列，适配带返回键的页头）
+- `page-accounts`：`.accts-header-row` 对齐规格（52px、底部细线、标题 20/600）
+- `page-version-settings`：`.vset-title` 18/700 → 20/600
+- `page-mod-detail`：`.moddetail-page-header` 对齐规格（min-height 52、左右内边距归零、底部细线、标题 20/600）
+- 验收：页头高度 52px、标题 20/600、无横向溢出；构建与 Playwright 冒烟通过
 
 ### P2 列表页统一
 

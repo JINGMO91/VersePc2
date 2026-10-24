@@ -1,7 +1,8 @@
 /* version-settings.css — 版本设置侧栏与布局 */
 .vset-title {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
     color: var(--text-primary);
     flex: 1;
 }

@@ -472,6 +472,7 @@ body.show-nav-labels .nav-submenu-toggle .submenu-arrow {
     top: -4px;
     z-index: 6;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
@@ -490,6 +491,12 @@ body.show-nav-labels .nav-submenu-toggle .submenu-arrow {
     letter-spacing: -0.01em;
     line-height: 1.2;
     color: var(--text-primary);
+}
+
+/* 带返回键的页头（已安装版本 / 版本详情）：控件从左侧紧凑排列，不拉伸 */
+.page-header.detail-header {
+    justify-content: flex-start;
+    gap: 12px;
 }
 
 .page-actions {
@@ -1286,13 +1293,19 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
     box-sizing: border-box;
 }
 .accts-header-row {
-    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    min-height: 52px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
 }
 .accts-header-title {
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 20px;
+    font-weight: 600;
     color: var(--text-primary);
     letter-spacing: -0.01em;
+    line-height: 1.2;
 }
 
 /* 舞台：一张全屏轮播（卡片内包含"添加账号"+账号卡片） */

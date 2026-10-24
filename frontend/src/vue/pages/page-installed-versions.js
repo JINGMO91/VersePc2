@@ -147,7 +147,7 @@ const PageInstalledVersions = {
     }
   },
   template: `
-    <div class="page-header" style="gap:12px;padding:16px 24px;flex-wrap:wrap">
+    <div class="page-header detail-header">
       <button class="btn btn-icon" @click="navigateToPage('home')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
