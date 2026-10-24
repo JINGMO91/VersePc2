@@ -362,14 +362,13 @@
 }
 
 .btn-accent {
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-    color: white;
+    background: var(--accent);
+    color: var(--accent-text);
     border: 1px solid rgba(var(--accent-rgb), 0.4);
 }
 
 .btn-accent:hover {
-    background: linear-gradient(135deg, var(--accent), var(--accent));
-    box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.35);
+    background: var(--accent-hover);
 }
 
 .btn-success {

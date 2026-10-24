@@ -342,7 +342,7 @@
     display: flex;
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius);
     overflow: hidden;
 }
 
@@ -361,7 +361,7 @@
 
 .fb-view-btn.active {
     background: var(--accent);
-    color: #fff;
+    color: var(--accent-text);
 }
 
 .fb-view-btn:hover:not(.active) {
@@ -640,13 +640,12 @@
 
 .fb-btn-primary {
     background: var(--accent);
-    color: white;
+    color: var(--accent-text);
     border-color: var(--accent);
 }
 
 .fb-btn-primary:hover {
     background: var(--accent-hover);
-    box-shadow: 0 0 12px var(--accent-glow);
 }
 
 .fb-btn-secondary {

@@ -1,6 +1,6 @@
 # VersePC2 布局重做计划（Modrinth App 风格）
 
-> 状态：执行中（P1–P4 已完成，P5 待执行）
+> 状态：已完成（P1–P5）
 > 基准：Modrinth App（Theseus）— `modrinth/code` → `apps/app-frontend`，Tauri 2 + Vue 3 + Tailwind
 > 约束：**主页 `page-home` 不改**，保留现有可拖动控件与位置记忆体系
 
@@ -108,12 +108,14 @@
 - 命令式 `classList` 切换的元素（`#mod-multiselect-toggle`、`#md-fav-btn` 等）保持原样
 - 验收：同屏输入/下拉实测 36×r8 一致（设置、启动、版本设置、模组页），按钮按语义分 32/36/40；构建与 5 项 e2e 通过
 
-### P5 细节巡检
+### P5 细节巡检（已执行）
 
-- 空状态、加载态、提示条（`.hint`）统一字号与颜色
-- 弹窗内部排版对齐卡片规格（只改样式，不改交互）
-- 亮/暗双主题逐页截图对比
-- 验收：全站截图无对齐/间距异常
+- 提示条：`.form-hint` 11px → 12px 并补行高；`.empty-text` 增加行高，左右内边距 16
+- 列表/卡片残余玻璃拟态收敛为实色：`.java-item`、`.java-download-item`、`.ps-card`、`.ps-join-banner` 改 `--bg-card`（圆角 12/14），悬停改为仅底色变化
+- 页签统一：`.ps-top-tab` / `.ps-tab` 由强调色填充改为分段控件选中态（浅色卡片 + 轻阴影，13/600）；`.loader-type-btn.active` 改为浅色卡片 + 中性描边
+- 暗色可读性修复：`.fb-view-btn.active`、`.fb-btn-primary`、`.btn-accent`、`.md-deps-download-all:hover` 的硬编码白字改为 `--accent-text`（暗色下强调色为白，原写法白底白字）
+- 弹窗：`.modal-header h3` / `.modal-body` / `.modal-footer` 已是 18/600、14、右对齐按钮规格，无需改动
+- 验收：23 个页面 × 亮/暗双主题横向溢出检查全部为 0；重点页（Java、下载、联机、开服、工具箱、设置）截图复核无对齐异常
 
 ## 6. 风险与对策
 
