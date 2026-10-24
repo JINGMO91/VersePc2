@@ -176,6 +176,27 @@
     width: 100%;
 }
 
+/* 宽屏 / 全屏：设置与反馈页改为两列铺满，避免内容挤在中间一条窄栏；
+   窄窗口仍保持原来的单列居中，行为不变 */
+@media (min-width: 1400px) {
+    #page-settings-launch .settings-container,
+    #page-settings-personalize .settings-container,
+    #page-settings-other .settings-container,
+    #page-feedback .feedback-container {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        max-width: none;
+        padding-left: 0;
+        padding-right: 0;
+    }
+    #page-settings-launch .settings-container > .form-actions,
+    #page-settings-personalize .settings-container > .form-actions,
+    #page-settings-other .settings-container > .form-actions {
+        grid-column: 1 / -1;
+    }
+}
+
 .fb-inline-icon {
     width: 14px;
     height: 14px;

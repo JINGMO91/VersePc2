@@ -8,6 +8,19 @@
     max-width: 960px;
 }
 
+/* 宽屏 / 全屏：云盘主内容铺满可用宽度；登录卡片单独限制阅读宽度并居中 */
+@media (min-width: 1400px) {
+    #page-cloud .cloud-container {
+        max-width: none;
+    }
+    #page-cloud #cloud-login-card {
+        width: 100%;
+        max-width: 860px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
 .cloud-login-tip {
     font-size: 12px;
     color: var(--text-secondary);
