@@ -13,6 +13,7 @@ import { getCustomSelectValue, customSelectInstances } from './custom-select.js'
 import { showToast } from './ui-components.js';
 
 import { appState } from '../../core/app-state.js';
+import { registerLazyLoader } from '../../core/lazy-loaders.js';
 let _shUnsubLog = null;
 let _shUnsubStatus = null;
 let _shActiveId = null;
@@ -615,4 +616,7 @@ async function serverHostOpenFolder() {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { escapeHtmlText, escapeHtmlAttr, _shApi, _shSetStatusText, _shShowProgress, _shStatusBadge, _shLoaderChip, initServerHostPage, _shBindEvents, _shAttachListeners, _shDetach, _shAppendConsole, _shClearConsole, _shUpdateActiveStatus, serverHostRefreshVersions, serverHostDetectLoader, serverHostRefreshList, serverHostSelectActive, _shGetCreateInputs, serverHostCreate, serverHostCancelCreate, serverHostStart, serverHostStop, serverHostSendCommand, serverHostSyncMods, serverHostDelete, serverHostOpenFolder, SH_CONSOLE_MAX, _shUnsubLog, _shUnsubStatus, _shActiveId, _shServers, _shVersions, _shProgressVisible, _shProgressValue, _shProgressText, _shProgressIndeterminate, _shListRefreshTimer, _shCreating };
+
+// 注册版本切换检测入口，供公共下拉组件按需触发
+registerLazyLoader('server-host:detect', () => serverHostDetectLoader());
 // let/var 用访问器同步读写，避免旧脚本读到过期值

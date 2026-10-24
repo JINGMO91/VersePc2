@@ -2,14 +2,15 @@ import { API as API } from '../../core/api.js';
 import { escapeHtml as escapeHtml } from '../../core/utils.js';
 import { getCustomSelectValue as getCustomSelectValue } from '../misc/custom-select.js';
 import { showToast as showToast, escapeOnclick as escapeOnclick } from '../misc/ui-components.js';
-import { matchInstalledVersion as matchInstalledVersion, resolveModSavePath as resolveModSavePath, showModDownloadModal as showModDownloadModal } from './mod-install.js';
+import { matchInstalledVersion, resolveModSavePath } from './install-paths.js';
+import { showModDownloadModal as showModDownloadModal } from './install-batch.js';
 import { modDetailState as modDetailState } from './detail-state.js';
 import { appState as appState } from '../../core/app-state.js';
 import { formatModNameWithChinese as formatModNameWithChinese } from './chinese-names.js';
 import { actionAttrs as actionAttrs } from '../../core/actions.js';
 import { S } from './mod-detail-state.js';
-import { getInstalledVersionInfo } from './mod-detail-header.js';
-import { _sortVersionsByNumber } from './mod-version-utils.js';
+import { getInstalledVersionInfo } from './mod-detail-installed.js';
+import { _sortVersionsByNumber, pickDependencyRootVersion } from './mod-version-utils.js';
 
 function cleanupMdDepsCache() {
   const now = Date.now();
@@ -211,7 +212,7 @@ async function loadModDependencies() {
   }
 }
 
-function renderDepsList(depArray, resolved, versionInfo, hasVersionFilter, currentGameVersion, currentLoader, installedMods, depsList, depsCount, requiredDeps) {
+function renderDepsList(depArray, resolved, versionInfo, hasVersionFilter, currentGameVersion, currentLoader, installedMods, depsList, _depsCount, _requiredDeps) {
   depsList.innerHTML = depArray.map(d => {
     const info = resolved[d.projectId] || {};
     const title = info.title || d.projectId;
@@ -294,22 +295,6 @@ function toggleMdDepsSection() {
   if (arrow) {
     arrow.style.transform = depsList.classList.contains('expanded') ? 'rotate(180deg)' : '';
   }
-}
-
-function pickDependencyRootVersion(gameVersion, loader) {
-  let candidates = Array.isArray(modDetailState.allVersions) ? modDetailState.allVersions.slice() : [];
-  if (gameVersion) {
-    candidates = candidates.filter(v =>
-      (v.gameVersions || []).some(gv => gv === gameVersion));
-  }
-  if (loader) {
-    candidates = candidates.filter(v =>
-      (v.loaders || []).some(l => l.toLowerCase() === loader.toLowerCase()));
-  }
-  if (candidates.length === 0) return '';
-  const sorted = _sortVersionsByNumber(candidates);
-  const release = sorted.find(v => v.releaseType === 'release');
-  return (release || sorted[0]).id || '';
 }
 
 async function downloadAllDeps() {

@@ -1,14 +1,12 @@
-// 模组列表与开服页模块按需加载，避免进入启动包
+import { requestLazyLoad } from '../../core/lazy-loaders.js';
+
+// 模组列表与开服页模块按需触发，避免公共组件反向依赖页面模块
 function reloadMods() {
-    import('../mods/mod-browse.js')
-        .then((m) => m.loadMods())
-        .catch((e) => console.error('[Select] 模组模块加载失败:', e));
+    requestLazyLoad('mods:refresh');
 }
 
 function detectServerHostLoader() {
-    import('./server-host.js')
-        .then((m) => m.serverHostDetectLoader())
-        .catch((e) => console.error('[Select] 开服模块加载失败:', e));
+    requestLazyLoad('server-host:detect');
 }
 
 // ─── 自定义下拉菜单组件 ──────────────────────────────────
@@ -219,8 +217,6 @@ class CustomSelect {
         }
     }
 }
-
-import { appState } from '../../core/app-state.js';
 
 const customSelectInstances = {};
 

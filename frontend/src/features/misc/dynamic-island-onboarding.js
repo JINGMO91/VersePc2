@@ -75,7 +75,6 @@ import { _ensureHoverZone, dismiss, preview } from './dynamic-island-view.js';
         var lines = document.querySelectorAll('.v-island-onboarding__phase[data-phase="greeting"] .v-island-onboarding__title');
         var texts = ['Hi～我是 V 岛', '一个活在你启动器的助手', '接下来，我将帮助你完成很多工作', '在此之前，我们先完成一些配置'];
         var i = 0;
-        var self = this;
         var step = function () {
             if (i >= lines.length) {
                 setTimeout(function () { _switchPhase('provider'); _runProviderPhase(); }, 1200);
@@ -152,8 +151,6 @@ import { _ensureHoverZone, dismiss, preview } from './dynamic-island-view.js';
 
     function _showProviderConfig(id, nextBtn) {
         var cfgBox = document.getElementById('v-island-onboarding-config');
-        var keyInput = document.getElementById('v-island-onboarding-key');
-        var modelSel = document.getElementById('v-island-onboarding-model');
         if (!cfgBox) return;
 
         // 自定义供应商：显示完整输入框
@@ -227,7 +224,6 @@ import { _ensureHoverZone, dismiss, preview } from './dynamic-island-view.js';
             cfg.apiKey = keyInput ? keyInput.value.trim() : '';
             cfg.model = modelInput ? modelInput.value.trim() : '';
         } else {
-            var p = AI_PROVIDERS[providerId];
             var keyInput2 = document.getElementById('v-island-onboarding-key');
             var modelSel2 = document.getElementById('v-island-onboarding-model');
             cfg.provider = providerId;

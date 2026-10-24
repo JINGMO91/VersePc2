@@ -4,11 +4,14 @@ import { API } from '../../core/api.js';
  */
 import { vmHolders } from '../../core/vm-holders.js';
 
-import { openFolder } from '../../features/launch/java.js';
 import { showToast, showConfirmDialog } from '../../features/misc/ui-components.js';
-import { renderInstalledVersionsInto, syncVersionCardSwitches, getSelectedFolder, setSelectedFolder } from '../../features/versions/versions.js';
+import { renderInstalledVersionsInto, syncVersionCardSwitches } from '../../features/versions/versions-list.js';
+import { setSelectedFolder } from '../../features/versions/versions-external.js';
+import { getSelectedFolder } from '../../features/versions/versions-state.js';
 
-import { navigateToPage, toggleVersionCardStyle, addExternalFolder, refreshInstalledVersions } from '../../features/versions/versions.js';
+import { toggleVersionCardStyle } from '../../features/versions/versions-list.js';
+import { addExternalFolder, refreshInstalledVersions } from '../../features/versions/versions-external.js';
+import { navigateToPage } from '../../core/navigation.js';
 import VButton from '@/components/verse/VButton.vue';
 
 const PageInstalledVersions = {

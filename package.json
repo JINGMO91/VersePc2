@@ -14,7 +14,9 @@
     "test": "vitest run",
     "test:e2e": "npm run build:web && playwright test",
     "lint": "eslint frontend/src scripts/*.mjs vite.config.mjs",
-    "verify": "npm run lint && npm run test && npm run build:web && node scripts/check-architecture.mjs --strict",
+    "arch:cycles": "madge --circular --extensions js frontend/src",
+    "audit": "npm audit --audit-level=high",
+    "verify": "npm run lint && npm run test && npm run arch:cycles && npm run build:web && node scripts/check-architecture.mjs --strict",
     "tauri": "tauri"
   },
   "devDependencies": {
@@ -23,11 +25,12 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.0.0",
     "@vitejs/plugin-vue": "^6.0.10",
+    "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.13.0",
     "globals": "^17.13.0",
     "jsdom": "^30.1.3",
+    "madge": "^8.0.0",
     "rollup-plugin-visualizer": "^7.1.1",
-    "shadcn-vue": "^2.8.2",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"

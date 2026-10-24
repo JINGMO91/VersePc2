@@ -1,6 +1,6 @@
 import { API as API } from '../../core/api.js';
 import { incrementLaunchCount as incrementLaunchCount, checkSupportMilestone as checkSupportMilestone } from '../misc/announcement.js';
-import { navigateToPage as navigateToPage } from '../versions/versions-nav.js';
+import { navigateToPage as navigateToPage } from '../../core/navigation.js';
 import { appState as appState } from '../../core/app-state.js';
 import { S } from './launch-state.js';
 import { refreshGameStatusAfterLaunch, _onGameRunning, startGameLogStream } from './launch-runtime.js';
@@ -85,7 +85,7 @@ function setLaunchStep(stepName, status, desc) {
   }
 }
 
-function completeAllPreviousSteps(currentStepName) {
+function completeAllPreviousSteps(_currentStepName) {
 }
 
 function showLaunchError(msg, details = null) {
@@ -172,7 +172,7 @@ function toggleLaunchLog() {
   }
 }
 
-async function pollLaunchDownload(sessionId, versionId, requiredJava) {
+async function pollLaunchDownload(sessionId, versionId, _requiredJava) {
   try {
     let lastPct = 0;
     let smoothPct = 0;

@@ -5,8 +5,6 @@
  *   version id=versionId, extra={ loaderText }
  *   shader/mod id=projectId, extra={ projectId, source, icon }
  */
-import { escapeOnclick } from '../misc/ui-components.js';
-
 import { reactive } from 'vue';
 import { showToast } from '../misc/ui-components.js';
 

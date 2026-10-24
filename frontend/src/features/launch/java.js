@@ -4,7 +4,7 @@ import { showToast } from '../misc/ui-components.js';
 
 import { appState } from '../../core/app-state.js';
 import { actionAttrs, registerActions } from '../../core/actions.js';
-import { navigateToPage } from '../versions/versions-nav.js';
+import { navigateToPage } from '../../core/navigation.js';
 
 function showJavaInstallModal(requiredVersion) {
     const existing = document.getElementById('java-install-modal');
@@ -79,7 +79,6 @@ function closeJavaInstallModal() {
 async function startJavaAutoInstall(requiredVersion) {
     const installBtn = document.getElementById('java-install-btn');
     const progressDiv = document.getElementById('java-install-progress');
-    const footerDiv = document.getElementById('java-install-footer');
     const sourceList = document.getElementById('java-source-list');
 
     if (installBtn) installBtn.disabled = true;
@@ -101,7 +100,7 @@ async function startJavaAutoInstall(requiredVersion) {
     }
 }
 
-function pollJavaInstallProgress(sessionId, requiredVersion) {
+function pollJavaInstallProgress(sessionId, _requiredVersion) {
     const progressBar = document.getElementById('java-install-progress-bar');
     const progressText = document.getElementById('java-progress-text');
     const progressStatus = document.getElementById('java-progress-status');

@@ -1,6 +1,6 @@
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { showToast as showToast, showConfirmDialog as showConfirmDialog } from '../misc/ui-components.js';
-import { showGlobalDownloadProgress, hideGlobalDownloadProgress } from './wallpaper-api.js';
+import { showGlobalDownloadProgress, hideGlobalDownloadProgress } from './wallpaper-utils.js';
 
 class SceneWallpaperRenderer {
     constructor(engine) {
@@ -83,7 +83,7 @@ class SceneWallpaperRenderer {
         this.img.style.objectFit = fitMap[fitMode] || 'cover';
     }
 
-    render(dt, timestamp) {
+    render(_dt, _timestamp) {
         // 流由 img 自动拉取，仅同步样式（opacity/blur/fit）
         this._updateStyle();
     }

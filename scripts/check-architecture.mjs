@@ -67,7 +67,10 @@ for (const dir of jsRoots) {
     if (!file.endsWith('.js') || vendorPattern.test(file)) continue;
     if (file.includes(`${join('src', 'legacy')}`)) continue;
     // 插件兼容层是唯一允许向 window 暴露插件接口的文件
-    if (relative(root, file).replace(/\\/g, '/') === 'frontend/src/core/plugin-compat.js') continue;
+    const rel = relative(root, file).replace(/\\/g, '/');
+    if (rel === 'frontend/src/core/plugin-compat.js') continue;
+    // 测试辅助层允许模拟浏览器/宿主全局，不参与生产运行
+    if (rel.startsWith('frontend/src/test-utils/')) continue;
     const text = readFileSync(file, 'utf8');
     const matches = [...text.matchAll(/^\s*window\.[A-Za-z_$][\w$]*\s*=/gm)];
     if (matches.length) windowAssignments.push({ file: relative(root, file), count: matches.length });

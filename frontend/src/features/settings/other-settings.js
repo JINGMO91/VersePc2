@@ -131,7 +131,7 @@ async function loadOtherSettings() {
 function updateSpeedLimitLabel(value) {
     const label = document.getElementById('speed-limit-value');
     if (label) {
-        label.textContent = value == 0 ? '无限制' : `${value} MB/s`;
+        label.textContent = (value === 0 || value === '0') ? '无限制' : `${value} MB/s`;
     }
 }
 

@@ -1,11 +1,12 @@
 import { API } from '../../core/api.js';
 import { appState } from '../../core/app-state.js';
-import { navigateToPage } from '../versions/versions-nav.js';
+import { navigateToPage } from '../../core/navigation.js';
 import { handleLaunch } from '../launch/launch.js';
 import { S } from './dynamic-island-state.js';
 import { _esc, _ensureEl, _collapseChatInput, isEnabled, _clearHideTimer, _getActiveTaskCount } from './dynamic-island-view.js';
 import { speak } from './dynamic-island-tts.js';
 import { chatWithAI } from './dynamic-island-config.js';
+import { registerLazyLoader } from '../../core/lazy-loaders.js';
 
 export var _tools = [
         {
@@ -310,7 +311,6 @@ export var _tools = [
             var title = el.getAttribute('title') || '';
             var type = el.getAttribute('type') || '';
             var value = el.value || '';
-            var cls = el.className || '';
             var desc = text || placeholder || title || value || type;
             if (!desc) continue;
 
@@ -791,3 +791,8 @@ export var _tools = [
     }
 
 export { _buildToolPrompt, _parseAction, _executeAction, _showConfirmDialog, _snapshotUI, _executeUIAction, _parseUIAction, _runAgentTask, _generateSummary, _shouldUseAgentMode, _askQuestion, _showReply, _typewriter, fixCrash, _buildFixInstruction };
+
+// 输入提交走懒加载中转，视图层无需反向依赖智能体实现
+registerLazyLoader('island:ask', function (q) {
+    return _askQuestion(q);
+});

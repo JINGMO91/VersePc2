@@ -7,7 +7,7 @@
 
 import { bridge } from '../../core/tauri-bridge.js';
 
-import { getPersonalizeState } from './personalize.js';
+import { getPersonalizeState } from './personalize-apply.js';
 
 const CUSTOM_THEME_DEFAULT_COLOR = '#4c8dff';
 const CUSTOM_THEME_STORE_KEY = 'versepc_custom_theme_color';

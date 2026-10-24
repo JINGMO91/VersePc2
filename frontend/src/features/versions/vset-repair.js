@@ -1,7 +1,7 @@
 import { API as API } from '../../core/api.js';
 import { getRepairStageText } from './vset-repair-stages.js';
 import { showToast as showToast, showModal as showModal, hideModal as hideModal, showConfirmDialog as showConfirmDialog } from '../misc/ui-components.js';
-import { loadVersions as loadVersions, renderInstalledVersionsInto as renderInstalledVersionsInto } from './versions.js';
+import { loadVersions as loadVersions, renderInstalledVersionsInto as renderInstalledVersionsInto } from './versions-list.js';
 import { appState as appState } from '../../core/app-state.js';
 import { S } from './vset-state.js';
 import { closeVersionSettings } from './vset-open.js';

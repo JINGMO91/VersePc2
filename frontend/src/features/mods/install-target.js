@@ -1,13 +1,9 @@
-import { API as API } from '../../core/api.js';
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { getCustomSelectValue as getCustomSelectValue } from '../misc/custom-select.js';
-import { showToast as showToast } from '../misc/ui-components.js';
 import { modDetailState as modDetailState } from './detail-state.js';
-import { appState as appState } from '../../core/app-state.js';
 import { createApp as createApp } from 'vue';
 import { S } from './install-state.js';
-import { installModFile } from './install-entry.js';
-import { updateModSelectUI } from './install-batch.js';
+import { ensureInstalledVersions, matchInstalledVersion, resolveModSavePath, resolveResourceSavePath, getSelectedVersionModsPath } from './install-paths.js';
 
 function resolveModTarget(gameVersions, loaders) {
   const gvs = (gameVersions || []).map(String);
@@ -28,197 +24,6 @@ function resolveModVersionTarget(versionId) {
     if (v) return resolveModTarget(v.gameVersions, v.loaders);
   } catch (e) {}
   return { game: '', loader: '' };
-}
-
-async function ensureInstalledVersions() {
-  if (Array.isArray(appState.installedVersions) && appState.installedVersions.length > 0) return true;
-  try {
-    const data = await API.getVersions(false);
-    appState.installedVersions = (data && data.installed) || [];
-    if (!Array.isArray(appState.installedVersions)) appState.installedVersions = [];
-    appState.allVersions = (data && data.versions) || [];
-    if (!Array.isArray(appState.allVersions)) appState.allVersions = [];
-    return appState.installedVersions.length > 0;
-  } catch (e) {
-    console.warn('[matchInstalledVersion] 拉取已安装版本失败:', e);
-    return false;
-  }
-}
-
-function matchInstalledVersion(game, loader) {
-  const gl = String(game || '').toLowerCase();
-  const lc = String(loader || '').toLowerCase();
-  if (!Array.isArray(appState.installedVersions) || appState.installedVersions.length === 0) return '';
-  const isL = v => {
-    if (lc === 'forge') return !!v.isForge;
-    if (lc === 'neoforge') return !!v.isNeoForge;
-    if (lc === 'fabric') return !!v.isFabric;
-    if (lc === 'quilt') return !!v.isFabric;
-    return true;
-  };
-  const arr = appState.installedVersions.filter(v => v && isL(v));
-  if (!arr.length) return '';
-  // 优先精确匹配游戏版本；游戏版本未知时退化为仅按加载器匹配
-  const glArr = gl ? arr.filter(v => (
-    (v.baseVersion || '').toLowerCase() === gl ||
-    (v.id || '').toLowerCase().includes(gl)
-  )) : arr;
-  const pool = glArr.length ? glArr : arr;
-  const baseMatch = gl ? pool.filter(v => (v.baseVersion || '').toLowerCase() === gl) : [];
-  const usePool = baseMatch.length ? baseMatch : pool;
-  const pref = usePool.filter(v => (v.id || '').toLowerCase().startsWith(gl || (v.baseVersion || '').toLowerCase()));
-  return (pref[0] || usePool[0]).id || '';
-}
-
-function installModFileSafe(el) {
-  if (!el) return;
-  const vid = decodeURIComponent(atob(el.dataset.vid || ''));
-  const fid = decodeURIComponent(atob(el.dataset.fid || ''));
-  installModFile(appState.currentModDetailId, appState.currentModDetailSource, vid, fid);
-}
-
-function addModFromDetail(projectId, source, safeVid, safeFid) {
-  const vid = decodeURIComponent(atob(safeVid || ''));
-  const fid = decodeURIComponent(atob(safeFid || ''));
-
-  const t = resolveModVersionTarget(vid);
-
-  if (appState.modSelectedIds.has(projectId)) {
-    const existing = appState.modSelectedVersions.get(projectId);
-    if (existing && existing.versionId === vid && existing.fileId === fid) {
-      appState.modSelectedIds.delete(projectId);
-      appState.modSelectedVersions.delete(projectId);
-      showToast('已从选择中移除', 'info');
-    } else {
-      appState.modSelectedVersions.set(projectId, {
-        versionId: vid,
-        fileId: fid,
-        source: source,
-        gameVersion: t.game,
-        loader: t.loader
-      });
-      showToast('已更新选择的版本', 'success');
-    }
-  } else {
-    appState.modSelectedIds.add(projectId);
-    appState.modSelectedVersions.set(projectId, {
-      versionId: vid,
-      fileId: fid,
-      source: source,
-      gameVersion: t.game,
-      loader: t.loader
-    });
-    showToast('已添加到下载列表', 'success');
-  }
-  updateModSelectUI();
-
-  const container = document.getElementById('md-version-list');
-  if (container) {
-    container.querySelectorAll('.mdv-file-item').forEach(item => {
-      const btn = item.querySelector('.mdv-install-btn');
-      if (!btn) return;
-      const itemVid = decodeURIComponent(atob(item.dataset.vid || ''));
-      const itemFid = decodeURIComponent(atob(item.dataset.fid || ''));
-      const isSelected = appState.modSelectedIds.has(projectId);
-      const isCurrentVersion = isSelected && appState.modSelectedVersions.get(projectId)?.versionId === itemVid;
-      btn.textContent = isCurrentVersion ? '已添加' : '添加';
-      btn.classList.toggle('btn-secondary', isCurrentVersion);
-      btn.classList.toggle('btn-primary', !isCurrentVersion);
-    });
-    container.querySelectorAll('.mdv-header-btn.mdv-install-btn').forEach(btn => {
-      const itemVid = decodeURIComponent(atob(btn.dataset.vid || ''));
-      const isSelected = appState.modSelectedIds.has(projectId);
-      const isCurrentVersion = isSelected && appState.modSelectedVersions.get(projectId)?.versionId === itemVid;
-      btn.textContent = isCurrentVersion ? '已添加' : '添加';
-      btn.classList.toggle('btn-secondary', isCurrentVersion);
-      btn.classList.toggle('btn-primary', !isCurrentVersion);
-    });
-  }
-}
-
-async function resolveModSavePath(versionId) {
-  try {
-    const filterVersion = getCustomSelectValue('mod-filter-version');
-    const filterLoader = getCustomSelectValue('mod-filter-loader');
-    const targetGame = S._mdSaveGame || filterVersion || '';
-    const targetLoader = S._mdSaveLoader || filterLoader || '';
-    await ensureInstalledVersions();
-    const matched = matchInstalledVersion(targetGame, targetLoader);
-    const vid = matched || versionId || appState._modDownloadVersionId || filterVersion || '';
-    console.warn('[resolveModSavePath] targetGame=', targetGame, 'targetLoader=', targetLoader,
-      'installedCount=', (appState.installedVersions || []).length, 'matched=', matched, 'vid=', vid);
-    // 版本感知解析：优先调用支持 versionId 的后端命令，目录以传入版本为准，
-    // 避免 HTTP 路由回退到 selectedVersion 导致 Forge 模组落到其它目录
-    let path = '';
-    if (vid && bridge && typeof bridge.getDefaultModPath === 'function') {
-      const r = await bridge.getDefaultModPath(vid).catch(() => null);
-      if (typeof r === 'string' && r) path = r;
-    }
-    if (!path) {
-      const res = await API.getDefaultModPath(vid).catch(e => { console.warn('[resolveModSavePath] getDefaultModPath error:', e); return null; });
-      if (typeof res === 'string') {
-        path = res;
-      } else if (res && typeof res === 'object') {
-        path = res.path || res.data || '';
-      }
-    }
-    console.warn('[resolveModSavePath] path=', path);
-    if (path) return path;
-  } catch (e) {
-    console.warn('[resolveModSavePath] error:', e);
-  }
-  const _fb = await getSelectedVersionModsPath();
-  if (_fb) return _fb;
-  return localStorage.getItem('lastModSavePath') || '';
-}
-
-async function resolveResourceSavePath(type) {
-  const folderName = S.resourceFolderMap[type];
-  if (!folderName) return '';
-  const storageKey = 'lastResourceSavePath_' + type;
-  try {
-    const res = await API.getDefaultResourcePath(type).catch(() => null);
-    let p = '';
-    if (typeof res === 'string') {
-      p = res;
-    } else if (res && typeof res === 'object') {
-      p = res.path || res.data || '';
-    }
-    if (p) return p;
-  } catch (e) {}
-  return localStorage.getItem(storageKey) || '';
-}
-
-async function getSelectedVersionModsPath() {
-  try {
-    let selVid = '';
-    if (typeof appState.homeVersionCustomSelect !== 'undefined' && appState.homeVersionCustomSelect) {
-      selVid = appState.homeVersionCustomSelect.getValue() || '';
-    }
-    if (!selVid) {
-      const settings = await API.getSettings().catch(() => ({}));
-      selVid = settings.selectedVersion || '';
-    }
-    if (selVid) {
-      let p = '';
-      if (bridge && typeof bridge.getDefaultModPath === 'function') {
-        const r = await bridge.getDefaultModPath(selVid).catch(() => null);
-        if (typeof r === 'string' && r) p = r;
-      }
-      if (!p) {
-        const res = await API.getDefaultModPath(selVid).catch(() => null);
-        if (typeof res === 'string') {
-          p = res;
-        } else if (res && typeof res === 'object') {
-          p = res.path || res.data || '';
-        }
-      }
-      if (p) return p;
-    }
-  } catch (e) {
-    console.warn('[getSelectedVersionModsPath] error:', e);
-  }
-  return localStorage.getItem('lastModSavePath') || '';
 }
 
 async function resolveModSavePathWithConfirm() {
@@ -318,4 +123,4 @@ function showNoFolderConfirmCard(message) {
   });
 }
 
-export { resolveModTarget, resolveModVersionTarget, ensureInstalledVersions, matchInstalledVersion, installModFileSafe, addModFromDetail, resolveModSavePath, resolveResourceSavePath, getSelectedVersionModsPath, resolveModSavePathWithConfirm, showNoFolderConfirmCard };
+export { resolveModTarget, resolveModVersionTarget, ensureInstalledVersions, matchInstalledVersion, resolveModSavePath, resolveResourceSavePath, getSelectedVersionModsPath, resolveModSavePathWithConfirm, showNoFolderConfirmCard };

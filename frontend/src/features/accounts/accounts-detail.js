@@ -1,8 +1,13 @@
 // accounts-detail.js — 账户详情字段与背景
 import { showToast as showToast } from '../misc/ui-components.js';
 import { accountsState as S } from './accounts-state.js';
-import { selectAccount, showAccountList, deleteAccount } from './accounts-list.js';
 import { _reloadSkinViewer, _refreshAccountAvatars, getSkinFigureImage, _whenSkinCardVisible } from './accounts-avatar.js';
+import { setSkinBg } from './accounts-skin-utils.js';
+import { requestLazyLoad } from '../../core/lazy-loaders.js';
+
+const selectAccount = (accountId) => requestLazyLoad('accounts:select', accountId);
+const showAccountList = () => requestLazyLoad('accounts:show-list');
+const deleteAccount = (accountId) => requestLazyLoad('accounts:delete', accountId);
 
 async function detailSelectAccount() {
   if (!S._currentDetailAccount) return;
@@ -67,20 +72,6 @@ function setAnim(type) {
   S._skinViewer.animation.speed = speedMap[type] || 0.7;
   document.querySelectorAll('.acct-anim-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.anim === type);
-  });
-}
-
-function setSkinBg(color) {
-  S._currentSkinBg = color;
-  const left = document.getElementById('acct-detail-left');
-  if (left) {
-    left.classList.toggle('bg-black', color === 'black');
-  }
-  if (S._skinViewer) {
-    S._skinViewer.background = color === 'black' ? 0x000000 : 0xffffff;
-  }
-  document.querySelectorAll('.acct-bg-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.bg === color);
   });
 }
 

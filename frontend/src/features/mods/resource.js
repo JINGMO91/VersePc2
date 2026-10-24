@@ -9,7 +9,7 @@ let modpackImporting = false;
 import { escapeHtml, normalizeIconUrl } from '../../core/utils.js';
 import { getCustomSelectValue, customSelectInstances } from '../misc/custom-select.js';
 import { showToast, formatNumber } from '../misc/ui-components.js';
-import { setLocalImage, renderModDescription, renderModGallery, renderMdSidebar, resetMdDetailView, _versionToMajor, switchMdVersionTab, renderMdVersionList, _projectDataCache, _versionPreloadCache, _versionPreloadInFlight } from './mod-detail.js';
+import { setLocalImage, renderModDescription, renderModGallery, renderMdSidebar, resetMdDetailView, _versionToMajor, renderMdVersionList, _projectDataCache, _versionPreloadCache, _versionPreloadInFlight } from './mod-detail.js';
 import { showModpackInstallModal, resolveResourceSavePath, showModDownloadModal } from './mod-install.js';
 import { dlManager } from '../versions/custom-download.js';
 import { navigateToPage } from '../../core/navigation.js';
@@ -464,7 +464,7 @@ async function openResourceDetail(projectId, type, source) {
   modDetailState.depsVersionInfo = {};
 
   const backBtn = document.querySelector('#page-mod-detail .moddetail-page-header .btn-icon');
-  if (backBtn) backBtn.setAttribute('onclick', 'goBackFromDetail()');
+  if (backBtn) backBtn.addEventListener('click', () => goBackFromDetail());
 
   const mdName = document.getElementById('md-name');
   const mdDesc = document.getElementById('md-desc');
@@ -483,7 +483,6 @@ async function openResourceDetail(projectId, type, source) {
   const _reqId = projectId;
 
   const typeNames = { mod: '模组', modpack: '整合包', resourcepack: '材质包', shader: '光影包', datapack: '数据包' };
-  const typeIcons = { mod: '🧩', modpack: '📦', resourcepack: '🎨', shader: '✨', datapack: '📊' };
 
   const cachedRaw = _projectDataCache.get(projectId);
   const cached = (cachedRaw && typeof cachedRaw.body === 'string') ? cachedRaw : null;
@@ -695,3 +694,6 @@ registerActions({
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { showImportNameModal, getImportStageText, loadResourcePage, setupResourceEvents, loadResourceList, preloadResourceVersions, openResourceDetail, quickInstallResource, showVersionSelectDialog, resourceState, _resourceReqId, typeNames, typeIcons, __resIsTauri };
+
+// 详情返回栈恢复历史资源时调用
+registerLazyLoader('resource:open-detail', (projectId, type, source) => openResourceDetail(projectId, type, source));

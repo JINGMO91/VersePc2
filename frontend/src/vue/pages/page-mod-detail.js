@@ -2,7 +2,7 @@
  * 通用按钮走 components/verse 语义层；返回用的 .btn-icon 是紧凑图标按钮，保留原样式。
  * 详情内的自研标签页 / chip / 画廊结构保持原样。
  */
-import { goBackFromDetail } from '../../features/versions/versions.js';
+import { goBackFromDetail } from '../../features/versions/versions-detail-history.js';
 import { installCurrentDetailVersion, toggleMdDepsSection, downloadAllDeps, switchMdTab, setMdLoaderFilter, switchMdVersionTab, closeGalleryLightbox, prevGalleryImage, nextGalleryImage } from '../../features/mods/mod-detail.js';
 import { showFavSelectDropdown } from '../../features/mods/favorites.js';
 import { openModSourceUrl, copyModName } from '../../features/mods/mod-install.js';

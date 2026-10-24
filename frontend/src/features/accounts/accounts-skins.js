@@ -3,7 +3,12 @@ import { showToast as showToast } from '../misc/ui-components.js';
 import { accountsState as S } from './accounts-state.js';
 import { _tauriFetch, _fetchDataUrl, _fetchAccountSkinTexture, _reloadSkinViewer, _invalidateAvatarCache, _refreshAccountAvatars } from './accounts-avatar.js';
 import { _createSkinCard } from './accounts-detail.js';
-import { loadAccounts } from './accounts-list.js';
+import { requestLazyLoad } from '../../core/lazy-loaders.js';
+
+// 皮肤操作后刷新账户列表
+function loadAccounts() {
+  requestLazyLoad('accounts:reload');
+}
 
 async function loadSkinSelector(acc) {
   const container = document.getElementById('acct-skin-grid');

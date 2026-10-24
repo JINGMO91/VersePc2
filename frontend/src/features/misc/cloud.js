@@ -3,7 +3,7 @@ import { bridge } from '../../core/tauri-bridge.js';
 import { apiGet } from '../../core/api.js';
 import { showToast } from './ui-components.js';
 
-import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
+import { actionAttrs, registerActions } from '../../core/actions.js';
 
 /* cloud.js — Verse云盘页交互逻辑
  * 登录：统一UID+密码（官网 /api/cloud/pc-login 签发24h token）

@@ -5,7 +5,7 @@ import { handleLaunch as handleLaunch } from './launch.js';
 import { CustomSelect as CustomSelect } from '../misc/custom-select.js';
 import { showToast as showToast } from '../misc/ui-components.js';
 import { loadVersions as loadVersions, renderHomeCurrentVersionCard as renderHomeCurrentVersionCard, renderVersions as renderVersions } from '../versions/versions-list.js';
-import { navigateToPage as navigateToPage } from '../versions/versions-nav.js';
+import { navigateToPage as navigateToPage } from '../../core/navigation.js';
 import { appState as appState } from '../../core/app-state.js';
 
 function setupNavigation() {

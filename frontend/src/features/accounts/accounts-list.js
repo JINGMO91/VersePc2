@@ -6,10 +6,10 @@ import { AVATAR_CACHE_VERSION as AVATAR_CACHE_VERSION } from '../../core/constan
 import { actionAttrs as actionAttrs, actionAttrsStop as actionAttrsStop } from '../../core/actions.js';
 import { accountsState as S } from './accounts-state.js';
 import { _loadAvatarImg, _loadAvatarImgInto } from './accounts-avatar.js';
-import { cropSkinHeadCanvas } from './accounts-auth.js';
-import { setSkinBg } from './accounts-detail.js';
+import { cropSkinHeadCanvas, setSkinBg } from './accounts-skin-utils.js';
 import { loadSkinSelector } from './accounts-skins.js';
 import { loadCapeSelector } from './accounts-capes.js';
+import { registerLazyLoader } from '../../core/lazy-loaders.js';
 
 async function loadAccounts() {
   try {
@@ -18,7 +18,6 @@ async function loadAccounts() {
       API.getSettings(),
     ]);
     // 首次加载不触发滑入动画，仅切换账户时触发
-    const isFirstLoad = !S._accountsListInitialized;
     S._accountsListInitialized = true;
     const container = document.getElementById('accounts-list');
 
@@ -149,13 +148,6 @@ async function loadAccounts() {
       const homeAvatarBox = document.getElementById('home-avatar-box');
       if (homeAvatarBox) homeAvatarBox.classList.remove('home-avatar-add');
       const accUuid = (selectedAccount.uuid || '').replace(/-/g, '');
-      let accSkinUrl = '';
-      if (accUuid) {
-        const serverParam = selectedAccount.serverUrl ? `&serverUrl=${encodeURIComponent(selectedAccount.serverUrl)}` : '';
-        const usernameParam = selectedAccount.username ? `&username=${encodeURIComponent(selectedAccount.username)}` : '';
-        const offlineParam = (selectedAccount.type === 'offline' && !selectedAccount.serverUrl) ? '&offline=1' : '';
-        accSkinUrl = `/api/avatar?uuid=${accUuid}${serverParam}${usernameParam}${offlineParam}&_=${AVATAR_CACHE_VERSION}`;
-      }
       
       document.getElementById('home-player-name').textContent = selectedAccount.username;
       const accountTypeText = selectedAccount.type === 'microsoft' ? '微软账户' : selectedAccount.type === 'thirdparty' ? '外置登录' : '离线模式';
@@ -205,7 +197,7 @@ async function loadAccounts() {
   } catch (e) { console.error('[Accounts] Failed to update account display:', e); }
 }
 
-function renderAccountCarousel(trackEl, accounts, selectedAccount, settings) {
+function renderAccountCarousel(trackEl, accounts, selectedAccount, _settings) {
   trackEl.innerHTML = '';
   // 第一张：添加账号卡片（虚拟账号 id）
   S._carouselCards = [S.ADD_CARD_ID].concat(accounts.map(a => a.id));
@@ -610,3 +602,10 @@ async function initSkinViewer(skinUrl, resolvedModel) {
 }
 
 export { loadAccounts, renderAccountCarousel, _carouselResetPosition, _carouselBindDrag, resetCarouselPosition, selectAccount, deleteAccount, showAccountDetail, showAccountList, destroySkinViewer, initSkinViewer };
+
+// 皮肤模块完成换肤后触发列表刷新
+registerLazyLoader('accounts:reload', loadAccounts);
+// 详情模块通过懒加载中转调用列表动作
+registerLazyLoader('accounts:select', selectAccount);
+registerLazyLoader('accounts:show-list', showAccountList);
+registerLazyLoader('accounts:delete', deleteAccount);

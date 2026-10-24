@@ -1,5 +1,5 @@
 import { S } from './dynamic-island-state.js';
-import { _askQuestion } from './dynamic-island-agent.js';
+import { requestLazyLoad } from '../../core/lazy-loaders.js';
 
     function isEnabled() {
         try {
@@ -90,7 +90,7 @@ import { _askQuestion } from './dynamic-island-agent.js';
                     e.preventDefault();
                     e.stopPropagation();
                     var q = input.value.trim();
-                    if (q) _askQuestion(q);
+                    if (q) requestLazyLoad('island:ask', q);
                 } else if (e.key === 'Escape' || e.keyCode === 27) {
                     _collapseChatInput();
                 }

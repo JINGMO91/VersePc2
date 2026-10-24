@@ -4,6 +4,7 @@ import { showToast as showToast } from './ui-components.js';
 import { actionAttrs as actionAttrs, actionAttrsStop as actionAttrsStop } from '../../core/actions.js';
 import { S } from './private-server-state.js';
 import { loadLobbyRooms, renderLobbyInner, bindLobbyEvents } from './private-server-lobby.js';
+import { registerLazyLoader } from '../../core/lazy-loaders.js';
 
 async function loadPrivateServers() {
   try {
@@ -327,3 +328,6 @@ async function refreshPrivateServerList() {
 }
 
 export { loadPrivateServers, savePrivateServers, getPrivateServerById, deletePrivateServer, copyPrivateServerAddress, loadPrivateServerIcon, checkPrivateServerStatus, getPrivateServerStatusHtml, getJoinBannerHtml, renderPrivateServerPage, renderMyServersInner, bindPrivateServerToolbarEvents, initPrivateServerPage, refreshPrivateServerList };
+
+// 房间操作完成后由大厅模块触发整页刷新
+registerLazyLoader('private-server:render', renderPrivateServerPage);

@@ -245,7 +245,6 @@ async function renderFavSubList() {
     }
 
     list.innerHTML = filtered.map((p) => {
-      const isFav = appState._favorites.some((f) => f.favs.includes(p.id));
       const isChecked = _favSubSelected.has(p.id);
       const source = p.source || 'modrinth';
       return '<div class="mod-item mod-item-clickable' + (_favSubMultiSelect ? ' mod-multiselect-active' : '') + '"' + actionAttrs('openModDetail', p.id, source) + '>' +

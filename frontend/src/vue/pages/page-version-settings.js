@@ -7,16 +7,14 @@ import { API } from '../../core/api.js';
 import { bridge } from '../../core/tauri-bridge.js';
 import { decodeFileBuffer } from '../../core/utils.js';
 
-import { toggleMod } from '../../features/accounts/accounts.js';
-import { handleLaunch, detectJava } from '../../features/launch/launch.js';
-import { setCustomSelectValue, CustomSelect, customSelectInstances } from '../../features/misc/custom-select.js';
+import { handleLaunch } from '../../features/launch/launch.js';
+import { CustomSelect, customSelectInstances } from '../../features/misc/custom-select.js';
 import { showToast, showConfirmDialog } from '../../features/misc/ui-components.js';
 import { loadMods } from '../../features/mods/mod-browse.js';
 import { openModDetail } from '../../features/mods/mod-detail.js';
-import { loadSettings } from '../../features/settings/settings-load-save.js';
-import { isPinned } from '../../features/versions/pinned-store.js';
-import { openVersionFolder, openSavesFolder, openModsFolder, showModUpdateDialog, exportLaunchScript, showRepairModal, pollRepairProgress, repairFiles, diagnoseVersion, showDiagnoseDialog, deleteCurrentVersion, previewMod, installModFromFile, installModByFile, goDownloadMods, toggleExportTree, startExport, openModTranslateDialog } from '../../features/versions/version-settings.js';
-import { loadVersions, updateVersionSelects, renderInstalledVersionsInto, navigateToPage } from '../../features/versions/versions.js';
+import { showModUpdateDialog, showRepairModal, pollRepairProgress, showDiagnoseDialog, openModTranslateDialog } from '../../features/versions/version-settings.js';
+import { loadVersions, updateVersionSelects, renderInstalledVersionsInto } from '../../features/versions/versions-list.js';
+import { navigateToPage } from '../../core/navigation.js';
 
 import { appState } from '../../core/app-state.js';
 import { formatModNameWithChinese } from '../../features/mods/chinese-names.js';
@@ -579,7 +577,7 @@ const PageVersionSettings = {
         console.error('[Export] Load tree data error:', e);
       }
     },
-    toggleExportTree(key, expanded) {
+    toggleExportTree(key, _expanded) {
       const cur = this.exportTrees[key];
       this.exportTrees = { ...this.exportTrees, [key]: cur ? false : true };
     },

@@ -1,5 +1,23 @@
 
 
+import { modDetailState } from './detail-state.js';
+
+export function pickDependencyRootVersion(gameVersion, loader) {
+  let candidates = Array.isArray(modDetailState.allVersions) ? modDetailState.allVersions.slice() : [];
+  if (gameVersion) {
+    candidates = candidates.filter(v =>
+      (v.gameVersions || []).some(gv => gv === gameVersion));
+  }
+  if (loader) {
+    candidates = candidates.filter(v =>
+      (v.loaders || []).some(l => l.toLowerCase() === loader.toLowerCase()));
+  }
+  if (candidates.length === 0) return '';
+  const sorted = _sortVersionsByNumber(candidates);
+  const release = sorted.find(v => v.releaseType === 'release');
+  return (release || sorted[0]).id || '';
+}
+
 function _versionToExact(ver) {
   if (!ver) return null;
   const base = ver.split('-')[0];

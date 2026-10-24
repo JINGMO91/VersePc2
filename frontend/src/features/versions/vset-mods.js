@@ -6,6 +6,7 @@ import { loadMods as loadMods } from '../mods/mod-browse.js';
 import { openModDetail as openModDetail } from '../mods/mod-detail.js';
 import { navigateToPage as navigateToPage } from '../../core/navigation.js';
 import { appState as appState } from '../../core/app-state.js';
+import { registerLazyLoader } from '../../core/lazy-loaders.js';
 import { formatModNameWithChinese as formatModNameWithChinese } from '../mods/chinese-names.js';
 import { actionAttrs as actionAttrs, actionAttrsStop as actionAttrsStop } from '../../core/actions.js';
 import { S } from './vset-state.js';
@@ -291,3 +292,6 @@ async function removeModFromManager(fileName) {
 }
 
 export { checkModUpdatesForVersion, showModUpdateDialog, loadInstalledModsForSettings, renderModMgrList, previewMod, filterInstalledMods, filterModMgrTab, selectAllMods, installModFromFile, installModByFile, openBrowseMods, goDownloadMods, toggleModInManager, removeModFromManager };
+
+// 批量安装完成后刷新版本设置中的已安装模组列表
+registerLazyLoader('vset:installed-mods', loadInstalledModsForSettings);

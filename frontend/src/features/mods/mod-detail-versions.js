@@ -37,10 +37,9 @@ function renderMdVersionTabs(detailSeq) {
   // 用户可通过版本标签手动筛选，或点击"全部"查看全部版本
   const exactMap = new Map();
   const majorMap = new Map();
-  let hasSnapshot = false;
   modDetailState.allVersions.forEach(v => {
     (v.gameVersions || []).forEach(gv => {
-      if (gv.includes('w') || gv.includes('snapshot')) { hasSnapshot = true; return; }
+      if (gv.includes('w') || gv.includes('snapshot')) { return; }
       const exact = _versionToExact(gv);
       const major = _versionToMajor(gv);
       if (exact) exactMap.set(exact, (exactMap.get(exact) || 0) + 1);

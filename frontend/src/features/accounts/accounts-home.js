@@ -2,13 +2,15 @@
 import { API as API } from '../../core/api.js';
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { showToast as showToast, showConfirmDialog as showConfirmDialog } from '../misc/ui-components.js';
-import { loadInstalledMods as loadInstalledMods } from '../mods/mod-browse.js';
+import { requestLazyLoad } from '../../core/lazy-loaders.js';
 import { accountsState as S } from './accounts-state.js';
+
+// 模组列表由模组页模块维护，首页仅触发刷新
+const loadInstalledMods = () => requestLazyLoad('mods:installed');
 
 function accUpdateHeroBadge(statusType, text) {
   const badge = document.getElementById('acc-hero-badge');
   if (!badge) return;
-  const dot = badge.querySelector('.acc-badge-dot');
   const textEl = document.getElementById('acc-badge-text');
   badge.className = 'acc-hero-status-badge';
   if (statusType === 'running') badge.classList.add('running');
@@ -197,7 +199,7 @@ async function accStartHost() {
     document.getElementById('acc-start-btn').disabled = true;
     document.getElementById('acc-start-btn').textContent = '初始化中...';
 
-    const result = await API.easytierHost(gamePort);
+    await API.easytierHost(gamePort);
 
     document.getElementById('acc-start-btn').style.display = 'none';
     document.getElementById('acc-stop-btn').style.display = '';
@@ -240,7 +242,7 @@ async function accJoin() {
     joinBtn.disabled = true;
     joinBtn.textContent = '连接中...';
 
-    const result = await API.easytierGuest(codeText);
+    await API.easytierGuest(codeText);
 
     document.getElementById('acc-control-panel').style.display = '';
     document.getElementById('acc-join-panel').style.display = 'none';

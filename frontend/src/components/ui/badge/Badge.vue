@@ -1,8 +1,8 @@
-﻿<script setup>
+<script setup>
 import { reactiveOmit } from "@vueuse/core";
 import { cn } from "@/lib/utils";
 import { Primitive } from "reka-ui";
-import { badgeVariants } from ".";
+import { badgeVariants } from "./variants.js";
 
 const props = defineProps({
   asChild: { type: Boolean, required: false },

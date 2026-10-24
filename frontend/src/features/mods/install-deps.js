@@ -2,13 +2,13 @@ import { API as API } from '../../core/api.js';
 import { escapeHtml as escapeHtml, formatDate as formatDate, formatBytes as formatBytes } from '../../core/utils.js';
 import { getCustomSelectValue as getCustomSelectValue } from '../misc/custom-select.js';
 import { showToast as showToast } from '../misc/ui-components.js';
-import { pickDependencyRootVersion as pickDependencyRootVersion, mdDepsCache as mdDepsCache } from './mod-detail.js';
+import { pickDependencyRootVersion } from './mod-version-utils.js';
 import { dlManager as dlManager } from '../versions/custom-download.js';
 import { modDetailState as modDetailState } from './detail-state.js';
 import { formatModNameWithChinese as formatModNameWithChinese } from './chinese-names.js';
 import { S } from './install-state.js';
 import { showModDownloadModal } from './install-batch.js';
-import { matchInstalledVersion, resolveModSavePath } from './install-target.js';
+import { matchInstalledVersion, resolveModSavePath } from './install-paths.js';
 
 function showDepVersionSelectModal(projectId, source, gameVersion, loader, savePath) {
   const existing = document.getElementById('dep-version-select-modal');
@@ -185,7 +185,7 @@ async function downloadDepWithNestedDeps(projectId, source, versionId, savePath,
       }
     }
 
-    mdDepsCache.clear();
+    modDetailState.mdDepsCache.clear();
     dlManager.update(taskId, { status: 'completed', progress: 100, message: `全部下载完成 (${total} 个依赖)` });
     showToast(`前置模组下载完成: ${total} 个依赖`, 'success');
   } catch (e) {
@@ -262,7 +262,7 @@ async function proceedModInstall(projectId, source, versionId, fileId, savePath,
     const currentLoader = loader || getCustomSelectValue('mod-filter-loader') || '';
     const result = await API.downloadModVersion(versionId || '', projectId, source, fileId || '', currentGameVersion, currentLoader, savePath, includeDeps);
     if (result.success) {
-      mdDepsCache.clear();
+      modDetailState.mdDepsCache.clear();
       dlManager.remove(pendingTaskId);
       showModDownloadModal(result.fileName, result.sessionId, savePath, iconUrl);
       if (includeDeps) {

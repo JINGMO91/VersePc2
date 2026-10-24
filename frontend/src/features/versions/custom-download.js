@@ -32,7 +32,6 @@ const dlManager = {
         }
     },
     remove(id) {
-        const task = this.tasks.get(id);
         this.tasks.delete(id);
         this.order = this.order.filter(i => i !== id);
         this.updateFab();

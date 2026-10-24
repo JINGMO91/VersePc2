@@ -34,6 +34,14 @@ jobs:
         shell: bash
         run: npm run test
 
+      - name: Module cycle check
+        shell: bash
+        run: npm run arch:cycles
+
+      - name: Dependency audit
+        shell: bash
+        run: npm run audit
+
       - name: Build frontend
         shell: bash
         run: npm run build:web

@@ -1,14 +1,18 @@
 import { API as API } from '../../core/api.js';
 import { getCustomSelectValue as getCustomSelectValue } from '../misc/custom-select.js';
 import { showToast as showToast } from '../misc/ui-components.js';
-import { loadInstalledMods as loadInstalledMods, loadMods as loadMods } from './mod-browse.js';
+import { requestLazyLoad } from '../../core/lazy-loaders.js';
 import { dlManager as dlManager } from '../versions/custom-download.js';
-import { loadInstalledModsForSettings as loadInstalledModsForSettings } from '../versions/version-settings.js';
-import { modDetailState as modDetailState } from './detail-state.js';
+import { modDetailState } from './detail-state.js';
 import { appState as appState } from '../../core/app-state.js';
 import { formatModNameWithChinese as formatModNameWithChinese } from './chinese-names.js';
 import { S } from './install-state.js';
-import { resolveModSavePath } from './install-target.js';
+import { resolveModSavePath } from './install-paths.js';
+
+// 批量安装完成后刷新列表，通过懒加载中转避免依赖页面模块
+const loadInstalledMods = () => requestLazyLoad('mods:installed');
+const loadMods = () => requestLazyLoad('mods:refresh');
+const loadInstalledModsForSettings = () => requestLazyLoad('vset:installed-mods');
 
 function showModDownloadModal(fileName, sessionId, savePath, iconUrl) {
   const taskId = 'mod-' + sessionId;
@@ -175,8 +179,6 @@ async function batchDownloadMods() {
   
   for (let i = 0; i < modIds.length; i++) {
     const modId = modIds[i];
-    const info = modInfoMap[modId];
-    const displayName = info ? formatModNameWithChinese(info.slug || modId, info.title) : modId;
 
     files[i].status = 'downloading';
     dlManager.update(batchTaskId, {
@@ -234,7 +236,7 @@ async function batchDownloadMods() {
   loadInstalledMods();
 }
 
-function pollBatchModDownload(sessionId, modId) {
+function pollBatchModDownload(sessionId, _modId) {
   return new Promise((resolve) => {
     const poll = async () => {
       try {

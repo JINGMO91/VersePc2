@@ -253,7 +253,7 @@ function clearImage(type) {
             if (placeholder) placeholder.style.display = 'flex';
             document.body.style.removeProperty('--bg-image');
             showToast('背景图片已清除', 'success');
-        }).catch(e => showToast('清除失败', 'error'));
+        }).catch(() => showToast('清除失败', 'error'));
     } else if (type === 'avatar') {
         API.clearAvatarImage().then(() => {
             const preview = document.getElementById('avatar-preview');
@@ -266,7 +266,7 @@ function clearImage(type) {
             if (launchAvatar) launchAvatar.style.backgroundImage = '';
             reloadAccounts();
             showToast('头像已清除', 'success');
-        }).catch(e => showToast('清除失败', 'error'));
+        }).catch(() => showToast('清除失败', 'error'));
     }
 }
 
@@ -279,7 +279,7 @@ function useDefaultImage(type) {
             if (placeholder) placeholder.style.display = 'flex';
             document.body.style.removeProperty('--bg-image');
             showToast('已恢复默认背景', 'success');
-        }).catch(e => showToast('恢复失败', 'error'));
+        }).catch(() => showToast('恢复失败', 'error'));
     }
 }
 

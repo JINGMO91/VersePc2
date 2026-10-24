@@ -6,7 +6,7 @@ import { dlManager as dlManager } from './custom-download.js';
 import { appState as appState } from '../../core/app-state.js';
 import { actionAttrs as actionAttrs } from '../../core/actions.js';
 import { versionsState as S } from './versions-state.js';
-import { navigateToPage } from './versions-nav.js';
+import { navigateToPage } from '../../core/navigation.js';
 import { loadVersions } from './versions-list.js';
 
 async function loadLoaderVersions(versionId) {

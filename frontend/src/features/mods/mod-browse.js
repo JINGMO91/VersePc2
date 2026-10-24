@@ -1,11 +1,8 @@
 import { API } from '../../core/api.js';
 import { escapeHtml, normalizeIconUrl } from '../../core/utils.js';
-import { toggleMod, deleteMod } from '../accounts/accounts.js';
 import { getCustomSelectValue, setCustomSelectValue, updateCustomSelectOptions } from '../misc/custom-select.js';
 import { formatNumber } from '../misc/ui-components.js';
-import { showFavSelectDropdown } from './favorites.js';
-import { openModDetail, _projectDataCache } from './mod-detail.js';
-import { toggleModSelect } from './mod-install.js';
+import { _projectDataCache } from './mod-detail.js';
 
 import { appState } from '../../core/app-state.js';
 import { formatModNameWithChinese } from './chinese-names.js';
@@ -137,6 +134,7 @@ function populateModVersionFilter() {
 }
 
 async function loadMods() {
+    populateModVersionFilter();
     const container = document.getElementById('mod-browse-list');
     container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>加载中...</p></div>';
 
@@ -228,3 +226,5 @@ export { loadInstalledMods, loadModFilterOptions, populateModVersionFilter, load
 
 // 注册筛选刷新入口，供公共下拉组件按需触发
 registerLazyLoader('mods:refresh', () => loadMods());
+registerLazyLoader('mods:installed', loadInstalledMods);
+registerLazyLoader('mods:populate-version-filter', populateModVersionFilter);

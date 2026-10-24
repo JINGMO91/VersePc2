@@ -112,7 +112,6 @@ import { isEnabled, _ensureHoverZone } from './dynamic-island-view.js';
         S._dialogHistory.shift();
         S._dialogHistory.push({ role: 'assistant', content: reply });
         _setStatusIndicator('回答中...', 'processing');
-        var self = this;
         speak(reply, function () { _endDialog(); });
     }
 

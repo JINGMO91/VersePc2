@@ -1,7 +1,9 @@
 /* page-version-detail - 版本详情页 Vue 组件
  * 通用按钮走 components/verse 语义层；返回用的 .btn-icon 是紧凑图标按钮，保留原样式。
  */
-import { navigateToPage, selectLoaderCard, openFabricApiDetailPicker, backFromFabricApiDetailPicker, confirmInstallVersion } from '../../features/versions/versions.js';
+import { selectLoaderCard, confirmInstallVersion } from '../../features/versions/versions-install.js';
+import { openFabricApiDetailPicker, backFromFabricApiDetailPicker } from '../../features/versions/versions-loaders.js';
+import { navigateToPage } from '../../core/navigation.js';
 import VButton from '@/components/verse/VButton.vue';
 
 const PageVersionDetail = {

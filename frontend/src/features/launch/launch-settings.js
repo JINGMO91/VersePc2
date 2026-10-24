@@ -10,7 +10,7 @@ let memMonitorTimer = null;
 import { checkCdsStatus } from './launch.js';
 import { showToast, showConfirmDialog } from '../misc/ui-components.js';
 import { applyCustomThemeColor, getSavedCustomThemeLight, clearCustomThemeVars, getSavedCustomThemeColor, syncCustomThemeLightModeUI, toggleCustomThemeColorGroup } from '../settings/custom-theme.js';
-import { getPersonalizeState } from '../settings/personalize.js';
+import { getPersonalizeState } from '../settings/personalize-apply.js';
 import { updateWallpaperTheme } from '../settings/wallpaper-engine.js';
 
 import { appState } from '../../core/app-state.js';

@@ -1,8 +1,9 @@
 import { API as API } from '../../core/api.js';
 import { escapeHtml as escapeHtml, formatDate as formatDate, _lazyLoadScript as _lazyLoadScript } from '../../core/utils.js';
 import { showToast as showToast, formatNumber as formatNumber } from '../misc/ui-components.js';
-import { ensureInstalledVersions as ensureInstalledVersions, installModpackVersion as installModpackVersion, installModFile as installModFile, quickInstallResourceVersion as quickInstallResourceVersion } from './mod-install.js';
-import { navigateToPage as navigateToPage, pushModDetailHistory as pushModDetailHistory } from '../versions/versions.js';
+import { installModpackVersion as installModpackVersion, installModFile as installModFile, quickInstallResourceVersion as quickInstallResourceVersion } from './mod-install.js';
+import { navigateToPage as navigateToPage } from '../../core/navigation.js';
+import { goBackFromDetail, pushModDetailHistory } from '../versions/versions-detail-history.js';
 import { modDetailState as modDetailState } from './detail-state.js';
 import { appState as appState } from '../../core/app-state.js';
 import { formatModNameWithChinese as formatModNameWithChinese } from './chinese-names.js';
@@ -10,6 +11,7 @@ import { S } from './mod-detail-state.js';
 import { switchMdVersionTab, renderMdVersionTabs } from './mod-detail-versions.js';
 import { proxifyBodyHtml, hydrateBodyImages, setLocalImage, renderModGallery } from './mod-detail-images.js';
 import { loadModDependencies } from './mod-detail-deps.js';
+import { getInstalledVersionInfo } from './mod-detail-installed.js';
 
 function switchMdTab(tab) {
   document.querySelectorAll('#page-mod-detail .md-tab').forEach(t => {
@@ -148,37 +150,6 @@ function resetMdDetailView() {
   });
 }
 
-async function getInstalledVersionInfo() {
-  try {
-    // 直接从模组页进入时 appState.installedVersions 可能尚未填充，先确保加载
-    await ensureInstalledVersions();
-    const settings = await API.getSettings().catch(() => ({}));
-    const selectedVersion = settings.selectedVersion || '';
-    if (!selectedVersion) return { gameVersion: '', loaderType: '', versionId: '' };
-
-    const versionInfo = appState.installedVersions.find(v => v.id === selectedVersion);
-    let gameVersion = '';
-    if (versionInfo && versionInfo.baseVersion) {
-      gameVersion = versionInfo.baseVersion;
-    } else if (versionInfo && versionInfo.inheritsFrom) {
-      gameVersion = versionInfo.inheritsFrom;
-    } else {
-      gameVersion = selectedVersion.split('-')[0];
-    }
-
-    let loaderType = '';
-    if (versionInfo) {
-      if (versionInfo.isFabric) loaderType = 'fabric';
-      else if (versionInfo.isForge) loaderType = 'forge';
-      else if (versionInfo.isNeoForge) loaderType = 'neoforge';
-    }
-
-    return { gameVersion, loaderType, versionId: selectedVersion };
-  } catch (e) {
-    return { gameVersion: '', loaderType: '', versionId: '' };
-  }
-}
-
 function _renderModDetailHeader(detail, source, projectId) {
   modDetailState.data = detail;
   const modTitle = formatModNameWithChinese(detail.slug || detail.id, detail.title || '未知模组');
@@ -227,7 +198,7 @@ async function openModDetail(projectId, source) {
   resetMdDetailView();
 
   const backBtn = document.querySelector('#page-mod-detail .moddetail-page-header .btn-icon');
-  if (backBtn) backBtn.setAttribute('onclick', 'goBackFromDetail()');
+  if (backBtn) backBtn.addEventListener('click', () => goBackFromDetail());
 
   const mdVersionList = document.getElementById('md-version-list');
   const mdVersionTabs = document.getElementById('md-version-tabs');

@@ -2,14 +2,14 @@ import { API as API } from '../../core/api.js';
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { getCustomSelectValue as getCustomSelectValue } from '../misc/custom-select.js';
 import { showToast as showToast } from '../misc/ui-components.js';
-import { mdDepsCache as mdDepsCache } from './mod-detail.js';
 import { dlManager as dlManager } from '../versions/custom-download.js';
 import { modDetailState as modDetailState } from './detail-state.js';
 import { appState as appState } from '../../core/app-state.js';
 import { S } from './install-state.js';
-import { resolveModTarget, resolveModSavePathWithConfirm, resolveModSavePath } from './install-target.js';
+import { resolveModTarget, resolveModVersionTarget, resolveModSavePathWithConfirm } from './install-target.js';
+import { resolveModSavePath } from './install-paths.js';
 import { proceedModInstall, maybeShowPostInstallDeps } from './install-deps.js';
-import { showModDownloadModal } from './install-batch.js';
+import { showModDownloadModal, updateModSelectUI } from './install-batch.js';
 
 function installModFile(projectId, source, versionId, fileId) {
   // 捕获当前模组目标游戏版本/加载器，用于保存路径定位（Forge/Fabric 同版本号不混淆）
@@ -87,7 +87,7 @@ async function quickInstallMod(projectId, source, versionId, fileId) {
     const savePath = await resolveModSavePath();
     const result = await API.downloadModVersion(versionId || '', projectId, source, fileId || '', currentGameVersion, currentLoader, savePath);
     if (result.success) {
-      mdDepsCache.clear();
+      modDetailState.mdDepsCache.clear();
       dlManager.remove(pendingTaskId);
       showModDownloadModal(result.fileName, result.sessionId, savePath, iconUrl);
       maybeShowPostInstallDeps(projectId, source, versionId, savePath, currentGameVersion, currentLoader, iconUrl);
@@ -118,4 +118,69 @@ function openModSourceUrl() {
   bridge.openExternal(url);
 }
 
-export { installModFile, showModInstallConfirm, quickInstallCurrentMod, quickInstallMod, copyModName, openModSourceUrl };
+function installModFileSafe(el) {
+  if (!el) return;
+  const vid = decodeURIComponent(atob(el.dataset.vid || ''));
+  const fid = decodeURIComponent(atob(el.dataset.fid || ''));
+  installModFile(appState.currentModDetailId, appState.currentModDetailSource, vid, fid);
+}
+
+function addModFromDetail(projectId, source, safeVid, safeFid) {
+  const vid = decodeURIComponent(atob(safeVid || ''));
+  const fid = decodeURIComponent(atob(safeFid || ''));
+
+  const t = resolveModVersionTarget(vid);
+
+  if (appState.modSelectedIds.has(projectId)) {
+    const existing = appState.modSelectedVersions.get(projectId);
+    if (existing && existing.versionId === vid && existing.fileId === fid) {
+      appState.modSelectedIds.delete(projectId);
+      appState.modSelectedVersions.delete(projectId);
+      showToast('已从选择中移除', 'info');
+    } else {
+      appState.modSelectedVersions.set(projectId, {
+        versionId: vid,
+        fileId: fid,
+        source: source,
+        gameVersion: t.game,
+        loader: t.loader
+      });
+      showToast('已更新选择的版本', 'success');
+    }
+  } else {
+    appState.modSelectedIds.add(projectId);
+    appState.modSelectedVersions.set(projectId, {
+      versionId: vid,
+      fileId: fid,
+      source: source,
+      gameVersion: t.game,
+      loader: t.loader
+    });
+    showToast('已添加到下载列表', 'success');
+  }
+  updateModSelectUI();
+
+  const container = document.getElementById('md-version-list');
+  if (container) {
+    container.querySelectorAll('.mdv-file-item').forEach(item => {
+      const btn = item.querySelector('.mdv-install-btn');
+      if (!btn) return;
+      const itemVid = decodeURIComponent(atob(item.dataset.vid || ''));
+      const isSelected = appState.modSelectedIds.has(projectId);
+      const isCurrentVersion = isSelected && appState.modSelectedVersions.get(projectId)?.versionId === itemVid;
+      btn.textContent = isCurrentVersion ? '已添加' : '添加';
+      btn.classList.toggle('btn-secondary', isCurrentVersion);
+      btn.classList.toggle('btn-primary', !isCurrentVersion);
+    });
+    container.querySelectorAll('.mdv-header-btn.mdv-install-btn').forEach(btn => {
+      const itemVid = decodeURIComponent(atob(btn.dataset.vid || ''));
+      const isSelected = appState.modSelectedIds.has(projectId);
+      const isCurrentVersion = isSelected && appState.modSelectedVersions.get(projectId)?.versionId === itemVid;
+      btn.textContent = isCurrentVersion ? '已添加' : '添加';
+      btn.classList.toggle('btn-secondary', isCurrentVersion);
+      btn.classList.toggle('btn-primary', !isCurrentVersion);
+    });
+  }
+}
+
+export { installModFile, installModFileSafe, addModFromDetail, showModInstallConfirm, quickInstallCurrentMod, quickInstallMod, copyModName, openModSourceUrl };

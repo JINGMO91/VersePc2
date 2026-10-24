@@ -3,18 +3,17 @@ import { API as API } from '../../core/api.js';
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { escapeHtml as escapeHtml, formatDate as formatDate } from '../../core/utils.js';
 import { showToast as showToast, getVersionTypeLabel as getVersionTypeLabel } from '../misc/ui-components.js';
-import { updateHomeStats as updateHomeStats } from '../settings/window-theme.js';
+import { updateHomeStats as updateHomeStats } from './home-stats.js';
 import { appState as appState } from '../../core/app-state.js';
 import { isPinned as isPinned, PIN_ICONS as PIN_ICONS } from './pinned-store.js';
 import { actionAttrs as actionAttrs, actionAttrsStop as actionAttrsStop } from '../../core/actions.js';
 import { getVersionCardStyle as getVersionCardStyle } from './version-card-utils.js';
 import { versionsState as S, getSelectedFolder } from './versions-state.js';
+import { requestLazyLoad } from '../../core/lazy-loaders.js';
 
-// 模组页签的版本筛选器由模组模块负责填充，此处按需加载，避免拖进启动包
+// 模组页签的版本筛选器由模组模块负责填充，此处按需触发，避免拖进启动包
 function refreshModVersionFilter() {
-  import('../mods/mod-browse.js')
-    .then((m) => m.populateModVersionFilter())
-    .catch((e) => console.error('[Versions] 模组筛选器加载失败:', e));
+  requestLazyLoad('mods:populate-version-filter');
 }
 
 async function loadVersions(forceRefresh = false) {
@@ -302,7 +301,6 @@ function renderInstalledVersionsInto(container) {
   };
 
   const renderCardItem = (v) => {
-    const iconClass = v.type === 'snapshot' ? 'snapshot' : v.type === 'special' ? 'special' : 'installed';
     const iconDataAttrs = `data-vi-id="${escapeHtml(v.id)}" data-vi-type="${v.type || 'release'}" data-vi-forge="${v.isForge ? '1' : '0'}" data-vi-fabric="${v.isFabric ? '1' : '0'}" data-vi-neoforge="${v.isNeoForge ? '1' : '0'}" data-vi-modpack="${v.isModpack ? '1' : '0'}" data-vi-extdir="${v.externalVersionDir ? escapeHtml(v.externalVersionDir) : ''}"`;
     const displayName = v.isExternal ? (v.customName || v.id.replace(/ \[外部\d*\]/, '')) : (v.customName || v.id);
     const loaderText = getVersionTypeLabel(v);

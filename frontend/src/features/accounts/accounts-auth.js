@@ -7,6 +7,7 @@ import { appState as appState } from '../../core/app-state.js';
 import { actionAttrs as actionAttrs } from '../../core/actions.js';
 import { accountsState as S } from './accounts-state.js';
 import { loadAccounts } from './accounts-list.js';
+import { cropSkinHeadCanvas } from './accounts-skin-utils.js';
 
 async function startMsAuth() {
   showModal('msauth-modal');
@@ -35,7 +36,7 @@ async function startMsAuth() {
       if (appState.msAuthPollInterval) clearInterval(appState.msAuthPollInterval);
       let _msAuthRetryCount = 0;
       const _msAuthMaxRetry = 2;
-      const _msAuthStartPoll = async (deviceCode, userCode) => {
+      const _msAuthStartPoll = async (deviceCode, _userCode) => {
         appState.msAuthPollInterval = setInterval(async () => {
         try {
           const pollResult = await API.pollMsAuth(deviceCode);
@@ -146,53 +147,6 @@ async function verifyThirdPartyServer(url) {
     }
   } catch (e) {
     infoDiv.style.display = 'none';
-  }
-}
-
-function cropSkinHeadCanvas(imgElement, outputSize = 64) {
-  try {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const sw = imgElement.naturalWidth || imgElement.width;
-    const sh = imgElement.naturalHeight || imgElement.height;
-    if (sw < 64 || sh < 32) return null;
-    const scale = sw / 64;
-    canvas.width = outputSize;
-    canvas.height = outputSize;
-    ctx.imageSmoothingEnabled = false;
-    // 双图层：脸部放大约 0.75，帽子层放大约 0.875（帽子比脸大，完整显示帽子像素块，不被脸的正方形裁剪）
-    const faceSize = Math.round(outputSize * 0.75);
-    const hatSize = Math.round(outputSize * 0.875);
-    const faceOffset = Math.round((outputSize - faceSize) / 2);
-    const hatOffset = Math.round((outputSize - hatSize) / 2);
-    // 脸部（居中背景）
-    ctx.drawImage(imgElement, 8 * scale, 8 * scale, 8 * scale, 8 * scale, faceOffset, faceOffset, faceSize, faceSize);
-    // 帽子层（更大、居中前景，透明像素露出脸部）
-    if (sh >= 64) {
-      const hatCanvas = document.createElement('canvas');
-      hatCanvas.width = outputSize;
-      hatCanvas.height = outputSize;
-      const hatCtx = hatCanvas.getContext('2d');
-      hatCtx.imageSmoothingEnabled = false;
-      hatCtx.drawImage(imgElement, 40 * scale, 8 * scale, 8 * scale, 8 * scale, hatOffset, hatOffset, hatSize, hatSize);
-      const hatData = hatCtx.getImageData(0, 0, outputSize, outputSize);
-      const faceData = ctx.getImageData(0, 0, outputSize, outputSize);
-      for (let i = 0; i < hatData.data.length; i += 4) {
-        const ha = hatData.data[i + 3];
-        if (ha > 0) {
-          // 帽子不透明像素直接覆盖脸部，透明像素保留脸部
-          faceData.data[i] = hatData.data[i];
-          faceData.data[i + 1] = hatData.data[i + 1];
-          faceData.data[i + 2] = hatData.data[i + 2];
-          faceData.data[i + 3] = ha;
-        }
-      }
-      ctx.putImageData(faceData, 0, 0);
-    }
-    return canvas.toDataURL('image/png');
-  } catch (e) {
-    console.error('[cropSkinHeadCanvas] error:', e);
-    return null;
   }
 }
 

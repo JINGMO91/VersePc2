@@ -3,7 +3,7 @@ import { escapeHtml as escapeHtml } from '../../core/utils.js';
 import { showToast as showToast } from './ui-components.js';
 import { actionAttrs as actionAttrs } from '../../core/actions.js';
 import { S } from './private-server-state.js';
-import { renderPrivateServerPage } from './private-server-list.js';
+import { requestLazyLoad } from '../../core/lazy-loaders.js';
 
 async function ensureLobbyServers() {
   if (S.lobbyServerList.length === 0) {
@@ -48,12 +48,12 @@ async function loadLobbyRooms(resetOffset = false) {
     S.lobbyError = '未获取到服务器节点，无法加载公开房间';
     S.lobbyRooms = [];
     S.lobbyLoaded = true;
-    renderPrivateServerPage();
+    requestLazyLoad('private-server:render');
     return;
   }
   S.lobbyLoading = true;
   S.lobbyError = '';
-  renderPrivateServerPage();
+  requestLazyLoad('private-server:render');
   try {
     const result = await bridge.redstoneOnline.listPublicTunnels({
       serverAddress: S.lobbyServerAddress,
@@ -77,7 +77,7 @@ async function loadLobbyRooms(resetOffset = false) {
   } finally {
     S.lobbyLoading = false;
     S.lobbyLoaded = true;
-    renderPrivateServerPage();
+    requestLazyLoad('private-server:render');
   }
 }
 

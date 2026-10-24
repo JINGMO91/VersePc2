@@ -2,7 +2,7 @@ import { API as API } from '../../core/api.js';
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { showToast as showToast } from './ui-components.js';
 import { S } from './lan-state.js';
-import { detectLanPort } from './lan-shared.js';
+import { detectLanPort } from './lan-port.js';
 
 function updateTerracottaStatus(title, desc, state) {
     const titleEl = document.getElementById('terracotta-status-title');
@@ -373,7 +373,6 @@ function terracottaStartPolling() {
             if (S.terracottaPollTimer) { clearInterval(S.terracottaPollTimer); S.terracottaPollTimer = setInterval(doPoll, pollInterval); }
 
             const profiles = result.profiles || state.profiles || [];
-            const difficulty = result.difficulty || state.difficulty || null;
             const errorType = result.errorType || null;
             const errorMessage = result.errorMessage || null;
 

@@ -96,7 +96,7 @@ class PanoramaRenderer {
         this.threeCamera.updateProjectionMatrix();
     }
 
-    render(dt, timestamp) {
+    render(dt, _timestamp) {
         if (!this.threeRenderer || !this.cube) return;
         const clampedDt = Math.min(dt, 100);
         this.autoRotation += this.ROTATION_SPEED * clampedDt * 0.06;

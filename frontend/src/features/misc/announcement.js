@@ -1,7 +1,7 @@
 import { bridge } from '../../core/tauri-bridge.js';
 
 import { switchPage } from '../settings/window-theme.js';
-import { navigateToPage } from '../versions/versions-nav.js';
+import { navigateToPage } from '../../core/navigation.js';
 
 import { appState } from '../../core/app-state.js';
 import { registerActions } from '../../core/actions.js';

@@ -4,7 +4,7 @@ import { applyNavigationMode as applyNavigationMode } from './window-theme.js';
 import { showToast as showToast } from '../misc/ui-components.js';
 import { switchWallpaperMode as switchWallpaperMode, setWallpaperOpacity as setWallpaperOpacity, setWallpaperBlur as setWallpaperBlur, setWallpaperFitMode as setWallpaperFitMode, setPanoramaTheme as setPanoramaTheme, setPanoramaRotationSpeed as setPanoramaRotationSpeed, setPanoramaMouseFollow as setPanoramaMouseFollow, getWallpaperEngine as getWallpaperEngine } from './wallpaper-engine.js';
 import { personalizeState as personalizeState } from './personalize-state.js';
-import { _ensureWallpaperEngine } from './personalize-wallpaper.js';
+import { _ensureWallpaperEngine } from './wallpaper-bootstrap.js';
 
 function getPersonalizeState() {
   return personalizeState;
@@ -319,7 +319,7 @@ function applyThemeColors(themeName) {
   }
 }
 
-async function updateCustomAccentColor(color) {
+async function updateCustomAccentColor(_color) {
   const theme = document.documentElement.getAttribute('data-theme') || 'light';
   if (theme === 'dark') {
     document.documentElement.style.setProperty('--accent', '#ffffff');

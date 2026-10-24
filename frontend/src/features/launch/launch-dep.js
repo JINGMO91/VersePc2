@@ -5,7 +5,7 @@ import { appState as appState } from '../../core/app-state.js';
 import { setLaunchStep, updateLaunchDownloadProgress, closeLaunchModal, updateLaunchProgress, showLaunchError } from './launch-modal.js';
 import { refreshGameStatusAfterLaunch, _onGameRunning, startGameLogStream } from './launch-runtime.js';
 
-function showLaunchDepModal(versionId, sessionId, missingCount, depCheck) {
+function showLaunchDepModal(versionId, sessionId, missingCount, _depCheck) {
   setLaunchStep('download', 'running', `发现 ${missingCount} 个缺失文件，需要下载...`);
   updateLaunchDownloadProgress(0, `0/${missingCount} 文件`, {
     completedFiles: 0,
@@ -86,7 +86,7 @@ async function startLaunchDepDownload(versionId, sessionId) {
   }
 }
 
-function pollLaunchDepProgress(sessionId, versionId) {
+function pollLaunchDepProgress(sessionId, _versionId) {
   if (appState.launchDepPollTimer) clearInterval(appState.launchDepPollTimer);
   let depSmoothPct = 0;
 

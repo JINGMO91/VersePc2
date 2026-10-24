@@ -1,6 +1,6 @@
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { showToast as showToast } from '../misc/ui-components.js';
-import { wpfilePath, wewpVideoPath } from './wallpaper-api.js';
+import { wpfilePath, wewpVideoPath } from './wallpaper-utils.js';
 
 class CustomVideoRenderer {
     constructor(engine) {
@@ -92,7 +92,7 @@ class CustomVideoRenderer {
             });
             this._startBrightnessSampling();
         };
-        this.video.onerror = (e) => {
+        this.video.onerror = () => {
             console.error('[Wallpaper] Video load failed, errorCode:', this.video.error);
             this.loaded = false;
             if (typeof showToast === 'function') showToast('视频壁纸加载失败，请检查文件是否存在或更换其他位置', 'error');
@@ -163,7 +163,7 @@ class CustomVideoRenderer {
         } catch (e) {}
     }
 
-    render(dt, timestamp) {
+    render(_dt, _timestamp) {
         // 视频由 DOM 自动播放，无需 Canvas 绘制
         // 只需检查暂停状态并尝试恢复播放
         if (this.loaded && this.video && this.video.paused) {

@@ -3,7 +3,7 @@ import { switchPage } from './window-theme.js';
 
 import { bridge } from '../../core/tauri-bridge.js';
 import { _lazyLoadScript } from '../../core/utils.js';
-import { navigateToPage } from '../versions/versions-nav.js';
+import { navigateToPage } from '../../core/navigation.js';
 import { registerActions } from '../../core/actions.js';
 
 const api = bridge;

@@ -10,7 +10,8 @@ import { applyAccentColor } from '../launch/java.js';
 import { showToast } from '../misc/ui-components.js';
 import { updateWallpaperTheme } from './wallpaper-engine.js';
 import { selectLaunchVersion } from '../versions/versions-list.js';
-import { navigateToPage, openVersionDetail } from '../versions/versions-nav.js';
+import { navigateToPage, openVersionDetail } from '../../core/navigation.js';
+import { updateHomeStats } from '../versions/home-stats.js';
 
 import { appState } from '../../core/app-state.js';
 
@@ -91,11 +92,6 @@ function browseFolder(type) {
   } else {
     showToast('请手动输入路径', 'info');
   }
-}
-
-function updateHomeStats() {
-  const el = document.getElementById('stat-installed');
-  if (el) el.textContent = appState.installedVersions.length;
 }
 
 let isWindowMode = false;
@@ -320,7 +316,6 @@ function setupVersionListClicks() {
       const versionUrl = versionItem.dataset.versionUrl || '';
       const versionType = versionItem.dataset.versionType || 'release';
       const isInstalled = versionItem.dataset.installed === 'true';
-      const customName = versionItem.dataset.customName || '';
 
       if (versionId) {
         if (isInstalled) {

@@ -1,5 +1,4 @@
 /* page-accounts.js - 账户页 Vue 组件（新版堆叠布局） */
-import { API } from '../../core/api.js';
 import { handleSkinUpload, handleCapeUpload } from '../../features/accounts/accounts.js';
 
 import { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount } from '../../features/accounts/accounts.js';

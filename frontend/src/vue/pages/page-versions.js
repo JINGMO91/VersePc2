@@ -2,9 +2,11 @@
  * 通用按钮与文本输入走 components/verse 语义层；
  * .btn-icon / 自研 custom-select / 模态框等专有结构保持原样。
  */
-import { syncVersionCardSwitches } from '../../features/versions/versions.js';
+import { syncVersionCardSwitches, toggleVersionCardStyle } from '../../features/versions/versions-list.js';
 
-import { toggleVersionCardStyle, addExternalFolder, closeInstallModal, cancelInstall, closeExternalFolderModal, selectExternalFolderPath, autoDetectExternalFolders, confirmAddExternalFolder, closeModLoaderModal, openFabricApiPicker, backFromFabricApiPicker } from '../../features/versions/versions.js';
+import { addExternalFolder, closeExternalFolderModal, selectExternalFolderPath, autoDetectExternalFolders, confirmAddExternalFolder } from '../../features/versions/versions-external.js';
+import { closeInstallModal, cancelInstall } from '../../features/versions/versions-install.js';
+import { closeModLoaderModal, openFabricApiPicker, backFromFabricApiPicker } from '../../features/versions/versions-loaders.js';
 import { closeRepairModal, cancelRepair } from '../../features/versions/version-settings.js';
 import VButton from '@/components/verse/VButton.vue';
 import VInput from '@/components/verse/VInput.vue';

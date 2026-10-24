@@ -1,7 +1,7 @@
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { decodeFileBuffer as decodeFileBuffer } from '../../core/utils.js';
 import { showToast as showToast } from '../misc/ui-components.js';
-import { wpfilePath } from './wallpaper-api.js';
+import { wpfilePath } from './wallpaper-utils.js';
 
 class CustomImageRenderer {
     constructor(engine) {
@@ -132,7 +132,7 @@ class CustomImageRenderer {
         }
     }
 
-    render(dt, timestamp) {
+    render(_dt, _timestamp) {
         // 图片由 DOM 显示，无需 Canvas 绘制
         // 只需更新样式（opacity/blur/fit 变化时）
         this._updateStyle();

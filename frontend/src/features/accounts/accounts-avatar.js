@@ -3,7 +3,7 @@ import { API as API } from '../../core/api.js';
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { VerseSkinFigure as VerseSkinFigure } from './skin-figure.js';
 import { accountsState as S } from './accounts-state.js';
-import { cropSkinHeadCanvas } from './accounts-auth.js';
+import { cropSkinHeadCanvas } from './accounts-skin-utils.js';
 
 async function _tauriFetch(url, options = {}) {
   // 非 Tauri 环境直接走原生 fetch

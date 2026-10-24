@@ -1,6 +1,5 @@
-import { API as API } from '../../core/api.js';
-import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { terracottaHostStep1, terracottaJoinStep1 } from './lan-terracotta.js';
+import { detectLanPort } from './lan-port.js';
 
 function switchLanTab(page, tab, btnEl) {
     const tabsContainer = btnEl.closest('.lan-tabs');
@@ -16,18 +15,6 @@ function switchLanTab(page, tab, btnEl) {
             terracottaJoinStep1();
         }
     }
-}
-
-async function detectLanPort() {
-    try {
-        const gs = await API.getGameStatus();
-        if (gs && gs.running && gs.lanPort) return gs.lanPort;
-    } catch (e) {}
-    try {
-        const scanResult = await bridge.redstoneOnline.scanPort();
-        if (scanResult && scanResult.ok && scanResult.port) return scanResult.port;
-    } catch (e) {}
-    return null;
 }
 
 function showLanStep(prefix, flow, step) {

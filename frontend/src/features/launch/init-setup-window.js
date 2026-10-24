@@ -67,7 +67,6 @@ function setupWindowMemoryEvents() {
         if (w && w._suspended) {
           try {
             const canvas = document.getElementById('wallpaper-canvas');
-            const glCanvas = document.getElementById('wallpaper-canvas-gl');
             if (canvas && canvas.width > 0) {
               const ctx = canvas.getContext('2d');
               if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);

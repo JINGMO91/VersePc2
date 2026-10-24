@@ -1,8 +1,8 @@
-﻿<script setup>
+<script setup>
 import { reactiveOmit } from "@vueuse/core";
 import { cn } from "@/lib/utils";
 import { TabsList } from "reka-ui";
-import { tabsListVariants } from ".";
+import { tabsListVariants } from "./variants.js";
 
 const props = defineProps({
   loop: { type: Boolean, required: false },

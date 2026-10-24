@@ -1,19 +1,8 @@
 import { bridge as bridge } from '../../core/tauri-bridge.js';
-import { _lazyLoadScript as _lazyLoadScript } from '../../core/utils.js';
 import { showToast as showToast } from '../misc/ui-components.js';
-import { wpfilePath as wpfilePath, initWallpaper as initWallpaper, setCustomWallpaperImage as setCustomWallpaperImage, setCustomWallpaperVideo as setCustomWallpaperVideo, onWallpaperBrightnessChange as onWallpaperBrightnessChange, getWallpaperEngine as getWallpaperEngine } from './wallpaper-engine.js';
+import { wpfilePath as wpfilePath, setCustomWallpaperImage as setCustomWallpaperImage, setCustomWallpaperVideo as setCustomWallpaperVideo, onWallpaperBrightnessChange as onWallpaperBrightnessChange } from './wallpaper-engine.js';
+import { _ensureWallpaperEngine } from './wallpaper-bootstrap.js';
 import { getPersonalizeState, applyWallpaperByName, applyWallpaperOpacityValue, applyWallpaperBlurValue, applyWallpaperFitValue, applyPanoramaThemeByName, applyPanoramaSpeedValue, applyPanoramaFollowValue } from './personalize-apply.js';
-
-async function _ensureWallpaperEngine() {
-  if (typeof getWallpaperEngine() === 'undefined' || !getWallpaperEngine()) {
-    if (typeof _lazyLoadScript === 'function') {
-      try { await _lazyLoadScript('js/three.bundle.js'); } catch (e) {}
-    }
-    if (typeof initWallpaper === 'function') {
-      try { initWallpaper(); } catch (e) { console.error('[Wallpaper] init error:', e); }
-    }
-  }
-}
 
 async function selectWallpaper(element) {
   document.querySelectorAll('.wallpaper-option').forEach(opt => opt.classList.remove('active'));

@@ -1,4 +1,3 @@
-import { API as API } from '../../core/api.js';
 import { bridge as bridge } from '../../core/tauri-bridge.js';
 import { showToast as showToast, showModal as showModal } from '../misc/ui-components.js';
 import { appState as appState } from '../../core/app-state.js';
@@ -10,8 +9,6 @@ async function openModTranslateDialog(fileName, modName) {
     return;
   }
   S._translateModName = modName || fileName;
-  const modsDir = await API.getVersionModsDir ? '' : '';
-  const versionsDir = bridge?.mods ? '' : '';
   const jarPath = await _resolveModJarPath(fileName);
   if (!jarPath) {
     showToast('找不到模组文件: ' + fileName, 'error');
