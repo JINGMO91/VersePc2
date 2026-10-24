@@ -29,7 +29,26 @@ npm run dev:web
 
 预览页底部有亮色 / 暗色 / 自定义三个主题按钮，右下角可切换页面。
 
-## 2. 迁移步骤
+## 2. 组件层结构
+
+```
+frontend/src/
+  styles/tailwind.css          # 样式入口：theme + utilities 两层、暗色变体、语义 token 映射
+  lib/utils.js                 # cn()：clsx + tailwind-merge
+  components/
+    ui/                        # shadcn-vue 生成的原语，不直接引用，升级时整体替换
+    verse/                     # 语义封装层：VButton / VInput / VTextarea
+  vue/pages/page-*.js          # 页面组件（模板字符串写法）
+  vue/mount.js                 # 页面挂载清单
+  dev-page-entry.js            # 单页预览白名单（dev only）
+frontend/dev-page.html         # 单页预览入口（dev only，不参与构建）
+frontend/dev-components.html   # 组件基座预览（dev only）
+docs/templates/page-template.js  # 新增页面模板，复制后按注释步骤接入
+```
+
+业务代码只依赖 `components/verse`；`components/ui` 是 shadcn 的产物，换库或升级时只改 `verse` 这一层。
+
+## 3. 迁移步骤
 
 1. **登记预览**：把页面加入 `frontend/src/dev-page-entry.js` 的 `PAGES` 白名单
 2. **抓基线**：切换亮色 / 暗色各截图一次，记录关键控件的 computed style（背景、边框、圆角、高度）
@@ -39,7 +58,7 @@ npm run dev:web
 6. **回归**：亮色 + 暗色 + 自定义三种主题；空状态、错误提示、禁用态、交互切换
 7. **跑校验**：`npm run lint && npm run test && npm run build:web && node scripts/check-architecture.mjs --strict`
 
-## 3. 控件对照表
+## 4. 控件对照表
 
 | 旧写法 | 新写法 | 注意 |
 | --- | --- | --- |
@@ -53,9 +72,9 @@ npm run dev:web
 | `<select>` | `<Select>` 系列 | |
 | 自研模态框 | `<Dialog>` 系列 | 走 Teleport，不受页面容器影响 |
 | 自研下拉 | `<DropdownMenu>` 系列 | |
-| 顶部通知 | 暂用现有 `showToast()` | sonner 未接入，见第 6 节 |
+| 顶部通知 | 暂用现有 `showToast()` | sonner 未接入，见第 8 节 |
 
-## 4. 硬性规则
+## 5. 硬性规则
 
 - 业务代码只从 `@/components/verse/*` 引用；禁止直接 `import` `@/components/ui/*`（封装层是换库时的唯一改动点）
 - 颜色只用语义 token：`bg-background`、`text-foreground`、`text-muted-foreground`、`border-border`、`bg-primary`、`text-primary-foreground`
@@ -65,9 +84,9 @@ npm run dev:web
 - 单个 `.vue` 文件 ≤ 200 行，超出即拆子组件；上限受架构护栏约束（单文件 ≤ 800 行）
 - 事件绑定一律用 `@click` / `@input` / `@change`，**不要用内联 `onclick=` / `oninput=`**（模板字符串里的内联处理器是普通 HTML 属性，靠 window 全局名解析，试点页原有三处内联 `oninput=` 和一处 `onchange=` 就因此失效）
 - 组件暴露的方法必须写进 `setup()` 的返回对象，模板才能访问
-- 迁移任一控件前，先按第 6 节的清单确认它没有被 features 层命令式操作样式
+- 迁移任一控件前，先按第 7 节的清单确认它没有被 features 层命令式操作样式
 
-## 5. 常见坑（试点页与批量迁移实际踩到的）
+## 6. 常见坑（试点页与批量迁移实际踩到的）
 
 | 现象 | 原因 | 解法 |
 | --- | --- | --- |
@@ -82,14 +101,14 @@ npm run dev:web
 | `.vset-input` 等旧类删除后布局塌陷 | 旧类里带了 `flex:1` / `max-width` 这类布局约束 | 替换时把布局约束用工具类补回（如 `max-w-[300px]`、`flex-1`） |
 | 反引号模板里出现 `\"` | 用脚本批量替换时按转义字符串模板生成的 | 反引号模板不需要转义引号，替换后清理 |
 
-## 6. 迁移前的必做检查（清单）
+## 7. 迁移前的必做检查（清单）
 
 1. `grep -n "classList.add\\|classList.remove\\|classList.toggle" features/ core/` —— 确认目标元素没有命令式 class 切换
 2. `grep -n "<id>" features/ core/` —— 确认 `id` 只被读取（`disabled` / `textContent` / `value` 都安全），没有被改 class 或整体重写 `innerHTML`
 3. `grep -n "oninput=\\|onchange=\\|onclick=\\|onkeydown=" <page>.js` —— 逐个确认目标函数是否在 `plugin-compat.js` 里挂到了 window；没挂的就是「改成 `@input` 并加进 `setup()` 返回对象」
 4. 替换后跑 `node .scratch/check-markup.mjs`（若仍保留该脚本）确认标签开闭配对
 
-## 7. 已知未完成项
+## 8. 已知未完成项
 
 - `vue-sonner` 的 `Toaster` 未接入，通知继续用现有 `#toast-container` 与 `showToast()`
 - shadcn 的 `--color-destructive` 只映射了 `var(--red)`，没有配套的 `-foreground`，用到危险色文字时注意对比度

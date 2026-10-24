@@ -123,7 +123,29 @@ for (const file of walk(join(root, 'frontend', 'public'))) {
   }
 }
 
-// 5. 超大业务文件报告（只警告，不阻断）
+// 5. 内联样式棘轮：页面模板里 ≥120 字符的 style="..." 只允许减少，不允许新增
+//    迁移到 components/verse 之后，布局约束应写成语义工具类，而不是继续堆行内样式。
+const INLINE_STYLE_LIMIT = 29;
+{
+  const pagesDir = join(root, 'frontend', 'src', 'vue', 'pages');
+  let count = 0;
+  for (const file of walk(pagesDir)) {
+    if (!file.endsWith('.js')) continue;
+    const text = readFileSync(file, 'utf8');
+    count += [...text.matchAll(/style=\\?"([^"\\]{120,})\\?"/g)].length;
+  }
+  if (count > INLINE_STYLE_LIMIT) {
+    errors.push(
+      `页面模板中的超长内联 style 由 ${INLINE_STYLE_LIMIT} 处增至 ${count} 处，请改用 Tailwind 工具类或 components/verse 组件`
+    );
+  } else if (count < INLINE_STYLE_LIMIT) {
+    warnings.push(
+      `页面模板中的超长内联 style 已降至 ${count} 处（基线 ${INLINE_STYLE_LIMIT}），请把 scripts/check-architecture.mjs 里的 INLINE_STYLE_LIMIT 同步下调`
+    );
+  }
+}
+
+// 6. 超大业务文件报告（只警告，不阻断）
 const sizeTargets = [
   [join(root, 'frontend', 'js', 'app'), 800],
   [join(root, 'frontend', 'js', 'vue'), 800],
