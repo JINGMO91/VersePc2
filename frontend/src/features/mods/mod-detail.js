@@ -1,17 +1,31 @@
+import { API } from '../../core/api.js';
+let mdGallery = [];
+let mdGalleryIndex = -1;
+let mdTabMode = 'major';
 /**
  * @file mod-detail.js
  * @description 模组详情页 - 展示模组信息、版本列表、依赖关系，支持版本选择与安装
  */
-let currentModDetailData = null;
-let mdAllVersions = [];
-let mdCurrentTab = '';
-let mdLoaderFilter = '';
-let currentModDetailType = 'mod';
-let mdCurrentDeps = [];
-let mdDepsResolved = {};
-let mdDepsVersionInfo = {};
-let _modDetailSeq = 0;
-class LRUCache {
+import { escapeHtml, formatDate, _lazyLoadScript } from '../../core/utils.js';
+import { getCustomSelectValue } from '../misc/custom-select.js';
+import { showToast, formatNumber, escapeOnclick } from '../misc/ui-components.js';
+import { ensureInstalledVersions, matchInstalledVersion, getLoaderFileIcon, resolveModSavePath, showModDownloadModal } from './mod-install.js';
+import { navigateToPage, goBackFromDetail, pushModDetailHistory } from '../versions/versions.js';
+
+import { modDetailState } from './detail-state.js';
+import { appState } from '../../core/app-state.js';
+import { formatModNameWithChinese } from './chinese-names.js';
+import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
+import {
+  addModFromDetail,
+  installModpackVersion,
+  installModFile,
+  quickInstallResourceVersion,
+  toggleMdvGroup,
+  installModpackVersionSafe,
+  installModFileSafe,
+  installResourceVersionSafe,
+} from './mod-install.js';class LRUCache {
   constructor(maxSize) {
     this._max = maxSize;
     this._map = new Map();
@@ -69,7 +83,7 @@ async function getLocalImageDataUrl(url) {
 
 async function setLocalImage(el, url, source) {
   if (!el || !url) return;
-  const useProxy = (source || currentModDetailSource || 'modrinth') === 'modrinth' && /^https?:\/\//.test(url);
+  const useProxy = (source || appState.currentModDetailSource || 'modrinth') === 'modrinth' && /^https?:\/\//.test(url);
   if (useProxy) {
     const dataUrl = await getLocalImageDataUrl(url);
     if (dataUrl) { el.src = dataUrl; return; }
@@ -78,7 +92,7 @@ async function setLocalImage(el, url, source) {
 }
 
 function proxifyBodyHtml(html) {
-  const source = currentModDetailSource || 'modrinth';
+  const source = appState.currentModDetailSource || 'modrinth';
   if (source !== 'modrinth') return html;
   const PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
   return html.replace(/<img([^>]*?)src="([^"]+cdn\.modrinth\.com[^"]+)"([^>]*)>/gi, (m, pre, url, post) => {
@@ -88,7 +102,7 @@ function proxifyBodyHtml(html) {
 
 function hydrateBodyImages(container) {
   if (!container) return;
-  const source = currentModDetailSource || 'modrinth';
+  const source = appState.currentModDetailSource || 'modrinth';
   container.querySelectorAll('img[data-src]').forEach(img => {
     setLocalImage(img, img.getAttribute('data-src'), source);
   });
@@ -113,22 +127,22 @@ function switchMdTab(tab) {
 
 function updateMdLoaderChips() {
   document.querySelectorAll('#md-loader-filter .md-loader-chip').forEach(chip => {
-    chip.classList.toggle('active', (chip.dataset.loader || '') === mdLoaderFilter);
+    chip.classList.toggle('active', (chip.dataset.loader || '') === modDetailState.loaderFilter);
   });
 }
 
 function setMdLoaderFilter(loader) {
-  mdLoaderFilter = (loader || '').toLowerCase();
+  modDetailState.loaderFilter = (loader || '').toLowerCase();
   updateMdLoaderChips();
   // 保留当前游戏版本标签，只重新渲染版本列表
-  switchMdVersionTab(mdCurrentTab || '', window._mdTabMode);
+  switchMdVersionTab(modDetailState.tab || '', mdTabMode);
 }
 
 async function renderModDescription(detail) {
   const container = document.getElementById('md-body-content');
   if (!container) return;
-  const pid = currentModDetailId;
-  const source = currentModDetailSource || 'modrinth';
+  const pid = appState.currentModDetailId;
+  const source = appState.currentModDetailSource || 'modrinth';
   const body = detail && detail.body ? detail.body : '';
   if (!body) {
     container.innerHTML = '<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">暂无描述</p>';
@@ -141,7 +155,7 @@ async function renderModDescription(detail) {
     if (typeof marked === 'undefined' && typeof _lazyLoadScript === 'function') {
       try { await _lazyLoadScript('js/marked.min.js'); } catch (e) {}
     }
-    if (pid !== currentModDetailId) return;
+    if (pid !== appState.currentModDetailId) return;
     if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
       try { html = marked.parse(body); } catch (e) { html = body.replace(/\n/g, '<br>'); }
     } else {
@@ -159,17 +173,17 @@ function renderModGallery(detail) {
   const gallery = Array.isArray(raw) ? raw : [];
   if (galleryTab) galleryTab.style.display = gallery.length > 0 ? '' : 'none';
   if (!container) return;
-  window._mdGallery = gallery;
+  mdGallery = gallery;
   if (gallery.length === 0) {
     container.innerHTML = '<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">暂无截图</p>';
     return;
   }
-  const source = currentModDetailSource || 'modrinth';
+  const source = appState.currentModDetailSource || 'modrinth';
   const PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
   container.innerHTML = gallery.map((item, idx) => {
     const url = (item && (item.url || item.rawUrl)) || item || '';
     const title = (item && item.title) || '';
-    return `<div class="md-gallery-item" onclick="openGalleryLightbox(${idx})">
+    return `<div class="md-gallery-item"${actionAttrs('openGalleryLightbox', idx)}>
       <img class="md-gallery-image" src="${PLACEHOLDER}" data-src="${escapeHtml(url)}" alt="${escapeHtml(title)}" loading="lazy">
       ${title ? `<div class="md-gallery-item-title">${escapeHtml(title)}</div>` : ''}
     </div>`;
@@ -180,14 +194,14 @@ function renderModGallery(detail) {
 }
 
 function openGalleryLightbox(idx) {
-  const gallery = window._mdGallery || [];
+  const gallery = mdGallery || [];
   if (gallery.length === 0) return;
-  window._mdGalleryIndex = Math.max(0, Math.min(idx, gallery.length - 1));
+  mdGalleryIndex = Math.max(0, Math.min(idx, gallery.length - 1));
   const box = document.getElementById('md-gallery-lightbox');
   const img = document.getElementById('md-gallery-lightbox-img');
   const cap = document.getElementById('md-gallery-lightbox-caption');
   if (!box || !img) return;
-  const item = gallery[window._mdGalleryIndex];
+  const item = gallery[mdGalleryIndex];
   const url = (item && (item.rawUrl || item.url)) || item || '';
   img.src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
   setLocalImage(img, url);
@@ -209,16 +223,16 @@ document.addEventListener('keydown', (e) => {
 });
 
 function prevGalleryImage() {
-  const gallery = window._mdGallery || [];
-  if (gallery.length === 0 || window._mdGalleryIndex === undefined) return;
-  const nextIdx = (window._mdGalleryIndex - 1 + gallery.length) % gallery.length;
+  const gallery = mdGallery || [];
+  if (gallery.length === 0 || mdGalleryIndex === undefined) return;
+  const nextIdx = (mdGalleryIndex - 1 + gallery.length) % gallery.length;
   openGalleryLightbox(nextIdx);
 }
 
 function nextGalleryImage() {
-  const gallery = window._mdGallery || [];
-  if (gallery.length === 0 || window._mdGalleryIndex === undefined) return;
-  const nextIdx = (window._mdGalleryIndex + 1) % gallery.length;
+  const gallery = mdGallery || [];
+  if (gallery.length === 0 || mdGalleryIndex === undefined) return;
+  const nextIdx = (mdGalleryIndex + 1) % gallery.length;
   openGalleryLightbox(nextIdx);
 }
 
@@ -253,7 +267,7 @@ function renderMdSidebar(detail) {
   }
   if (detailsEl) {
     const rows = [
-      ['类型', nameMap[currentModDetailType] || currentModDetailType || '模组'],
+      ['类型', nameMap[modDetailState.type] || modDetailState.type || '模组'],
       ['下载量', formatNumber(detail.downloads || 0)],
       ['关注数', formatNumber(detail.followers || 0)],
     ];
@@ -267,14 +281,14 @@ function renderMdSidebar(detail) {
 }
 
 function installCurrentDetailVersion() {
-  if (!mdAllVersions || mdAllVersions.length === 0) {
+  if (!modDetailState.allVersions || modDetailState.allVersions.length === 0) {
     showToast('暂无可用版本', 'warning');
     return;
   }
-  const v = mdAllVersions[0];
-  const projectId = currentModDetailId;
-  const source = currentModDetailSource || 'modrinth';
-  const type = currentModDetailType || 'mod';
+  const v = modDetailState.allVersions[0];
+  const projectId = appState.currentModDetailId;
+  const source = appState.currentModDetailSource || 'modrinth';
+  const type = modDetailState.type || 'mod';
   const primaryFile = (v.files && v.files[0]) || {};
   if (type === 'modpack') {
     installModpackVersion(projectId, v.id);
@@ -286,7 +300,7 @@ function installCurrentDetailVersion() {
 }
 
 function resetMdDetailView() {
-  mdLoaderFilter = '';
+  modDetailState.loaderFilter = '';
   updateMdLoaderChips();
   switchMdTab('description');
   const descEl = document.getElementById('md-body-content');
@@ -303,13 +317,13 @@ function resetMdDetailView() {
 
 async function getInstalledVersionInfo() {
   try {
-    // 直接从模组页进入时 installedVersions 可能尚未填充，先确保加载
+    // 直接从模组页进入时 appState.installedVersions 可能尚未填充，先确保加载
     await ensureInstalledVersions();
     const settings = await API.getSettings().catch(() => ({}));
     const selectedVersion = settings.selectedVersion || '';
     if (!selectedVersion) return { gameVersion: '', loaderType: '', versionId: '' };
 
-    const versionInfo = installedVersions.find(v => v.id === selectedVersion);
+    const versionInfo = appState.installedVersions.find(v => v.id === selectedVersion);
     let gameVersion = '';
     if (versionInfo && versionInfo.baseVersion) {
       gameVersion = versionInfo.baseVersion;
@@ -333,7 +347,7 @@ async function getInstalledVersionInfo() {
 }
 
 function _renderModDetailHeader(detail, source, projectId) {
-  currentModDetailData = detail;
+  modDetailState.data = detail;
   const modTitle = formatModNameWithChinese(detail.slug || detail.id, detail.title || '未知模组');
   const mdName = document.getElementById('md-name');
   const mdDesc = document.getElementById('md-desc');
@@ -360,18 +374,18 @@ function _renderModDetailHeader(detail, source, projectId) {
   }
   const mdFavBtn = document.getElementById('md-fav-btn');
   if (mdFavBtn) {
-    const isFav = _favorites.some((f) => f.favs.includes(projectId));
+    const isFav = appState._favorites.some((f) => f.favs.includes(projectId));
     if (isFav) { mdFavBtn.classList.remove('btn-secondary'); mdFavBtn.classList.add('btn-primary'); mdFavBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg> 已收藏'; }
     else { mdFavBtn.classList.remove('btn-primary'); mdFavBtn.classList.add('btn-secondary'); mdFavBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg> 收藏'; }
   }
 }
 
 async function openModDetail(projectId, source) {
-  const mySeq = ++_modDetailSeq;
+  const mySeq = ++modDetailState.seq;
   pushModDetailHistory();
-  currentModDetailId = projectId;
-  currentModDetailSource = source || 'modrinth';
-  currentModDetailType = 'mod';
+  appState.currentModDetailId = projectId;
+  appState.currentModDetailSource = source || 'modrinth';
+  modDetailState.type = 'mod';
 
   const compatSection = document.getElementById('md-compat-section');
   if (compatSection) compatSection.style.display = 'none';
@@ -422,7 +436,7 @@ async function openModDetail(projectId, source) {
 
     const [detail, versionsData] = await Promise.all([detailPromise, versionsPromise]);
     if (_loadingTimer) { clearTimeout(_loadingTimer); _loadingTimer = null; }
-    if (mySeq !== _modDetailSeq) { return; }
+    if (mySeq !== modDetailState.seq) { return; }
     if (!detail) {
       const mdName = document.getElementById('md-name');
       if (mdName) mdName.textContent = '加载失败';
@@ -437,13 +451,12 @@ async function openModDetail(projectId, source) {
       renderMdSidebar(detail);
     }
 
-    mdAllVersions = versionsData ? (versionsData.versions || []) : [];
-    if (!Array.isArray(mdAllVersions)) mdAllVersions = [];
-    console.error('[ModDetail][debug] projectId=', projectId, 'source=', source, 'versions=', mdAllVersions.length, 'first=', JSON.stringify(mdAllVersions[0]));
+    modDetailState.allVersions = versionsData ? (versionsData.versions || []) : [];
+    if (!Array.isArray(modDetailState.allVersions)) modDetailState.allVersions = [];
     loadModDependencies();
     await renderMdVersionTabs(mySeq);
   } catch (e) {
-    if (mySeq !== _modDetailSeq) return;
+    if (mySeq !== modDetailState.seq) return;
     console.error('[ModDetail] Error:', e);
     const mdName = document.getElementById('md-name');
     if (mdName) mdName.textContent = '加载失败';
@@ -476,15 +489,15 @@ function _versionToMajor(ver) {
 
 function _renderVersionTabs(mode, tabMap, sortedKeys) {
   const tabsContainer = document.getElementById('md-version-tabs');
-  let tabsHtml = '<button class="md-vtab active" data-ver="" onclick="switchMdVersionTab(\'\')">全部</button>';
+  let tabsHtml = '<button class="md-vtab active" data-ver=""' + actionAttrs('switchMdVersionTab', '') + '>全部</button>';
   sortedKeys.forEach(key => {
-    tabsHtml += `<button class="md-vtab" data-group="${mode}" data-ver="${escapeHtml(key)}" onclick="switchMdVersionTab('${escapeOnclick(key)}', '${mode}')">${escapeHtml(key)} (${tabMap.get(key)})</button>`;
+    tabsHtml += `<button class="md-vtab" data-group="${mode}" data-ver="${escapeHtml(key)}"${actionAttrs('switchMdVersionTab', key, mode)}>${escapeHtml(key)} (${tabMap.get(key)})</button>`;
   });
   if (tabsContainer) tabsContainer.innerHTML = tabsHtml;
 }
 
 function renderMdVersionTabs(detailSeq) {
-  if (detailSeq !== undefined && detailSeq !== _modDetailSeq) { return; }
+  if (detailSeq !== undefined && detailSeq !== modDetailState.seq) { return; }
 
   const tabsContainer = document.getElementById('md-version-tabs');
 
@@ -493,7 +506,7 @@ function renderMdVersionTabs(detailSeq) {
   const exactMap = new Map();
   const majorMap = new Map();
   let hasSnapshot = false;
-  mdAllVersions.forEach(v => {
+  modDetailState.allVersions.forEach(v => {
     (v.gameVersions || []).forEach(gv => {
       if (gv.includes('w') || gv.includes('snapshot')) { hasSnapshot = true; return; }
       const exact = _versionToExact(gv);
@@ -520,23 +533,23 @@ function renderMdVersionTabs(detailSeq) {
   const sortedKeys = [...tabMap.keys()].sort(sortFn);
 
   if (tabsContainer) {
-    let tabsHtml = '<button class="md-vtab active" data-ver="" onclick="switchMdVersionTab(\'\')">全部</button>';
+    let tabsHtml = '<button class="md-vtab active" data-ver=""' + actionAttrs('switchMdVersionTab', '') + '>全部</button>';
     sortedKeys.forEach(key => {
-      tabsHtml += `<button class="md-vtab" data-group="${mode}" data-ver="${escapeHtml(key)}" onclick="switchMdVersionTab('${escapeOnclick(key)}', '${mode}')">${escapeHtml(key)}</button>`;
+      tabsHtml += `<button class="md-vtab" data-group="${mode}" data-ver="${escapeHtml(key)}"${actionAttrs('switchMdVersionTab', key, mode)}>${escapeHtml(key)}</button>`;
     });
     tabsContainer.innerHTML = tabsHtml;
   }
-  window._mdTabMode = mode;
-  mdCurrentTab = '';
-  renderMdVersionList(mdAllVersions);
+  mdTabMode = mode;
+  modDetailState.tab = '';
+  renderMdVersionList(modDetailState.allVersions);
 }
 
 async function loadMdVersions(projectId, source, detailSeq) {
   try {
     const data = await API.getModVersions(projectId, source);
-    if (detailSeq !== undefined && detailSeq !== _modDetailSeq) { return; }
-    mdAllVersions = data.versions || [];
-    if (!Array.isArray(mdAllVersions)) mdAllVersions = [];
+    if (detailSeq !== undefined && detailSeq !== modDetailState.seq) { return; }
+    modDetailState.allVersions = data.versions || [];
+    if (!Array.isArray(modDetailState.allVersions)) modDetailState.allVersions = [];
 
     loadModDependencies();
     await renderMdVersionTabs(detailSeq);
@@ -547,18 +560,18 @@ async function loadMdVersions(projectId, source, detailSeq) {
 }
 
 function switchMdVersionTab(ver, mode) {
-  mdCurrentTab = ver;
+  modDetailState.tab = ver;
   
   document.querySelectorAll('.md-vtab').forEach(tab => {
     tab.classList.toggle('active', tab.dataset.ver === ver);
   });
 
-  let filtered = mdAllVersions;
+  let filtered = modDetailState.allVersions;
   if (ver && ver !== '') {
     if (ver === '_filtered') {
       const currentGameVersion = getCustomSelectValue('mod-filter-version');
       const currentLoader = getCustomSelectValue('mod-filter-loader');
-      filtered = mdAllVersions.filter(v => {
+      filtered = modDetailState.allVersions.filter(v => {
         const gv = v.gameVersions || [];
         const loaders = (v.loaders || []).map(l => l.toLowerCase());
         let match = true;
@@ -567,8 +580,8 @@ function switchMdVersionTab(ver, mode) {
         return match;
       });
     } else {
-      const useMode = mode || window._mdTabMode || 'major';
-      filtered = mdAllVersions.filter(v => {
+      const useMode = mode || mdTabMode || 'major';
+      filtered = modDetailState.allVersions.filter(v => {
         return (v.gameVersions || []).some(gv => {
           if (useMode === 'exact') return _versionToExact(gv) === ver;
           return _versionToMajor(gv) === ver;
@@ -613,18 +626,18 @@ async function loadModDependencies() {
   const hasVersionFilter = !!(currentGameVersion || currentLoader);
 
   // 只汇总当前目标游戏版本/加载器下的依赖。
-  // 不能把 mdAllVersions 里所有历史版本的依赖取并集，否则旧版本的前置会污染当前版本，
+  // 不能把 modDetailState.allVersions 里所有历史版本的依赖取并集，否则旧版本的前置会污染当前版本，
   // 出现“26.3 明明有对应版本，却显示某个旧前置无对应版本”的误报。
   const targetVersions = hasVersionFilter
-    ? mdAllVersions.filter(v => {
+    ? modDetailState.allVersions.filter(v => {
         const gvOk = !currentGameVersion || (v.gameVersions || []).includes(currentGameVersion);
         const lOk = !currentLoader || (v.loaders || []).some(l => l.toLowerCase() === currentLoader.toLowerCase());
         return gvOk && lOk;
       })
-    : mdAllVersions;
+    : modDetailState.allVersions;
 
   const allDeps = new Map();
-  const mdSource = currentModDetailSource || 'modrinth';
+  const mdSource = appState.currentModDetailSource || 'modrinth';
   targetVersions.forEach(v => {
     (v.dependencies || []).forEach(d => {
       if (!d.projectId) return;
@@ -646,7 +659,7 @@ async function loadModDependencies() {
   });
 
   const depArray = Array.from(allDeps.values());
-  mdCurrentDeps = depArray;
+  modDetailState.deps = depArray;
 
   if (depArray.length === 0) {
     depsSection.style.display = 'none';
@@ -669,8 +682,8 @@ async function loadModDependencies() {
   const cacheKey = depIds.sort().join(',') + '|' + (currentGameVersion || '') + '|' + (currentLoader || '');
   const cached = mdDepsCache.get(cacheKey);
   if (cached && (Date.now() - cached.time < MD_DEPS_CACHE_TTL)) {
-    mdDepsResolved = cached.resolved;
-    mdDepsVersionInfo = cached.versionInfo;
+    modDetailState.depsResolved = cached.resolved;
+    modDetailState.depsVersionInfo = cached.versionInfo;
     renderDepsList(depArray, cached.resolved, cached.versionInfo, hasVersionFilter, currentGameVersion, currentLoader, cached.installedMods, depsList, depsCount, requiredDeps);
     return;
   }
@@ -679,7 +692,7 @@ async function loadModDependencies() {
     const depType = d.dependencyType || 'optional';
     const typeLabel = depType === 'required' ? '必选' : (depType === 'incompatible' ? '冲突' : '可选');
     const badgeClass = depType === 'required' ? 'required' : (depType === 'incompatible' ? 'incompatible' : 'optional');
-    return `<div class="md-dep-item" id="md-dep-${escapeOnclick(d.projectId)}" onclick="openModDetail('${escapeOnclick(d.projectId)}', '${escapeOnclick(mdSource)}')">
+    return `<div class="md-dep-item" id="md-dep-${escapeOnclick(d.projectId)}"${actionAttrs('openModDetail', d.projectId, mdSource)}>
       <div class="md-dep-icon"><div class="spinner" style="width:20px;height:20px;border-width:2px"></div></div>
       <div class="md-dep-info">
         <div class="md-dep-name" style="color:var(--text-muted)">加载中...</div>
@@ -711,7 +724,7 @@ async function loadModDependencies() {
         : ((installedModsData && installedModsData.mods) || []);
 
       versionInfo = resolveResult || {};
-      mdDepsVersionInfo = versionInfo;
+      modDetailState.depsVersionInfo = versionInfo;
 
       for (const pid of depIds) {
         const info = versionInfo[pid] || {};
@@ -724,7 +737,7 @@ async function loadModDependencies() {
           downloads: info.downloads || 0
         };
       }
-      mdDepsResolved = resolved;
+      modDetailState.depsResolved = resolved;
 
       const failedIds = depIds.filter(pid => {
         const r = resolved[pid];
@@ -739,7 +752,7 @@ async function loadModDependencies() {
               resolved[pid] = { ...resolved[pid], ...ri };
             }
           }
-          mdDepsResolved = resolved;
+          modDetailState.depsResolved = resolved;
         } catch (e) { console.warn('[ModInstall] 依赖检查失败:', e.message); }
       }
 
@@ -762,8 +775,8 @@ async function loadModDependencies() {
         ? installedModsData
         : ((installedModsData && installedModsData.mods) || []);
       resolved = basic || {};
-      mdDepsResolved = resolved;
-      mdDepsVersionInfo = {};
+      modDetailState.depsResolved = resolved;
+      modDetailState.depsVersionInfo = {};
       if (depsCount) depsCount.textContent = `(${requiredDeps.length} 必选, ${depArray.length - requiredDeps.length} 可选)`;
     }
 
@@ -775,7 +788,7 @@ async function loadModDependencies() {
       const depType = d.dependencyType || 'optional';
       const typeLabel = depType === 'required' ? '必选' : (depType === 'incompatible' ? '冲突' : '可选');
       const badgeClass = depType === 'required' ? 'required' : (depType === 'incompatible' ? 'incompatible' : 'optional');
-      return `<div class="md-dep-item" onclick="openModDetail('${escapeOnclick(d.projectId)}', '${escapeOnclick(mdSource)}')">
+      return `<div class="md-dep-item"${actionAttrs('openModDetail', d.projectId, mdSource)}>
         <div class="md-dep-info">
           <div class="md-dep-name">${escapeHtml(d.projectId)}</div>
         </div>
@@ -847,7 +860,7 @@ function renderDepsList(depArray, resolved, versionInfo, hasVersionFilter, curre
       }
     }
 
-    return `<div class="md-dep-item" onclick="openModDetail('${escapeOnclick(d.projectId)}', '${escapeOnclick(currentModDetailSource || 'modrinth')}')">
+    return `<div class="md-dep-item"${actionAttrs('openModDetail', d.projectId, appState.currentModDetailSource || 'modrinth')}>
       ${icon ? `<div class="md-dep-icon"><img src="${icon}" alt="" onerror="this.parentElement.remove()"></div>` : ''}
       <div class="md-dep-info">
         <div class="md-dep-name">${escapeHtml(formatModNameWithChinese(info.slug || d.projectId, title))}</div>
@@ -872,7 +885,7 @@ function toggleMdDepsSection() {
 
 // 当前筛选（或已选实例）下，挑一个可作为依赖解析根模组本体的版本
 function pickDependencyRootVersion(gameVersion, loader) {
-  let candidates = Array.isArray(mdAllVersions) ? mdAllVersions.slice() : [];
+  let candidates = Array.isArray(modDetailState.allVersions) ? modDetailState.allVersions.slice() : [];
   if (gameVersion) {
     candidates = candidates.filter(v =>
       (v.gameVersions || []).some(gv => gv === gameVersion));
@@ -888,18 +901,18 @@ function pickDependencyRootVersion(gameVersion, loader) {
 }
 
 async function downloadAllDeps() {
-  if (!currentModDetailData) return;
-  const source = currentModDetailData.source || 'modrinth';
-  const projectId = currentModDetailData.id || currentModDetailId || '';
+  if (!modDetailState.data) return;
+  const source = modDetailState.data.source || 'modrinth';
+  const projectId = modDetailState.data.id || appState.currentModDetailId || '';
   const filterGame = getCustomSelectValue('mod-filter-version') || '';
   const filterLoader = getCustomSelectValue('mod-filter-loader') || '';
   const verInfo = await getInstalledVersionInfo();
   const gameVersion = filterGame || verInfo.gameVersion || '';
   const loader = filterLoader || verInfo.loaderType || '';
   // “一键下载”不强制先点某个版本：按当前筛选/实例自动选根版本，
-  // 否则 currentModDetailData 里没有 selectedVersionId 时会永远提示“请先选择一个版本”
-  const versionId = currentModDetailData.selectedVersionId
-    || currentModDetailData.versionId
+  // 否则 modDetailState.data 里没有 selectedVersionId 时会永远提示“请先选择一个版本”
+  const versionId = modDetailState.data.selectedVersionId
+    || modDetailState.data.versionId
     || pickDependencyRootVersion(gameVersion, loader);
 
   if (!versionId) {
@@ -1032,11 +1045,7 @@ async function downloadAllDeps() {
     showToast('检测前置依赖失败: ' + (e.message || '未知错误'), 'error');
     if (btn) { btn.disabled = false; btn.innerHTML = '<span>一键下载</span>'; }
   }
-}
-
-
-let _mdvRenderedCount = 0;
-const MDV_INITIAL_RENDER = 30;
+}const MDV_INITIAL_RENDER = 30;
 
 function _buildVersionItemHtml(v, idx) {
   const verNum = v.versionNumber || v.versionName || v.id.substring(0, 12);
@@ -1059,26 +1068,26 @@ function _buildVersionItemHtml(v, idx) {
   const safeVid = btoa(encodeURIComponent(v.id || ''));
   const primaryFile = files[0] || {};
   const safeFid = btoa(encodeURIComponent(primaryFile.id || ''));
-  const isMod = currentModDetailType === 'mod';
-  const isModpack = currentModDetailType === 'modpack';
+  const isMod = modDetailState.type === 'mod';
+  const isModpack = modDetailState.type === 'modpack';
   const hasMultipleFiles = fileCount > 1;
 
   let primaryBtnHtml;
-  if (modMultiSelectMode && isMod) {
-    const alreadySelected = modSelectedIds.has(currentModDetailId);
-    primaryBtnHtml = `<button class="btn ${alreadySelected ? 'btn-secondary' : 'btn-primary'} btn-sm mdv-install-btn mdv-header-btn" data-vid="${safeVid}" data-fid="${safeFid}" onclick="event.stopPropagation();addModFromDetail('${escapeOnclick(currentModDetailId)}', '${escapeOnclick(currentModDetailSource)}', '${safeVid}', '${safeFid}')">${alreadySelected ? '已添加' : '添加'}</button>`;
+  if (appState.modMultiSelectMode && isMod) {
+    const alreadySelected = appState.modSelectedIds.has(appState.currentModDetailId);
+    primaryBtnHtml = `<button class="btn ${alreadySelected ? 'btn-secondary' : 'btn-primary'} btn-sm mdv-install-btn mdv-header-btn" data-vid="${safeVid}" data-fid="${safeFid}"${actionAttrsStop('addModFromDetail', appState.currentModDetailId, appState.currentModDetailSource, safeVid, safeFid)}>${alreadySelected ? '已添加' : '添加'}</button>`;
   } else if (isModpack) {
-    primaryBtnHtml = `<button class="btn btn-primary btn-sm mdv-header-btn" onclick="event.stopPropagation();installModpackVersion('${escapeOnclick(currentModDetailId)}', '${escapeOnclick(v.id)}')">下载</button>`;
+    primaryBtnHtml = `<button class="btn btn-primary btn-sm mdv-header-btn"${actionAttrsStop('installModpackVersion', appState.currentModDetailId, v.id)}>下载</button>`;
   } else if (isMod) {
-    primaryBtnHtml = `<button class="btn btn-primary btn-sm mdv-header-btn" onclick="event.stopPropagation();installModFile('${escapeOnclick(currentModDetailId)}', '${escapeOnclick(currentModDetailSource)}', '${escapeOnclick(v.id)}', '${escapeOnclick(primaryFile.id || '')}')">安装</button>`;
+    primaryBtnHtml = `<button class="btn btn-primary btn-sm mdv-header-btn"${actionAttrsStop('installModFile', appState.currentModDetailId, appState.currentModDetailSource, v.id, primaryFile.id || '')}>安装</button>`;
   } else {
-    primaryBtnHtml = `<button class="btn btn-primary btn-sm mdv-header-btn" onclick="event.stopPropagation();quickInstallResourceVersion('${escapeOnclick(currentModDetailId)}', '${escapeOnclick(currentModDetailType)}', '${escapeOnclick(v.id)}')">安装</button>`;
+    primaryBtnHtml = `<button class="btn btn-primary btn-sm mdv-header-btn"${actionAttrsStop('quickInstallResourceVersion', appState.currentModDetailId, modDetailState.type, v.id)}>安装</button>`;
   }
 
   const sizeText = fileCount > 0 ? formatNumber(Math.round((primaryFile.size || 1024) / 1024)) + ' KB' : '';
 
   return `<div class="mdv-group${hasMultipleFiles ? '' : ' single-file'}" id="mdvg-${idx}">
-    <div class="mdv-group-header"${hasMultipleFiles ? ` onclick="toggleMdvGroup(${idx})"` : ''}>
+    <div class="mdv-group-header"${hasMultipleFiles ? actionAttrs('toggleMdvGroup', idx) : ''}>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="mdv-group-title">${escapeHtml(verNum)}</span>
         ${loaderBadges}
@@ -1101,19 +1110,19 @@ function _buildVersionItemHtml(v, idx) {
         const loaderIcon = getLoaderFileIcon(fname);
         const safeFid2 = btoa(encodeURIComponent(f.id || ''));
         let addBtn, rowOnclick;
-        if (modMultiSelectMode && isMod) {
-          const alreadySelected = modSelectedIds.has(currentModDetailId);
-          addBtn = `<button class="btn ${alreadySelected ? 'btn-secondary' : 'btn-primary'} btn-sm mdv-install-btn" onclick="event.stopPropagation();addModFromDetail('${escapeOnclick(currentModDetailId)}', '${escapeOnclick(currentModDetailSource)}', '${safeVid}', '${safeFid2}')">${alreadySelected ? '已添加' : '添加'}</button>`;
-          rowOnclick = `addModFromDetail('${escapeOnclick(currentModDetailId)}', '${escapeOnclick(currentModDetailSource)}', '${safeVid}', '${safeFid2}')`;
+        if (appState.modMultiSelectMode && isMod) {
+          const alreadySelected = appState.modSelectedIds.has(appState.currentModDetailId);
+          addBtn = `<button class="btn ${alreadySelected ? 'btn-secondary' : 'btn-primary'} btn-sm mdv-install-btn"${actionAttrsStop('addModFromDetail', appState.currentModDetailId, appState.currentModDetailSource, safeVid, safeFid2)}>${alreadySelected ? '已添加' : '添加'}</button>`;
+          rowOnclick = actionAttrs('addModFromDetail', appState.currentModDetailId, appState.currentModDetailSource, safeVid, safeFid2);
         } else {
           addBtn = isModpack
-             ? `<button class="btn btn-primary btn-sm mdv-install-btn" onclick="event.stopPropagation();installModpackVersionSafe(this.closest('.mdv-file-item'))">下载</button>`
+             ? `<button class="btn btn-primary btn-sm mdv-install-btn"${actionAttrsStop('installModpackVersionRow')}>下载</button>`
              : (isMod
-               ? `<button class="btn btn-primary btn-sm mdv-install-btn" onclick="event.stopPropagation();installModFileSafe(this.closest('.mdv-file-item'))">安装</button>`
-               : `<button class="btn btn-primary btn-sm mdv-install-btn" onclick="event.stopPropagation();installResourceVersionSafe(this.closest('.mdv-file-item'))">安装</button>`);
-          rowOnclick = isModpack ? `installModpackVersionSafe(this)` : (isMod ? `installModFileSafe(this)` : `installResourceVersionSafe(this)`);
+               ? `<button class="btn btn-primary btn-sm mdv-install-btn"${actionAttrsStop('installModFileRow')}>安装</button>`
+               : `<button class="btn btn-primary btn-sm mdv-install-btn"${actionAttrsStop('installResourceVersionRow')}>安装</button>`);
+          rowOnclick = isModpack ? actionAttrs('installModpackVersionRow') : (isMod ? actionAttrs('installModFileRow') : actionAttrs('installResourceVersionRow'));
         }
-        return `<div class="mdv-file-item" data-vid="${safeVid}" data-fid="${safeFid2}" onclick="${rowOnclick}">
+        return `<div class="mdv-file-item" data-vid="${safeVid}" data-fid="${safeFid2}"${rowOnclick}>
           <div class="mdv-file-icon">${loaderIcon}</div>
           <div class="mdv-file-info">
             <div class="mdv-file-name">${escapeHtml(fname)}</div>
@@ -1152,116 +1161,64 @@ function renderMdVersionList(versions) {
   if (!container) return;
 
   // 加载器筛选：只保留 loaders 中包含目标加载器的版本
-  if (mdLoaderFilter) {
+  if (modDetailState.loaderFilter) {
     versions = (versions || []).filter(v =>
-      (v.loaders || []).some(l => l.toLowerCase() === mdLoaderFilter));
+      (v.loaders || []).some(l => l.toLowerCase() === modDetailState.loaderFilter));
   }
 
   if (!versions || versions.length === 0) {
-    container.innerHTML = `<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">${mdLoaderFilter ? '该加载器下无匹配版本' : '无匹配版本'}</p>`;
+    container.innerHTML = `<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">${modDetailState.loaderFilter ? '该加载器下无匹配版本' : '无匹配版本'}</p>`;
     return;
   }
 
   const sorted = _sortVersionsByNumber(versions);
-  _mdvCurrentVersions = sorted;
-  _mdvRenderedCount = 0;
+  modDetailState.currentVersions = sorted;
+  modDetailState.renderedCount = 0;
   const initial = sorted.slice(0, MDV_INITIAL_RENDER);
   container.innerHTML = initial.map((v, i) => _buildVersionItemHtml(v, i)).join('');
-  _mdvRenderedCount = initial.length;
+  modDetailState.renderedCount = initial.length;
 
   if (versions.length > MDV_INITIAL_RENDER) {
     container.insertAdjacentHTML('beforeend', `<div id="mdv-load-more" style="text-align:center;padding:16px 0">
-      <button class="btn btn-secondary" onclick="renderMdVersionListMore()">加载更多 (${versions.length - MDV_INITIAL_RENDER} 个版本)</button>
+      <button class="btn btn-secondary"${actionAttrs('renderMdVersionListMore')}>加载更多 (${versions.length - MDV_INITIAL_RENDER} 个版本)</button>
     </div>`);
   }
-}
-
-let _mdvCurrentVersions = [];
-
+}
 function renderMdVersionListMore() {
   const container = document.getElementById('md-version-list');
   const loadMoreBtn = document.getElementById('mdv-load-more');
   if (loadMoreBtn) loadMoreBtn.remove();
 
-  const batch = _mdvCurrentVersions.slice(_mdvRenderedCount, _mdvRenderedCount + MDV_INITIAL_RENDER);
+  const batch = modDetailState.currentVersions.slice(modDetailState.renderedCount, modDetailState.renderedCount + MDV_INITIAL_RENDER);
   const fragment = document.createDocumentFragment();
   const temp = document.createElement('div');
-  temp.innerHTML = batch.map((v, i) => _buildVersionItemHtml(v, _mdvRenderedCount + i)).join('');
+  temp.innerHTML = batch.map((v, i) => _buildVersionItemHtml(v, modDetailState.renderedCount + i)).join('');
   while (temp.firstChild) fragment.appendChild(temp.firstChild);
   container.appendChild(fragment);
-  _mdvRenderedCount += batch.length;
+  modDetailState.renderedCount += batch.length;
 
-  if (_mdvRenderedCount < _mdvCurrentVersions.length) {
+  if (modDetailState.renderedCount < modDetailState.currentVersions.length) {
     container.insertAdjacentHTML('beforeend', `<div id="mdv-load-more" style="text-align:center;padding:16px 0">
-      <button class="btn btn-secondary" onclick="renderMdVersionListMore()">加载更多 (${_mdvCurrentVersions.length - _mdvRenderedCount} 个版本)</button>
+      <button class="btn btn-secondary"${actionAttrs('renderMdVersionListMore')}>加载更多 (${modDetailState.currentVersions.length - modDetailState.renderedCount} 个版本)</button>
     </div>`);
   }
 }
 
+registerActions({
+  openModDetail: (event, el, projectId, source) => openModDetail(projectId, source),
+  openGalleryLightbox: (event, el, idx) => openGalleryLightbox(idx),
+  switchMdVersionTab: (event, el, ver, mode) => switchMdVersionTab(ver, mode),
+  addModFromDetail: (event, el, projectId, source, safeVid, safeFid) => addModFromDetail(projectId, source, safeVid, safeFid),
+  installModpackVersion: (event, el, projectId, versionId) => installModpackVersion(projectId, versionId),
+  installModFile: (event, el, projectId, source, versionId, fileId) => installModFile(projectId, source, versionId, fileId),
+  quickInstallResourceVersion: (event, el, projectId, type, versionId) => quickInstallResourceVersion(projectId, type, versionId),
+  toggleMdvGroup: (event, el, idx) => toggleMdvGroup(idx),
+  installModpackVersionRow: (event, el) => installModpackVersionSafe(el.closest('.mdv-file-item')),
+  installModFileRow: (event, el) => installModFileSafe(el.closest('.mdv-file-item')),
+  installResourceVersionRow: (event, el) => installResourceVersionSafe(el.closest('.mdv-file-item')),
+  renderMdVersionListMore,
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
-export { preloadModVersions, getLocalImageDataUrl, setLocalImage, proxifyBodyHtml, hydrateBodyImages, switchMdTab, updateMdLoaderChips, setMdLoaderFilter, renderModDescription, renderModGallery, openGalleryLightbox, closeGalleryLightbox, prevGalleryImage, nextGalleryImage, renderMdSidebar, installCurrentDetailVersion, resetMdDetailView, getInstalledVersionInfo, _renderModDetailHeader, openModDetail, _versionToExact, _versionToMajor, _renderVersionTabs, renderMdVersionTabs, loadMdVersions, switchMdVersionTab, cleanupMdDepsCache, loadModDependencies, renderDepsList, toggleMdDepsSection, pickDependencyRootVersion, downloadAllDeps, _buildVersionItemHtml, _sortVersionsByNumber, renderMdVersionList, renderMdVersionListMore, LRUCache, _projectDataCache, _versionPreloadCache, _mdImageCache, mdDepsCache, MD_DEPS_CACHE_TTL, MD_DEPS_CACHE_MAX, MDV_INITIAL_RENDER, currentModDetailData, mdAllVersions, mdCurrentTab, mdLoaderFilter, currentModDetailType, mdCurrentDeps, mdDepsResolved, mdDepsVersionInfo, _modDetailSeq, _versionPreloadInFlight, _mdvRenderedCount, _mdvCurrentVersions };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ preloadModVersions, getLocalImageDataUrl, setLocalImage, proxifyBodyHtml, hydrateBodyImages, switchMdTab, updateMdLoaderChips, setMdLoaderFilter, renderModDescription, renderModGallery, openGalleryLightbox, closeGalleryLightbox, prevGalleryImage, nextGalleryImage, renderMdSidebar, installCurrentDetailVersion, resetMdDetailView, getInstalledVersionInfo, _renderModDetailHeader, openModDetail, _versionToExact, _versionToMajor, _renderVersionTabs, renderMdVersionTabs, loadMdVersions, switchMdVersionTab, cleanupMdDepsCache, loadModDependencies, renderDepsList, toggleMdDepsSection, pickDependencyRootVersion, downloadAllDeps, _buildVersionItemHtml, _sortVersionsByNumber, renderMdVersionList, renderMdVersionListMore, LRUCache, _projectDataCache, _versionPreloadCache, _mdImageCache, mdDepsCache, MD_DEPS_CACHE_TTL, MD_DEPS_CACHE_MAX, MDV_INITIAL_RENDER })) {
-  window[name] = value;
-}
+export { preloadModVersions, getLocalImageDataUrl, setLocalImage, proxifyBodyHtml, hydrateBodyImages, switchMdTab, updateMdLoaderChips, setMdLoaderFilter, renderModDescription, renderModGallery, openGalleryLightbox, closeGalleryLightbox, prevGalleryImage, nextGalleryImage, renderMdSidebar, installCurrentDetailVersion, resetMdDetailView, getInstalledVersionInfo, _renderModDetailHeader, openModDetail, _versionToExact, _versionToMajor, _renderVersionTabs, renderMdVersionTabs, loadMdVersions, switchMdVersionTab, cleanupMdDepsCache, loadModDependencies, renderDepsList, toggleMdDepsSection, pickDependencyRootVersion, downloadAllDeps, _buildVersionItemHtml, _sortVersionsByNumber, renderMdVersionList, renderMdVersionListMore, LRUCache, _projectDataCache, _versionPreloadCache, _mdImageCache, mdDepsCache, MD_DEPS_CACHE_TTL, MD_DEPS_CACHE_MAX, MDV_INITIAL_RENDER, _versionPreloadInFlight };
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'currentModDetailData', {
-  configurable: true,
-  get: () => currentModDetailData,
-  set: (v) => { currentModDetailData = v; },
-});
-Object.defineProperty(window, 'mdAllVersions', {
-  configurable: true,
-  get: () => mdAllVersions,
-  set: (v) => { mdAllVersions = v; },
-});
-Object.defineProperty(window, 'mdCurrentTab', {
-  configurable: true,
-  get: () => mdCurrentTab,
-  set: (v) => { mdCurrentTab = v; },
-});
-Object.defineProperty(window, 'mdLoaderFilter', {
-  configurable: true,
-  get: () => mdLoaderFilter,
-  set: (v) => { mdLoaderFilter = v; },
-});
-Object.defineProperty(window, 'currentModDetailType', {
-  configurable: true,
-  get: () => currentModDetailType,
-  set: (v) => { currentModDetailType = v; },
-});
-Object.defineProperty(window, 'mdCurrentDeps', {
-  configurable: true,
-  get: () => mdCurrentDeps,
-  set: (v) => { mdCurrentDeps = v; },
-});
-Object.defineProperty(window, 'mdDepsResolved', {
-  configurable: true,
-  get: () => mdDepsResolved,
-  set: (v) => { mdDepsResolved = v; },
-});
-Object.defineProperty(window, 'mdDepsVersionInfo', {
-  configurable: true,
-  get: () => mdDepsVersionInfo,
-  set: (v) => { mdDepsVersionInfo = v; },
-});
-Object.defineProperty(window, '_modDetailSeq', {
-  configurable: true,
-  get: () => _modDetailSeq,
-  set: (v) => { _modDetailSeq = v; },
-});
-Object.defineProperty(window, '_versionPreloadInFlight', {
-  configurable: true,
-  get: () => _versionPreloadInFlight,
-  set: (v) => { _versionPreloadInFlight = v; },
-});
-Object.defineProperty(window, '_mdvRenderedCount', {
-  configurable: true,
-  get: () => _mdvRenderedCount,
-  set: (v) => { _mdvRenderedCount = v; },
-});
-Object.defineProperty(window, '_mdvCurrentVersions', {
-  configurable: true,
-  get: () => _mdvCurrentVersions,
-  set: (v) => { _mdvCurrentVersions = v; },
-});

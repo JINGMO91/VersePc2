@@ -1,7 +1,16 @@
+import { goBackFromDetail } from '../../features/versions/versions.js';
+import { installCurrentDetailVersion, toggleMdDepsSection, downloadAllDeps, switchMdTab, setMdLoaderFilter, switchMdVersionTab, closeGalleryLightbox, prevGalleryImage, nextGalleryImage } from '../../features/mods/mod-detail.js';
+import { showFavSelectDropdown } from '../../features/mods/favorites.js';
+import { openModSourceUrl, copyModName } from '../../features/mods/mod-install.js';
+import { appState } from '../../core/app-state.js';
+
 const PageModDetail = {
+  setup() {
+    return { goBackFromDetail, installCurrentDetailVersion, showFavSelectDropdown, openModSourceUrl, copyModName, toggleMdDepsSection, downloadAllDeps, switchMdTab, setMdLoaderFilter, switchMdVersionTab, closeGalleryLightbox, prevGalleryImage, nextGalleryImage, appState };
+  },
   template: `
     <div class="moddetail-page-header">
-      <button class="btn btn-icon" onclick="goBackFromDetail()">
+      <button class="btn btn-icon" @click="goBackFromDetail()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
       <div class="moddetail-top-info">
@@ -22,36 +31,36 @@ const PageModDetail = {
       </div>
     </div>
     <div class="md-action-bar">
-      <button class="btn btn-primary md-action-btn" id="md-install-btn" onclick="installCurrentDetailVersion()">
+      <button class="btn btn-primary md-action-btn" id="md-install-btn" @click="installCurrentDetailVersion()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         安装
       </button>
-      <button class="btn btn-secondary md-action-btn" id="md-fav-btn" onclick="showFavSelectDropdown(currentModDetailId, this)">
+      <button class="btn btn-secondary md-action-btn" id="md-fav-btn" @click="showFavSelectDropdown(appState.currentModDetailId, $event.currentTarget)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
         收藏
       </button>
-      <button class="btn btn-secondary md-action-btn" onclick="openModSourceUrl()">
+      <button class="btn btn-secondary md-action-btn" @click="openModSourceUrl()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         打开源
       </button>
-      <button class="btn btn-secondary md-action-btn" onclick="copyModName()">
+      <button class="btn btn-secondary md-action-btn" @click="copyModName()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
         复制名称
       </button>
     </div>
     <div id="md-deps-section" class="md-deps-section" style="display:none">
       <div class="md-deps-header">
-        <div style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer" onclick="toggleMdDepsSection()">
+        <div style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer" @click="toggleMdDepsSection()">
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" style="width:18px;height:18px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span style="font-size:14px;font-weight:600;color:var(--text-primary)">前置模组</span>
           <span id="md-deps-count" style="font-size:12px;color:var(--text-muted)"></span>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <button id="md-deps-download-all-btn" class="md-deps-download-all" onclick="event.stopPropagation();downloadAllDeps()" title="一键下载所有前置模组">
+          <button id="md-deps-download-all-btn" class="md-deps-download-all" @click="$event.stopPropagation();downloadAllDeps()" title="一键下载所有前置模组">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>一键下载</span>
           </button>
-          <svg id="md-deps-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;transition:transform 0.2s;cursor:pointer" onclick="event.stopPropagation();toggleMdDepsSection()"><path d="M6 9l6 6 6-6"/></svg>
+          <svg id="md-deps-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;transition:transform 0.2s;cursor:pointer" @click="$event.stopPropagation();toggleMdDepsSection()"><path d="M6 9l6 6 6-6"/></svg>
         </div>
       </div>
       <div id="md-deps-list" class="md-deps-list"></div>
@@ -61,17 +70,17 @@ const PageModDetail = {
         <div class="md-layout-main">
           <div class="md-tab-row">
             <div class="md-tabs">
-              <button class="md-tab active" data-tab="description" onclick="switchMdTab('description')">描述</button>
-              <button class="md-tab" data-tab="versions" onclick="switchMdTab('versions')">版本</button>
-              <button class="md-tab" data-tab="gallery" onclick="switchMdTab('gallery')" id="md-gallery-tab" style="display:none">画廊</button>
+              <button class="md-tab active" data-tab="description" @click="switchMdTab('description')">描述</button>
+              <button class="md-tab" data-tab="versions" @click="switchMdTab('versions')">版本</button>
+              <button class="md-tab" data-tab="gallery" @click="switchMdTab('gallery')" id="md-gallery-tab" style="display:none">画廊</button>
             </div>
             <div id="md-loader-filter" class="md-loader-filter" aria-hidden="true">
               <span class="md-loader-filter-label">加载器</span>
-              <button class="md-loader-chip active" data-loader="" onclick="setMdLoaderFilter('')" title="显示全部加载器">全部</button>
-              <button class="md-loader-chip" data-loader="forge" onclick="setMdLoaderFilter('forge')" title="只看 Forge 版本">Forge</button>
-              <button class="md-loader-chip" data-loader="fabric" onclick="setMdLoaderFilter('fabric')" title="只看 Fabric 版本">Fabric</button>
-              <button class="md-loader-chip" data-loader="neoforge" onclick="setMdLoaderFilter('neoforge')" title="只看 NeoForge 版本">NeoForge</button>
-              <button class="md-loader-chip" data-loader="quilt" onclick="setMdLoaderFilter('quilt')" title="只看 Quilt 版本">Quilt</button>
+              <button class="md-loader-chip active" data-loader="" @click="setMdLoaderFilter('')" title="显示全部加载器">全部</button>
+              <button class="md-loader-chip" data-loader="forge" @click="setMdLoaderFilter('forge')" title="只看 Forge 版本">Forge</button>
+              <button class="md-loader-chip" data-loader="fabric" @click="setMdLoaderFilter('fabric')" title="只看 Fabric 版本">Fabric</button>
+              <button class="md-loader-chip" data-loader="neoforge" @click="setMdLoaderFilter('neoforge')" title="只看 NeoForge 版本">NeoForge</button>
+              <button class="md-loader-chip" data-loader="quilt" @click="setMdLoaderFilter('quilt')" title="只看 Quilt 版本">Quilt</button>
             </div>
           </div>
           <div id="md-tab-description" class="md-tab-content active">
@@ -79,7 +88,7 @@ const PageModDetail = {
           </div>
           <div id="md-tab-versions" class="md-tab-content">
             <div class="md-version-tabs" id="md-version-tabs">
-              <button class="md-vtab active" data-ver="" onclick="switchMdVersionTab('')">全部</button>
+              <button class="md-vtab active" data-ver="" @click="switchMdVersionTab('')">全部</button>
             </div>
             <div class="md-version-list" id="md-version-list">
               <p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">选择版本标签查看文件列表</p>
@@ -114,18 +123,16 @@ const PageModDetail = {
         </div>
       </div>
     </div>
-    <div id="md-gallery-lightbox" class="md-gallery-lightbox" style="display:none" onclick="closeGalleryLightbox()">
-      <div class="md-gallery-lightbox-content" onclick="event.stopPropagation()">
-        <button class="md-gallery-lightbox-close" onclick="closeGalleryLightbox()">&times;</button>
-        <button class="md-gallery-lightbox-nav md-gallery-lightbox-prev" onclick="prevGalleryImage()">&#8249;</button>
+    <div id="md-gallery-lightbox" class="md-gallery-lightbox" style="display:none" @click="closeGalleryLightbox()">
+      <div class="md-gallery-lightbox-content" @click="$event.stopPropagation()">
+        <button class="md-gallery-lightbox-close" @click="closeGalleryLightbox()">&times;</button>
+        <button class="md-gallery-lightbox-nav md-gallery-lightbox-prev" @click="prevGalleryImage()">&#8249;</button>
         <img id="md-gallery-lightbox-img" src="" alt="" />
-        <button class="md-gallery-lightbox-nav md-gallery-lightbox-next" onclick="nextGalleryImage()">&#8250;</button>
+        <button class="md-gallery-lightbox-nav md-gallery-lightbox-next" @click="nextGalleryImage()">&#8250;</button>
         <div class="md-gallery-lightbox-caption" id="md-gallery-lightbox-caption"></div>
       </div>
     </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageModDetail;

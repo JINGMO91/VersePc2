@@ -9,6 +9,8 @@
  * 通过 fetch API 调用后端路由，统一管理所有网络请求
  */
 
+import { bridge } from './tauri-bridge.js';
+
 /* 统一错误类型体系 */
 
 class ApiError extends Error {
@@ -78,7 +80,11 @@ function getUserFriendlyMessage(error) {
     return ERROR_MESSAGES['UNKNOWN_ERROR'];
 }
 
-/* 全局错误处理器 */
+/* 全局错误提示通道：由应用入口注入 showToast，避免 core 依赖 features */
+let notifyUser = null;
+export function setApiNotifier(fn) {
+    notifyUser = fn;
+}
 
 const ErrorHandler = {
     handle(error, context = {}) {
@@ -87,13 +93,13 @@ const ErrorHandler = {
         const userMessage = getUserFriendlyMessage(error);
 
         if (error instanceof TimeoutError || error instanceof NetworkError) {
-            if (typeof showToast === 'function') showToast(userMessage, 'warning');
+            if (notifyUser) notifyUser(userMessage, 'warning');
         } else if (error instanceof ClientError && error.statusCode === 401) {
-            if (typeof showToast === 'function') showToast('登录已过期，请重新登录', 'error');
+            if (notifyUser) notifyUser('登录已过期，请重新登录', 'error');
         } else if (error instanceof ServerError) {
-            if (typeof showToast === 'function') showToast(userMessage, 'error');
+            if (notifyUser) notifyUser(userMessage, 'error');
         } else {
-            if (typeof showToast === 'function') showToast(userMessage, 'error');
+            if (notifyUser) notifyUser(userMessage, 'error');
         }
     }
 };
@@ -102,7 +108,7 @@ const ErrorHandler = {
 const API_BASE = '';
 
 /* Tauri 环境检测 — 在 Tauri 下 API 走 invoke('api_proxy') 而非 fetch */
-const _isTauri = !!(window.__TAURI__ || window.__TAURI_INTERNALS__ || window.__TAURI_PROXY__);
+const _isTauri = !!(window.__TAURI__ || window.__TAURI_INTERNALS__ || (bridge && bridge.apiProxy));
 
 async function _tauriApiProxy(method, path, params, body) {
     // 30 秒超时，防止 Rust 端卡住时 init 流程永远阻塞
@@ -113,10 +119,8 @@ async function _tauriApiProxy(method, path, params, body) {
     });
 
     const _work = (async () => {
-        // 统一走单一桥接面 window.bridge.apiProxy（tauri-bridge.js 建立）
-        const apiProxy =
-            (window.bridge && window.bridge.apiProxy) ||
-            (window.__TAURI_PROXY__ && window.__TAURI_PROXY__.apiProxy);
+        // 统一走单一桥接面 bridge.apiProxy（tauri-bridge.js 建立）
+        const apiProxy = bridge && bridge.apiProxy;
         if (apiProxy) {
             return await apiProxy(method, path, params, body);
         }
@@ -131,7 +135,7 @@ async function _tauriApiProxy(method, path, params, body) {
                 json: () => Promise.resolve(result.body)
             };
         }
-        throw new Error('[API] 统一桥接层 window.bridge 不可用');
+        throw new Error('[API] 统一桥接层 bridge 不可用');
     })();
 
     try {
@@ -318,7 +322,7 @@ async function apiDelete(path, data = {}) {
 const API = {
     // === 系统信息 ===
     getSystemMemory: () => apiGet('/api/system/memory'),
-    memoryOptimize: () => window.bridge?.memoryOptimize?.() || Promise.reject(new Error('记忆优化能力不可用')),
+    memoryOptimize: () => bridge?.memoryOptimize?.() || Promise.reject(new Error('记忆优化能力不可用')),
 
     // === 游戏版本管理 ===
     getVersions: (refresh = false) => apiGet('/api/versions', { refresh: refresh ? 'true' : '' }),
@@ -363,8 +367,8 @@ const API = {
         apiPost('/api/mods/resolve-deps-versions', { ids, gameVersion, loader, source }),
     selectSaveFolder: async (defaultPath = '') => {
         try {
-            if (window.electronAPI?.selectSaveFolder) {
-                return await window.electronAPI.selectSaveFolder(defaultPath);
+            if (bridge?.selectSaveFolder) {
+                return await bridge.selectSaveFolder(defaultPath);
             }
         } catch (e) {
             console.warn('[API] IPC selectSaveFolder failed, falling back to server:', e.message);
@@ -597,21 +601,6 @@ const API = {
     },
 };
 
-// 对外导出：迁移期间由 legacy/globals.js 统一挂到 window.API 与 window.bridge.api，
-// 供尚未模块化的脚本继续使用。
-export {
-  ERROR_MESSAGES,
-  getUserFriendlyMessage,
-  ErrorHandler,
-  API_BASE,
-  _isTauri,
-  _tauriApiProxy,
-  _isApiPath,
-  fetchWithTimeout,
-  apiGet,
-  apiPost,
-  apiDelete,
-  API,
-};
+export { ERROR_MESSAGES, getUserFriendlyMessage, ErrorHandler, API_BASE, _isTauri, _tauriApiProxy, _isApiPath, fetchWithTimeout, apiGet, apiPost, apiDelete, API };
 
 /* @versepc-protected: anti-ai-plagiarism-v1.0 */

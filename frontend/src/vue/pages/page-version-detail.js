@@ -1,8 +1,14 @@
 /* page-version-detail - 版本详情页 Vue 组件 */
+import { API } from '../../core/api.js';
+import { navigateToPage, selectLoaderCard, openFabricApiDetailPicker, backFromFabricApiDetailPicker, confirmInstallVersion } from '../../features/versions/versions.js';
+
 const PageVersionDetail = {
+  setup() {
+    return { navigateToPage, selectLoaderCard, openFabricApiDetailPicker, backFromFabricApiDetailPicker, confirmInstallVersion };
+  },
   template: `
         <div id="pvd-main" class="page-header" style="gap:12px;padding:16px 24px">
-          <button class="btn btn-icon" onclick="navigateToPage('versions')">
+          <button class="btn btn-icon" @click="navigateToPage('versions')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
           <img id="verdetail-icon" src="" alt="" class="version-detail-icon">
@@ -40,7 +46,7 @@ const PageVersionDetail = {
           <div class="verdetail-section">
             <div class="verdetail-section-title">模组加载器</div>
             <div class="loader-cards" id="loader-cards">
-              <div class="loader-card selected" data-loader="" onclick="selectLoaderCard('')">
+              <div class="loader-card selected" data-loader="" @click="selectLoaderCard('')">
                 <div class="loader-card-icon"><img src="img/Grass.png" alt="" style="width:28px;height:28px;image-rendering:pixelated"></div>
                 <div class="loader-card-info">
                   <div class="loader-card-name">不安装（原版）</div>
@@ -48,7 +54,7 @@ const PageVersionDetail = {
                 </div>
                 <div class="loader-card-check">✓</div>
               </div>
-              <div class="loader-card" data-loader="forge" onclick="selectLoaderCard('forge')">
+              <div class="loader-card" data-loader="forge" @click="selectLoaderCard('forge')">
                 <div class="loader-card-icon"><img src="img/Anvil.png" alt="" style="width:28px;height:28px;image-rendering:pixelated"></div>
                 <div class="loader-card-info">
                   <div class="loader-card-name">Forge</div>
@@ -56,7 +62,7 @@ const PageVersionDetail = {
                 </div>
                 <div class="loader-card-check"></div>
               </div>
-              <div class="loader-card" data-loader="neoforge" onclick="selectLoaderCard('neoforge')">
+              <div class="loader-card" data-loader="neoforge" @click="selectLoaderCard('neoforge')">
                 <div class="loader-card-icon"><img src="img/NeoForge.png" alt="" style="width:28px;height:28px;image-rendering:pixelated"></div>
                 <div class="loader-card-info">
                   <div class="loader-card-name">NeoForge</div>
@@ -64,7 +70,7 @@ const PageVersionDetail = {
                 </div>
                 <div class="loader-card-check"></div>
               </div>
-              <div class="loader-card" data-loader="fabric" onclick="selectLoaderCard('fabric')">
+              <div class="loader-card" data-loader="fabric" @click="selectLoaderCard('fabric')">
                 <div class="loader-card-icon"><img src="img/Fabric.png" alt="" style="width:28px;height:28px;image-rendering:pixelated"></div>
                 <div class="loader-card-info">
                   <div class="loader-card-name">Fabric</div>
@@ -72,7 +78,7 @@ const PageVersionDetail = {
                 </div>
                 <div class="loader-card-check"></div>
               </div>
-              <div class="loader-card" data-loader="optifine" onclick="selectLoaderCard('optifine')">
+              <div class="loader-card" data-loader="optifine" @click="selectLoaderCard('optifine')">
                 <div class="loader-card-icon"><img src="img/OptiFabric.png" alt="" style="width:28px;height:28px;image-rendering:pixelated"></div>
                 <div class="loader-card-info">
                   <div class="loader-card-name">OptiFine</div>
@@ -85,7 +91,7 @@ const PageVersionDetail = {
               <div class="verdetail-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 <span>Fabric API（可选）</span>
               </div>
-              <div class="fabric-api-card-detail" id="fabric-api-card-detail" onclick="openFabricApiDetailPicker()" style="padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
+              <div class="fabric-api-card-detail" id="fabric-api-card-detail" @click="openFabricApiDetailPicker()" style="padding:12px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary);cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
                 <div style="display:flex;align-items:center;gap:10px;min-width:0">
                   <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0"></span>
                   <span id="fabric-api-card-text-detail" style="font-size:14px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">不安装</span>
@@ -103,7 +109,7 @@ const PageVersionDetail = {
         </div>
         <div id="fabric-api-picker-detail" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;padding:24px;z-index:100;background:var(--bg-primary);box-sizing:border-box;display:flex;flex-direction:column">
           <div id="pvd-fabric-header" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-            <button class="btn btn-secondary btn-sm" onclick="backFromFabricApiDetailPicker()" style="display:flex;align-items:center;gap:4px">
+            <button class="btn btn-secondary btn-sm" @click="backFromFabricApiDetailPicker()" style="display:flex;align-items:center;gap:4px">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="15 18 9 12 15 6"></polyline></svg>
               返回
             </button>
@@ -114,12 +120,10 @@ const PageVersionDetail = {
           </div>
         </div>
         <div id="pvd-footer" class="verdetail-footer">
-          <button class="btn btn-secondary" onclick="navigateToPage('versions')">取消</button>
-          <button class="btn btn-primary btn-lg" onclick="confirmInstallVersion()">确认下载</button>
+          <button class="btn btn-secondary" @click="navigateToPage('versions')">取消</button>
+          <button class="btn btn-primary btn-lg" @click="confirmInstallVersion()">确认下载</button>
         </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageVersionDetail;

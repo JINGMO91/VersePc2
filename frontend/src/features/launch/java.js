@@ -1,3 +1,11 @@
+import { API } from '../../core/api.js';
+import { formatSize, formatSpeed } from '../../core/utils.js';
+import { showToast } from '../misc/ui-components.js';
+
+import { appState } from '../../core/app-state.js';
+import { actionAttrs, registerActions } from '../../core/actions.js';
+import { navigateToPage } from '../versions/versions.js';
+
 function showJavaInstallModal(requiredVersion) {
     const existing = document.getElementById('java-install-modal');
     if (existing) existing.remove();
@@ -7,7 +15,7 @@ function showJavaInstallModal(requiredVersion) {
         <div class="modal-content java-install-modal-content">
             <div class="modal-header">
                 <h3>☕ Java 运行环境</h3>
-                <button class="modal-close" onclick="closeJavaInstallModal()">&times;</button>
+                <button class="modal-close"${actionAttrs('closeJavaInstallModal')}>&times;</button>
             </div>
             <div class="modal-body">
                 <div class="java-install-info">
@@ -24,8 +32,8 @@ function showJavaInstallModal(requiredVersion) {
                 </div>
             </div>
             <div class="modal-footer" id="java-install-footer">
-                <button class="btn btn-secondary" onclick="closeJavaInstallModal()">稍后处理</button>
-                <button class="btn btn-primary" onclick="closeJavaInstallModal();navigateToPage('java')">
+                <button class="btn btn-secondary"${actionAttrs('closeJavaInstallModal')}>稍后处理</button>
+    <button class="btn btn-primary"${actionAttrs('closeJavaInstallAndOpenPage')}>
                     <span>前往 Java 管理</span>
                 </button>
             </div>
@@ -60,7 +68,7 @@ async function loadJavaDownloadSources() {
 }
 
 function closeJavaInstallModal() {
-    if (javaInstallPollTimer) { clearInterval(javaInstallPollTimer); javaInstallPollTimer = null; }
+    if (appState.javaInstallPollTimer) { clearInterval(appState.javaInstallPollTimer); appState.javaInstallPollTimer = null; }
     const modal = document.getElementById('java-install-modal');
     if (modal) {
         modal.classList.remove('modal-visible');
@@ -102,9 +110,9 @@ function pollJavaInstallProgress(sessionId, requiredVersion) {
     const progressSize = document.getElementById('java-progress-size-text');
     const installBtn = document.getElementById('java-install-btn');
 
-    if (javaInstallPollTimer) clearInterval(javaInstallPollTimer);
+    if (appState.javaInstallPollTimer) clearInterval(appState.javaInstallPollTimer);
 
-    javaInstallPollTimer = setInterval(async () => {
+    appState.javaInstallPollTimer = setInterval(async () => {
         try {
             const status = await API.getJavaInstallStatus(sessionId);
 
@@ -137,8 +145,8 @@ function pollJavaInstallProgress(sessionId, requiredVersion) {
             }
 
             if (status.status === 'completed') {
-                clearInterval(javaInstallPollTimer);
-                javaInstallPollTimer = null;
+                clearInterval(appState.javaInstallPollTimer);
+                appState.javaInstallPollTimer = null;
 
                 if (status.result) {
                     const statJava = document.getElementById('stat-java');
@@ -154,19 +162,19 @@ function pollJavaInstallProgress(sessionId, requiredVersion) {
                 showToast('Java 安装成功！环境变量已自动配置', 'success');
                 setTimeout(() => closeJavaInstallModal(), 1500);
             } else if (status.status === 'failed') {
-                clearInterval(javaInstallPollTimer);
-                javaInstallPollTimer = null;
+                clearInterval(appState.javaInstallPollTimer);
+                appState.javaInstallPollTimer = null;
                 showToast(status.message || 'Java安装失败', 'error');
                 if (installBtn) installBtn.disabled = false;
             } else if (status.status === 'need_manual') {
-                clearInterval(javaInstallPollTimer);
-                javaInstallPollTimer = null;
+                clearInterval(appState.javaInstallPollTimer);
+                appState.javaInstallPollTimer = null;
                 showToast(status.message || '未找到合适的Java运行环境，请在设置中手动安装或配置', 'warning');
                 if (installBtn) installBtn.disabled = false;
             }
         } catch (e) {
-            clearInterval(javaInstallPollTimer);
-            javaInstallPollTimer = null;
+            clearInterval(appState.javaInstallPollTimer);
+            appState.javaInstallPollTimer = null;
             showToast('获取安装状态失败', 'error');
             if (installBtn) installBtn.disabled = false;
         }
@@ -277,15 +285,14 @@ function applyAccentColor(color) {
     document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
 }
 
+registerActions({
+  closeJavaInstallModal,
+  closeJavaInstallAndOpenPage: () => {
+    closeJavaInstallModal();
+    navigateToPage('java');
+  },
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { showJavaInstallModal, loadJavaDownloadSources, closeJavaInstallModal, startJavaAutoInstall, pollJavaInstallProgress, ensureJavaForLaunch, openFolder, cleanupScan, cleanupRun, applyAccentColor, _cleanupData };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ showJavaInstallModal, loadJavaDownloadSources, closeJavaInstallModal, startJavaAutoInstall, pollJavaInstallProgress, ensureJavaForLaunch, openFolder, cleanupScan, cleanupRun, applyAccentColor })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, '_cleanupData', {
-  configurable: true,
-  get: () => _cleanupData,
-  set: (v) => { _cleanupData = v; },
-});

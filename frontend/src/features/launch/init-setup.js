@@ -1,7 +1,34 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+import { VERSE_FEATURES } from '../misc/feature-flags.js';
+import { closeSidebarPanel, applyNavigationMode } from '../settings/window-theme.js';
+
+let initSubTiming = null;
 /**
  * @file init-setup.js
  * @description 应用初始化 - 页面加载完成后的启动流程
  */
+import { _lazyLoadScript } from '../../core/utils.js';
+import { _loadAvatarImg, loadAccounts, startMsAuth, closeOfflineModal, closeThirdPartyModal, verifyThirdPartyServer, showProfileSelectModal } from '../accounts/accounts.js';
+import { setupJavaPage } from './java-mgr.js';
+import { applyAccentColor } from './java.js';
+import { handleLaunch, updateGameStatus, checkJavaOnStartup, triggerJvmPreheat } from './launch.js';
+import { initAllCustomSelects, CustomSelect } from '../misc/custom-select.js';
+import { setupFeedback } from '../misc/feedback.js';
+import { showToast, showModal, hideModal, showConfirmDialog } from '../misc/ui-components.js';
+import { getDOMElement, cacheCommonElements, throttle } from '../misc/utils.js';
+import { loadFavoritesData, setupFavSearchListeners } from '../mods/favorites.js';
+import { loadInstalledMods, loadModFilterOptions, loadMods, loadFeaturedMods } from '../mods/mod-browse.js';
+import { loadResourcePage } from '../mods/resource.js';
+import { applyCustomThemeColor, getSavedCustomThemeLight, getSavedCustomThemeColor } from '../settings/custom-theme.js';
+import { selectWallpaper, _updateCustomImagePreview, initWallpaperAutoAdapt, onWallpaperOpacityChange, onWallpaperBlurChange, onWallpaperFitChange, selectPanoramaTheme } from '../settings/personalize.js';
+import { loadSettings, saveCurrentSettings } from '../settings/settings-load-save.js';
+import { initWallpaper, setCustomWallpaperImage, setCustomWallpaperVideo, setPanoramaRotationSpeed, setPanoramaMouseFollow } from '../settings/wallpaper-engine.js';
+import { setupWindowControls, setupVersionListClicks } from '../settings/window-theme.js';
+import { loadVersions, renderHomeCurrentVersionCard, renderVersions, navigateToPage, loadModLoaderVersions } from '../versions/versions.js';
+
+import { appState } from '../../core/app-state.js';
+import { waitForVueMount } from '../../core/vue-ready.js';
 async function init() {
   // 禁用 WebView2 浏览器默认右键菜单（刷新/另存为/检查等），输入区域保留复制粘贴
   document.addEventListener('contextmenu', function (e) {
@@ -22,9 +49,9 @@ async function init() {
   // 记录页面总加载耗时（从 WebView 导航开始到 init 执行），细分每个阶段，用于定位加载慢的瓶颈
   try {
     var _t = window.performance.timing;
-    if (window.electronAPI && window.electronAPI.writeStartupTiming && _t) {
+    if (bridge && bridge.writeStartupTiming && _t) {
       var _d = function (x) { return x ? Math.round(x - _t.navigationStart) + 'ms' : '?'; };
-      window.electronAPI.writeStartupTiming(
+      bridge.writeStartupTiming(
         'page-nav init@' + Math.round(window.performance.now())
         + 'ms | domLoading=' + _d(_t.domLoading)
         + ' domInteractive=' + _d(_t.domInteractive)
@@ -42,8 +69,8 @@ async function init() {
       _tPhase[name] = Date.now(); _tOrder.push(name);
       // 每到一个阶段立即写入一次，即使后续卡住也能看到最后到达的阶段
       try {
-        if (window.electronAPI && window.electronAPI.writeStartupTiming) {
-          window.electronAPI.writeStartupTiming('mark ' + name + ' @' + (Date.now() - startTime) + 'ms');
+        if (bridge && bridge.writeStartupTiming) {
+          bridge.writeStartupTiming('mark ' + name + ' @' + (Date.now() - startTime) + 'ms');
         }
       } catch (e) {}
     }
@@ -54,7 +81,7 @@ async function init() {
   setupWindowMemoryEvents();
 
   try {
-    const earlyTheme = await window.electronAPI.store.get('versepc_theme');
+    const earlyTheme = await bridge.store.get('versepc_theme');
     if (earlyTheme) {
       const legacyThemes = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'teal', 'cyan', 'amber'];
       const themeName = legacyThemes.includes(earlyTheme) ? 'light' : earlyTheme;
@@ -81,16 +108,16 @@ async function init() {
   // 导航栏模式尽早应用：默认经典侧栏，开启「简约导航栏」后切回悬浮胶囊。
   // 尽早切换可避免已保存简约模式的用户在启动时看到经典侧栏闪一下。
   try {
-    const savedNavMode = await window.electronAPI.store.get('versepc_nav_minimal');
+    const savedNavMode = await bridge.store.get('versepc_nav_minimal');
     const useMinimalNav = savedNavMode === '1' || savedNavMode === true;
-    if (typeof window.applyNavigationMode === 'function') {
-      window.applyNavigationMode(useMinimalNav);
+    if (typeof applyNavigationMode === 'function') {
+      applyNavigationMode(useMinimalNav);
     }
   } catch (e) {}
 
   // 尽早恢复自定义导航栏宽度，避免启动时先显示默认宽度再跳变
   try {
-    const savedNavWidth = await window.electronAPI.store.get('versepc_nav_width');
+    const savedNavWidth = await bridge.store.get('versepc_nav_width');
     const navWidth = parseInt(savedNavWidth, 10);
     if (Number.isFinite(navWidth)) {
       const clamped = Math.max(64, Math.min(160, navWidth));
@@ -155,14 +182,9 @@ async function init() {
   // 这样用户看到的是：流畅的启动动画 → 直接可用的界面，中间没有卡顿
   // 必须等所有 Vue 页面挂载完成后再加载数据，否则 loadAccounts 写入的 innerHTML
   // 会被后续 Vue 挂载的模板覆盖，导致账号列表丢失
-  function _waitForVueMount() {
-    if (window._vueMountDone) return Promise.resolve();
-    return new Promise(function(resolve) { window._vueMountResolve = resolve; });
-  }
-
   // 阶段1：等 Vue 挂载完成（在 splash 覆盖下，用户看不到卡顿）
   setProgress(55, '正在加载界面...');
-  await _waitForVueMount();
+  await waitForVueMount();
   _mark('vue');
   // Vue 挂载会替换页面 DOM，必须在挂载完成后初始化自定义下拉框，否则实例引用的 DOM 已被替换，点击无响应
   initAllCustomSelects();
@@ -186,8 +208,8 @@ async function init() {
       return Promise.resolve(fn()).catch(function () {}).finally(function () {
         _subTiming[name] = Date.now() - s;
         try {
-          if (window.electronAPI && window.electronAPI.writeStartupTiming) {
-            window.electronAPI.writeStartupTiming('sub ' + name + ' done=' + (Date.now() - s) + 'ms');
+          if (bridge && bridge.writeStartupTiming) {
+            bridge.writeStartupTiming('sub ' + name + ' done=' + (Date.now() - s) + 'ms');
           }
         } catch (e) {}
       });
@@ -200,7 +222,7 @@ async function init() {
     ]);
   } catch (e) { console.error('后台数据加载失败:', e); }
   // 记录阶段2内部各函数耗时
-  window._initSubTiming = _subTiming;
+  initSubTiming = _subTiming;
   _mark('data');
 
   // 阶段3：加载模组与资源数据（后台异步加载，不阻塞 splash）
@@ -268,10 +290,10 @@ async function init() {
       return name + '=' + (next - _tPhase[name]) + 'ms';
     })).join(' ');
     const total = now - startTime;
-    const sub = (window._initSubTiming || {});
+    const sub = (initSubTiming || {});
     const subParts = (Object.keys(sub).map(function (k) { return k + '=' + sub[k] + 'ms'; })).join(' ');
-    if (window.electronAPI && window.electronAPI.writeStartupTiming) {
-      window.electronAPI.writeStartupTiming('init total=' + total + 'ms | ' + parts + ' | sub: ' + (subParts || 'none'));
+    if (bridge && bridge.writeStartupTiming) {
+      bridge.writeStartupTiming('init total=' + total + 'ms | ' + parts + ' | sub: ' + (subParts || 'none'));
     }
   } catch (e) {}
 
@@ -287,7 +309,7 @@ async function init() {
  */
 async function backgroundLoadWallpaper() {
   try {
-    const savedWallpaper = await window.electronAPI?.store?.get('versepc_wallpaper');
+    const savedWallpaper = await bridge?.store?.get('versepc_wallpaper');
     if (savedWallpaper && savedWallpaper !== 'none') {
       try { await _lazyLoadScript('js/three.bundle.js'); } catch (_) {}
       try { initWallpaper(); } catch (e) { console.error('[Wallpaper] init error:', e); }
@@ -414,15 +436,15 @@ function clearHiddenImageCache() {
 
 function loadWallpaperSettings() {
   Promise.all([
-    window.electronAPI.store.get('versepc_custom_image'),
-    window.electronAPI.store.get('versepc_custom_video'),
-    window.electronAPI.store.get('versepc_wallpaper'),
-    window.electronAPI.store.get('versepc_wallpaper_opacity'),
-    window.electronAPI.store.get('versepc_wallpaper_blur'),
-    window.electronAPI.store.get('versepc_wallpaper_fit'),
-    window.electronAPI.store.get('versepc_panorama_theme'),
-    window.electronAPI?.store?.get('versepc_panorama_speed'),
-    window.electronAPI?.store?.get('versepc_panorama_mouse_follow'),
+    bridge.store.get('versepc_custom_image'),
+    bridge.store.get('versepc_custom_video'),
+    bridge.store.get('versepc_wallpaper'),
+    bridge.store.get('versepc_wallpaper_opacity'),
+    bridge.store.get('versepc_wallpaper_blur'),
+    bridge.store.get('versepc_wallpaper_fit'),
+    bridge.store.get('versepc_panorama_theme'),
+    bridge?.store?.get('versepc_panorama_speed'),
+    bridge?.store?.get('versepc_panorama_mouse_follow'),
   ]).then(([
     savedCustomImage,
     savedCustomVideo,
@@ -492,11 +514,11 @@ function setupNavigation() {
   const collapseSidebar = () => {
     if (document.body.classList.contains('classic-nav')) return;
     if (document.body.classList.contains('sidebar-keep-open')) return;
-    if (typeof window.closeSidebarPanel === 'function') window.closeSidebarPanel();
+    if (typeof closeSidebarPanel === 'function') closeSidebarPanel();
   };
 
   // 版本下载功能开关：入口保留，进入后由 navigateToPage 跳转到合规提示页
-  const versionDownloadOn = !!(window.VERSE_FEATURES && window.VERSE_FEATURES.versionDownload);
+  const versionDownloadOn = !!(VERSE_FEATURES && VERSE_FEATURES.versionDownload);
 
   document.querySelectorAll('.nav-btn:not(.nav-submenu-toggle)').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -547,7 +569,7 @@ function setupTabs() {
       btn.classList.add('active');
 
       if (tab === 'release' || tab === 'snapshot' || tab === 'special' || tab === 'old' || tab === 'installed') {
-        currentVersionTab = tab;
+        appState.currentVersionTab = tab;
         renderVersions();
       } else if (tab === 'browse-modpacks') {
         loadResourcePage('modpack');
@@ -559,7 +581,7 @@ function setupTabs() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.loader-type-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      currentLoaderType = btn.dataset.loader;
+      appState.currentLoaderType = btn.dataset.loader;
       loadModLoaderVersions();
     });
   });
@@ -569,14 +591,14 @@ function setupLaunchBar() {
   document.getElementById('launch-btn').addEventListener('click', handleLaunch);
   document.getElementById('home-launch-btn').addEventListener('click', handleLaunch);
 
-  if (!launchVersionCustomSelect) {
-    launchVersionCustomSelect = new CustomSelect('launch-version-select-wrapper', {
+  if (!appState.launchVersionCustomSelect) {
+    appState.launchVersionCustomSelect = new CustomSelect('launch-version-select-wrapper', {
       onChange: (value) => {
-        // 同步到 currentLaunchVersionId 状态变量和主页内嵌卡片
-        if (value && value !== currentLaunchVersionId) {
-          currentLaunchVersionId = value;
-          _cachedLastLaunchVersion = value;
-          try { window.electronAPI.store.set('versepc_last_launch_version', value); } catch (_) {}
+        // 同步到 appState.currentLaunchVersionId 状态变量和主页内嵌卡片
+        if (value && value !== appState.currentLaunchVersionId) {
+          appState.currentLaunchVersionId = value;
+          appState._cachedLastLaunchVersion = value;
+          try { bridge.store.set('versepc_last_launch_version', value); } catch (_) {}
           renderHomeCurrentVersionCard();
         }
       }
@@ -613,33 +635,33 @@ function setupModBrowse() {
   if (!modSearchBtn) return;
   const modSearchInput = document.getElementById('mod-search-input');
   modSearchBtn.addEventListener('click', () => {
-    modSearchQuery = modSearchInput ? modSearchInput.value.trim() : '';
-    modSearchOffset = 0;
+    appState.modSearchQuery = modSearchInput ? modSearchInput.value.trim() : '';
+    appState.modSearchOffset = 0;
     loadMods();
   });
   if (modSearchInput) modSearchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.isComposing) {
-      modSearchQuery = e.target.value.trim();
-      modSearchOffset = 0;
+      appState.modSearchQuery = e.target.value.trim();
+      appState.modSearchOffset = 0;
       loadMods();
     }
   });
   const modPrevBtn = document.getElementById('mod-prev-btn');
   if (modPrevBtn) modPrevBtn.addEventListener('click', () => {
-    if (modSearchOffset >= 15) {
-      modSearchOffset -= 15;
+    if (appState.modSearchOffset >= 15) {
+      appState.modSearchOffset -= 15;
       loadMods();
     }
   });
   const modNextBtn = document.getElementById('mod-next-btn');
   if (modNextBtn) modNextBtn.addEventListener('click', () => {
-    modSearchOffset += 15;
+    appState.modSearchOffset += 15;
     loadMods();
   });
 
   const bindFilter = (id) => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('change', () => { modSearchOffset = 0; loadMods(); });
+    if (el) el.addEventListener('change', () => { appState.modSearchOffset = 0; loadMods(); });
   };
   bindFilter('mod-filter-loader');
   bindFilter('mod-filter-version');
@@ -810,7 +832,3 @@ function setupSettingsPage() {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { init, backgroundLoadWallpaper, setupWindowMemoryEvents, clearHiddenImageCache, loadWallpaperSettings, setupNavigation, setupTabs, setupLaunchBar, setupModBrowse, setupAccountButtons, setupSettingsPage };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ init, backgroundLoadWallpaper, setupWindowMemoryEvents, clearHiddenImageCache, loadWallpaperSettings, setupNavigation, setupTabs, setupLaunchBar, setupModBrowse, setupAccountButtons, setupSettingsPage })) {
-  window[name] = value;
-}

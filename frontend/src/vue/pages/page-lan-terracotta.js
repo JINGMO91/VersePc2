@@ -5,7 +5,16 @@
  *   3. 创建流程：启动游戏提示(端口25565) → 下一步(需游戏运行) → 创建隧道中(转圈) → 隧道信息 + 关闭
  *   4. 加入流程：输入房间码 → 下一步 → 连接中(转圈) → 连接成功 + 退出房间
  */
+import { gameStore } from '../../core/game-store.js';
+
+import { terracottaHostStep1, terracottaJoinStep1, terracottaJoinCodeInput } from '../../features/misc/lan.js';
+
+import { terracottaDownloadCore, terracottaHostNext, terracottaCopyRoomCode, terracottaCopyAddr, terracottaDisconnect, terracottaJoinNext } from '../../features/misc/lan.js';
+
 const PageLanTerracotta = {
+  setup() {
+    return { terracottaDownloadCore, terracottaHostNext, terracottaCopyRoomCode, terracottaCopyAddr, terracottaDisconnect, terracottaJoinNext };
+  },
   name: 'PageLanTerracotta',
   data() {
     return {};
@@ -13,12 +22,12 @@ const PageLanTerracotta = {
   computed: {
     // 运行中的游戏实例（与首页共用共享响应式 store，由 launch.js 写入）
     gameInstances() {
-      return window.VersePCGameStore ? window.VersePCGameStore.instances : [];
+      return gameStore ? gameStore.instances : [];
     }
   },
   methods: {
     formatElapsed(inst) {
-      const elapsed = Math.floor(((window.VersePCGameStore.now || Date.now()) - inst.startTime) / 1000);
+      const elapsed = Math.floor(((gameStore.now || Date.now()) - inst.startTime) / 1000);
       const mins = Math.floor(elapsed / 60);
       const secs = elapsed % 60;
       return mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
@@ -38,7 +47,7 @@ const PageLanTerracotta = {
             </div>
             <h2 class="terracotta-ob-title" id="terracotta-ob-title">你好！欢迎使用陶瓦联机</h2>
             <p class="terracotta-ob-desc" id="terracotta-ob-desc">在首次使用前，请先下载核心</p>
-            <button class="terracotta-ob-dl" id="terracotta-ob-dl" onclick="terracottaDownloadCore()" title="下载陶瓦联机核心">
+            <button class="terracotta-ob-dl" id="terracotta-ob-dl" @click="terracottaDownloadCore()" title="下载陶瓦联机核心">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
             <div class="terracotta-ob-spinner" id="terracotta-ob-spinner" style="display:none">
@@ -94,7 +103,7 @@ const PageLanTerracotta = {
                 <h3>启动游戏并开放局域网</h3>
                 <p class="terracotta-step-desc">1. 请先启动游戏并进入存档<br>2. 按 Esc 打开菜单，点击「对局域网开放」<br>3. 将端口设置为 <b>25565</b></p>
                 <div class="terracotta-port-hint" id="terracotta-port-hint">端口号：25565</div>
-                <button class="terracotta-next-btn" id="terracotta-host-next" onclick="terracottaHostNext()" disabled title="请先启动游戏并开放局域网">
+                <button class="terracotta-next-btn" id="terracotta-host-next" @click="terracottaHostNext()" disabled title="请先启动游戏并开放局域网">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
               </div>
@@ -110,14 +119,14 @@ const PageLanTerracotta = {
                 <div class="terracotta-info-row">
                   <span class="terracotta-info-label">房间码</span>
                   <span class="terracotta-info-value" id="terracotta-roomcode">--</span>
-                  <button class="terracotta-copy-btn" onclick="terracottaCopyRoomCode()" title="复制房间码">复制</button>
+                  <button class="terracotta-copy-btn" @click="terracottaCopyRoomCode()" title="复制房间码">复制</button>
                 </div>
                 <div class="terracotta-info-row">
                   <span class="terracotta-info-label">连接地址</span>
                   <span class="terracotta-info-value" id="terracotta-connect-addr">--</span>
-                  <button class="terracotta-copy-btn" onclick="terracottaCopyAddr()" title="复制连接地址">复制</button>
+                  <button class="terracotta-copy-btn" @click="terracottaCopyAddr()" title="复制连接地址">复制</button>
                 </div>
-                <button class="terracotta-close-btn" onclick="terracottaDisconnect()" title="关闭隧道">
+                <button class="terracotta-close-btn" @click="terracottaDisconnect()" title="关闭隧道">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
@@ -129,7 +138,7 @@ const PageLanTerracotta = {
                 <h3>加入房间</h3>
                 <p class="terracotta-step-desc">请粘贴房主发给你的房间码</p>
                 <textarea id="terracotta-join-code" class="terracotta-join-textarea" placeholder="粘贴房主发来的房间码..." oninput="terracottaJoinCodeInput(this)"></textarea>
-                <button class="terracotta-next-btn" id="terracotta-join-next" onclick="terracottaJoinNext()" disabled title="请先输入房间码">
+                <button class="terracotta-next-btn" id="terracotta-join-next" @click="terracottaJoinNext()" disabled title="请先输入房间码">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
               </div>
@@ -143,7 +152,7 @@ const PageLanTerracotta = {
                 </div>
                 <h3>连接成功</h3>
                 <p class="terracotta-step-desc">启动游戏后，在多人游戏的「局域网联机」板块找到房间即可进入</p>
-                <button class="terracotta-close-btn" onclick="terracottaDisconnect()" title="退出房间">
+                <button class="terracotta-close-btn" @click="terracottaDisconnect()" title="退出房间">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 </button>
               </div>
@@ -154,7 +163,5 @@ const PageLanTerracotta = {
           </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageLanTerracotta;

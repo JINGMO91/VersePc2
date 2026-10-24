@@ -1,7 +1,18 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+import { VerseSkinFigure } from './skin-figure.js';
+
 /**
  * @file accounts.js
  * @description 账户管理 - 陶瓦联机(P2P组网)的状态管理、下载、主机/客户端模式、皮肤展示
  */
+import { escapeHtml, _lazyLoadScript } from '../../core/utils.js';
+import { showToast, showModal, hideModal, showConfirmDialog } from '../misc/ui-components.js';
+import { loadInstalledMods } from '../mods/mod-browse.js';
+import { AVATAR_CACHE_VERSION } from '../versions/versions.js';
+
+import { appState } from '../../core/app-state.js';
+import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
 let accPollTimer = null;
 let accDlSessionId = null;
 let accDlPollTimer = null;
@@ -13,7 +24,7 @@ let accDlPollTimer = null;
  */
 async function _tauriFetch(url, options = {}) {
   // 非 Tauri 环境直接走原生 fetch
-  if (!window.__TAURI_PROXY__) {
+  if (!bridge.apiProxy) {
     return fetch(url, options);
   }
   // 只对 /api/ 路径走代理，外部 URL 仍走原生 fetch
@@ -28,7 +39,7 @@ async function _tauriFetch(url, options = {}) {
   if (options.body) {
     try { body = JSON.parse(options.body); } catch (e) { body = options.body; }
   }
-  const result = await window.__TAURI_PROXY__.apiProxy(method, u.pathname, params, body);
+  const result = await bridge.apiProxy(method, u.pathname, params, body);
   return {
     ok: result.ok,
     status: result.status,
@@ -112,8 +123,8 @@ function getSkinFigureImage(textureUrl, model) {
 async function _renderSkinFigure(textureUrl, model, key) {
   const cached = _skinFigureCache.get(key);
   if (cached) return cached;
-  if (!window.VerseSkinFigure) throw new Error('VerseSkinFigure unavailable');
-  const dataUrl = await window.VerseSkinFigure.render(textureUrl, model || 'default');
+  if (!VerseSkinFigure) throw new Error('VerseSkinFigure unavailable');
+  const dataUrl = await VerseSkinFigure.render(textureUrl, model || 'default');
   _skinFigureCache.set(key, dataUrl);
   return dataUrl;
 }
@@ -457,7 +468,7 @@ async function accStop() {
 function accCopyInvitation() {
   const code = document.getElementById('acc-status-invitation').textContent;
   if (code && code !== '--' && code !== '等待分配...') {
-    window.electronAPI.clipboard.writeText(code).then(() => {
+    bridge.clipboard.writeText(code).then(() => {
       showToast('房间码已复制', 'success');
     });
   }
@@ -466,7 +477,7 @@ function accCopyInvitation() {
 function accCopyConnect() {
   const addr = document.getElementById('acc-status-connect').textContent;
   if (addr && addr !== '--' && addr !== '等待分配...') {
-    window.electronAPI.clipboard.writeText(addr).then(() => {
+    bridge.clipboard.writeText(addr).then(() => {
       showToast('连接地址已复制', 'success');
     });
   }
@@ -474,7 +485,7 @@ function accCopyConnect() {
 
 async function loadSettingsFromLocal() {
   try {
-    const raw = await window.electronAPI.store.get('versepc_settings');
+    const raw = await bridge.store.get('versepc_settings');
     return raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
   } catch (e) { return null; }
 }
@@ -733,7 +744,7 @@ async function loadAccounts() {
         const avatarHtml = accUuid
           ? `<img src="" alt="" class="account-avatar-img" data-uuid="${accUuid}" data-server-url="${acc.serverUrl || ''}" data-username="${acc.username || ''}" data-offline="${(acc.type === 'offline' && !acc.serverUrl) ? '1' : '0'}">`
           : `<span class="account-avatar-text">${acc.username.charAt(0).toUpperCase()}</span>`;
-        return `<div class="account-item ${isSelected ? 'selected' : ''}" onclick="showAccountDetail('${acc.id}')">
+        return `<div class="account-item ${isSelected ? 'selected' : ''}"${actionAttrs('showAccountDetail', acc.id)}>
           <div class="account-avatar">${avatarHtml}</div>
           <div class="account-item-info">
             <div class="account-item-name">${escapeHtml(acc.username)}</div>
@@ -741,8 +752,8 @@ async function loadAccounts() {
             <div class="account-item-type ${typeClass}">${typeLabel}</div>
           </div>
           <div class="mod-actions">
-            ${!isSelected ? `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); selectAccount('${acc.id}')">选择</button>` : '<span style="color: var(--accent); font-size: 12px; padding: 4px 10px; display: inline-flex; align-items: center;">当前使用</span>'}
-            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); deleteAccount('${acc.id}')">删除</button>
+            ${!isSelected ? `<button class="btn btn-primary btn-sm"${actionAttrsStop('selectAccount', acc.id)}>选择</button>` : '<span style="color: var(--accent); font-size: 12px; padding: 4px 10px; display: inline-flex; align-items: center;">当前使用</span>'}
+      <button class="btn btn-danger btn-sm"${actionAttrsStop('deleteAccount', acc.id)}>删除</button>
           </div>
         </div>`;
       }).join('');
@@ -1705,27 +1716,27 @@ async function startMsAuth() {
       document.getElementById('msauth-status-text').textContent = '等待登录...';
 
       try {
-        await window.electronAPI?.clipboard?.writeText(result.userCode);
+        await bridge?.clipboard?.writeText(result.userCode);
       } catch (e) {}
 
       setTimeout(async () => {
         try {
-          await window.electronAPI?.openExternal?.(verifyUrl);
+          await bridge?.openExternal?.(verifyUrl);
         } catch (e) {
           console.warn('[Auth] 自动打开浏览器失败:', e);
         }
       }, 500);
 
-      if (msAuthPollInterval) clearInterval(msAuthPollInterval);
+      if (appState.msAuthPollInterval) clearInterval(appState.msAuthPollInterval);
       let _msAuthRetryCount = 0;
       const _msAuthMaxRetry = 2;
       const _msAuthStartPoll = async (deviceCode, userCode) => {
-        msAuthPollInterval = setInterval(async () => {
+        appState.msAuthPollInterval = setInterval(async () => {
         try {
           const pollResult = await API.pollMsAuth(deviceCode);
           if (pollResult.success) {
-            clearInterval(msAuthPollInterval);
-            msAuthPollInterval = null;
+            clearInterval(appState.msAuthPollInterval);
+            appState.msAuthPollInterval = null;
             document.getElementById('msauth-status-text').textContent = '登录成功！';
             showToast(`欢迎，${pollResult.account.username}！`, 'success');
             setTimeout(() => closeMsAuthModal(), 1500);
@@ -1736,8 +1747,8 @@ async function startMsAuth() {
             const isCodeUsed = pollResult.errorCode === 'invalid_grant' && pollResult.error && pollResult.error.includes('device_code');
             if (isCodeUsed && _msAuthRetryCount < _msAuthMaxRetry) {
               _msAuthRetryCount++;
-              clearInterval(msAuthPollInterval);
-              msAuthPollInterval = null;
+              clearInterval(appState.msAuthPollInterval);
+              appState.msAuthPollInterval = null;
               document.getElementById('msauth-status-text').textContent = '授权码已过期，正在重新获取...';
               try {
                 const newResult = await API.getMsDeviceCode();
@@ -1747,8 +1758,8 @@ async function startMsAuth() {
                   document.getElementById('msauth-url').textContent = newVerifyUrl;
                   document.getElementById('msauth-code-text').textContent = newResult.userCode;
                   document.getElementById('msauth-status-text').textContent = '新的授权码已获取，请重新登录...';
-                  try { await window.electronAPI?.clipboard?.writeText(newResult.userCode); } catch (e) {}
-                  try { await window.electronAPI?.openExternal?.(newVerifyUrl); } catch (e) {}
+                  try { await bridge?.clipboard?.writeText(newResult.userCode); } catch (e) {}
+                  try { await bridge?.openExternal?.(newVerifyUrl); } catch (e) {}
                   _msAuthStartPoll(newResult.deviceCode, newResult.userCode);
                   return;
                 }
@@ -1766,8 +1777,8 @@ async function startMsAuth() {
             else if (isCodeUsed) errMsg = '授权码已过期或已被使用，请点击重新登录';
             document.getElementById('msauth-status-text').textContent = errMsg;
             if (pollResult.needPurchase || pollResult.needCreateProfile || pollResult.errorCode === 'invalid_grant') {
-              clearInterval(msAuthPollInterval);
-              msAuthPollInterval = null;
+              clearInterval(appState.msAuthPollInterval);
+              appState.msAuthPollInterval = null;
             }
           }
         } catch (e) {
@@ -1788,7 +1799,7 @@ async function startMsAuth() {
 
 function closeMsAuthModal() {
   hideModal('msauth-modal');
-  if (msAuthPollInterval) { clearInterval(msAuthPollInterval); msAuthPollInterval = null; }
+  if (appState.msAuthPollInterval) { clearInterval(appState.msAuthPollInterval); appState.msAuthPollInterval = null; }
 }
 
 function closeOfflineModal() {
@@ -1798,11 +1809,11 @@ function closeOfflineModal() {
 
 function copyMsCode() {
   const code = document.getElementById('msauth-code-text').textContent;
-  window.electronAPI.clipboard.writeText(code).then(() => showToast('代码已复制', 'success'));
+  bridge.clipboard.writeText(code).then(() => showToast('代码已复制', 'success'));
 }
 
 async function reopenMsAuthPage() {
-  if (msAuthPollInterval) { clearInterval(msAuthPollInterval); msAuthPollInterval = null; }
+  if (appState.msAuthPollInterval) { clearInterval(appState.msAuthPollInterval); appState.msAuthPollInterval = null; }
   startMsAuth();
 }
 
@@ -1891,7 +1902,7 @@ function showProfileSelectModal(accessToken, clientToken, serverUrl, profiles) {
     const pUsernameParam = p.name ? `&username=${encodeURIComponent(p.name)}` : '';
     const pSkinUrl = `/api/avatar?uuid=${pUuid}${pServerParam}${pUsernameParam}`;
     return `
-    <div class="profile-select-item" onclick="selectThirdPartyProfile('${escapeOnclick(p.id)}', '${escapeOnclick(p.name)}')">
+    <div class="profile-select-item"${actionAttrs('selectThirdPartyProfile', p.id, p.name)}>
       <img src="${escapeHtml(pSkinUrl)}" alt="" class="profile-select-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
       <div class="profile-select-avatar-fallback" style="display:none;width:40px;height:40px;background:var(--bg-tertiary);border-radius:6px;align-items:center;justify-content:center;font-size:18px;color:var(--text-secondary);">${p.name.charAt(0).toUpperCase()}</div>
       <div class="profile-select-info">
@@ -2133,85 +2144,15 @@ async function fetchSessionCape() {
   }
 }
 
+registerActions({
+  showAccountDetail: (event, el, accountId) => showAccountDetail(accountId),
+  selectAccount: (event, el, accountId) => selectAccount(accountId),
+  deleteAccount: (event, el, accountId) => deleteAccount(accountId),
+  selectThirdPartyProfile: (event, el, profileId, profileName) => selectThirdPartyProfile(profileId, profileName),
+  toggleMod: (event, el, modId, enabled) => toggleMod(modId, enabled),
+  deleteMod: (event, el, modId) => deleteMod(modId),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { _tauriFetch, _fetchDataUrl, _reloadSkinViewer, getSkinFigureImage, _renderSkinFigure, _fetchAccountSkinTexture, _whenSkinCardVisible, _invalidateAvatarCache, accUpdateHeroBadge, accLoadStatus, accRefreshStatus, accDownload, accStartHost, accJoin, accStop, accCopyInvitation, accCopyConnect, loadSettingsFromLocal, toggleMod, deleteMod, _refreshAccountAvatars, _loadAvatarImg, _loadAvatarImgInto, loadAccounts, renderAccountCarousel, _carouselResetPosition, _carouselBindDrag, resetCarouselPosition, selectAccount, deleteAccount, showAccountDetail, showAccountList, destroySkinViewer, initSkinViewer, detailSelectAccount, detailDeleteAccount, detailRefreshSkin, copyDetailUuid, setAnim, setSkinBg, _createSkinCard, loadSkinSelector, selectSkin, handleSkinUpload, applyMsSkin, deleteMsSkin, startMsAuth, closeMsAuthModal, closeOfflineModal, copyMsCode, reopenMsAuthPage, closeThirdPartyModal, verifyThirdPartyServer, cropSkinHeadCanvas, showProfileSelectModal, closeProfileSelectModal, selectThirdPartyProfile, _capeFileUrl, _applyCapeToViewer, loadCapeSelector, selectCape, unselectCape, deleteCape, handleCapeUpload, fetchSessionCape, _skinFigureCache, _skinCardTasks, _avatarMemCache, ADD_CARD_ID, accPollTimer, accDlSessionId, accDlPollTimer, _skinFigureQueue, _skinCardObserver, _accountsListInitialized, _carouselCards, _carouselCurrentIndex, _carouselDrag, _currentDetailAccount, _skinViewer, _skinResizeObserver, _currentSkinBg, _applyingMsSkin, tpPendingAuth };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ _tauriFetch, _fetchDataUrl, _reloadSkinViewer, getSkinFigureImage, _renderSkinFigure, _fetchAccountSkinTexture, _whenSkinCardVisible, _invalidateAvatarCache, accUpdateHeroBadge, accLoadStatus, accRefreshStatus, accDownload, accStartHost, accJoin, accStop, accCopyInvitation, accCopyConnect, loadSettingsFromLocal, toggleMod, deleteMod, _refreshAccountAvatars, _loadAvatarImg, _loadAvatarImgInto, loadAccounts, renderAccountCarousel, _carouselResetPosition, _carouselBindDrag, resetCarouselPosition, selectAccount, deleteAccount, showAccountDetail, showAccountList, destroySkinViewer, initSkinViewer, detailSelectAccount, detailDeleteAccount, detailRefreshSkin, copyDetailUuid, setAnim, setSkinBg, _createSkinCard, loadSkinSelector, selectSkin, handleSkinUpload, applyMsSkin, deleteMsSkin, startMsAuth, closeMsAuthModal, closeOfflineModal, copyMsCode, reopenMsAuthPage, closeThirdPartyModal, verifyThirdPartyServer, cropSkinHeadCanvas, showProfileSelectModal, closeProfileSelectModal, selectThirdPartyProfile, _capeFileUrl, _applyCapeToViewer, loadCapeSelector, selectCape, unselectCape, deleteCape, handleCapeUpload, fetchSessionCape, _skinFigureCache, _skinCardTasks, _avatarMemCache, ADD_CARD_ID })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'accPollTimer', {
-  configurable: true,
-  get: () => accPollTimer,
-  set: (v) => { accPollTimer = v; },
-});
-Object.defineProperty(window, 'accDlSessionId', {
-  configurable: true,
-  get: () => accDlSessionId,
-  set: (v) => { accDlSessionId = v; },
-});
-Object.defineProperty(window, 'accDlPollTimer', {
-  configurable: true,
-  get: () => accDlPollTimer,
-  set: (v) => { accDlPollTimer = v; },
-});
-Object.defineProperty(window, '_skinFigureQueue', {
-  configurable: true,
-  get: () => _skinFigureQueue,
-  set: (v) => { _skinFigureQueue = v; },
-});
-Object.defineProperty(window, '_skinCardObserver', {
-  configurable: true,
-  get: () => _skinCardObserver,
-  set: (v) => { _skinCardObserver = v; },
-});
-Object.defineProperty(window, '_accountsListInitialized', {
-  configurable: true,
-  get: () => _accountsListInitialized,
-  set: (v) => { _accountsListInitialized = v; },
-});
-Object.defineProperty(window, '_carouselCards', {
-  configurable: true,
-  get: () => _carouselCards,
-  set: (v) => { _carouselCards = v; },
-});
-Object.defineProperty(window, '_carouselCurrentIndex', {
-  configurable: true,
-  get: () => _carouselCurrentIndex,
-  set: (v) => { _carouselCurrentIndex = v; },
-});
-Object.defineProperty(window, '_carouselDrag', {
-  configurable: true,
-  get: () => _carouselDrag,
-  set: (v) => { _carouselDrag = v; },
-});
-Object.defineProperty(window, '_currentDetailAccount', {
-  configurable: true,
-  get: () => _currentDetailAccount,
-  set: (v) => { _currentDetailAccount = v; },
-});
-Object.defineProperty(window, '_skinViewer', {
-  configurable: true,
-  get: () => _skinViewer,
-  set: (v) => { _skinViewer = v; },
-});
-Object.defineProperty(window, '_skinResizeObserver', {
-  configurable: true,
-  get: () => _skinResizeObserver,
-  set: (v) => { _skinResizeObserver = v; },
-});
-Object.defineProperty(window, '_currentSkinBg', {
-  configurable: true,
-  get: () => _currentSkinBg,
-  set: (v) => { _currentSkinBg = v; },
-});
-Object.defineProperty(window, '_applyingMsSkin', {
-  configurable: true,
-  get: () => _applyingMsSkin,
-  set: (v) => { _applyingMsSkin = v; },
-});
-Object.defineProperty(window, 'tpPendingAuth', {
-  configurable: true,
-  get: () => tpPendingAuth,
-  set: (v) => { tpPendingAuth = v; },
-});

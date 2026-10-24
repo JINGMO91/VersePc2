@@ -1,5 +1,10 @@
 /* page-java - Java 页 Vue 组件 */
+import { cancelJavaDownload } from '../../features/launch/java-mgr.js';
+
 const PageJava = {
+  setup() {
+    return { cancelJavaDownload };
+  },
   template: `
           <div class="page-header">
             <h2>Java 管理</h2>
@@ -70,12 +75,10 @@ const PageJava = {
             </div>
             <p id="java-progress-message" class="hint" style="margin-top: 8px;">准备下载...</p>
             <div style="margin-top: 12px;">
-              <button class="btn btn-danger btn-sm" id="java-cancel-btn" onclick="cancelJavaDownload()" style="display: none;">取消下载</button>
+              <button class="btn btn-danger btn-sm" id="java-cancel-btn" @click="cancelJavaDownload()" style="display: none;">取消下载</button>
             </div>
           </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageJava;

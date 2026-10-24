@@ -1,7 +1,18 @@
+import { API } from '../../core/api.js';
 /**
  * @file window-theme.js
  * @description 主题切换与窗口控制 - 亮/暗主题、自定义强调色、窗口最小化/关闭、页面导航
  */
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { resetCarouselPosition, showAccountList, _currentDetailAccount } from '../accounts/accounts.js';
+import { applyAccentColor } from '../launch/java.js';
+import { showToast } from '../misc/ui-components.js';
+import { updateWallpaperTheme } from './wallpaper-engine.js';
+import { openVersionSettings } from '../versions/version-settings.js';
+import { selectLaunchVersion, navigateToPage, openVersionDetail } from '../versions/versions.js';
+
+import { appState } from '../../core/app-state.js';
 function switchTheme(themeName) {
   document.documentElement.setAttribute('data-theme', themeName);
   document.documentElement.classList.toggle('dark-theme', themeName === 'dark');
@@ -36,7 +47,7 @@ function switchTheme(themeName) {
 
   API.saveSetting('theme', themeName);
   API.saveSetting('accentColor', accentColor);
-  window.electronAPI?.store?.set('versepc_theme', themeName).catch(() => {});
+  bridge?.store?.set('versepc_theme', themeName).catch(() => {});
 
   showToast(`已切换到「${getThemeLabel(themeName)}」主题`, 'success');
 }
@@ -61,8 +72,8 @@ function getThemeLabel(themeName) {
 }
 
 function browseFolder(type) {
-  if (window.electronAPI && window.electronAPI.showOpenDialog) {
-    window.electronAPI.showOpenDialog({ properties: ['openDirectory'] }).then(result => {
+  if (bridge && bridge.showOpenDialog) {
+    bridge.showOpenDialog({ properties: ['openDirectory'] }).then(result => {
       if (!result.canceled && result.filePaths.length > 0) {
         if (type === 'target') {
           document.getElementById('setting-target-dir').value = result.filePaths[0];
@@ -76,7 +87,7 @@ function browseFolder(type) {
 
 function updateHomeStats() {
   const el = document.getElementById('stat-installed');
-  if (el) el.textContent = installedVersions.length;
+  if (el) el.textContent = appState.installedVersions.length;
 }
 
 let isWindowMode = false;
@@ -121,14 +132,18 @@ function applyNavigationMode(minimal) {
   // 导航栏宽度变化会影响 Vue 网格/卡片布局
   window.dispatchEvent(new Event('resize'));
 }
-window.applyNavigationMode = applyNavigationMode;
+// 页面导航完成后收起侧边栏（由 setupWindowControls 注册实现）
+let closeSidebarPanelImpl = null;
+export function closeSidebarPanel() {
+  if (closeSidebarPanelImpl) closeSidebarPanelImpl();
+}
 
 function setupWindowControls() {
   const windowControls = document.getElementById('window-controls');
   const windowModeCheckbox = document.getElementById('setting-window-mode');
   const exitLauncherBtn = document.getElementById('exit-launcher-btn');
 
-  const isMac = window.electronAPI?.isMac === true;
+  const isMac = bridge.isMac === true;
   if (isMac) {
     document.body.classList.add('is-mac');
   }
@@ -180,7 +195,7 @@ function setupWindowControls() {
     });
 
     // 供页面导航等逻辑复用：完成导航后自动收起胶囊（经典侧栏不收起）
-    window.closeSidebarPanel = () => {
+    closeSidebarPanelImpl = () => {
       if (isClassicNav()) return;
       setSidebarOpen(false);
     };
@@ -198,26 +213,26 @@ function setupWindowControls() {
 
   const winBtnMinimize = document.getElementById('win-btn-minimize');
   if (winBtnMinimize) winBtnMinimize.addEventListener('click', () => {
-    window.electronAPI.minimize();
+    bridge.minimize();
   });
 
   const winBtnMaximize = document.getElementById('win-btn-maximize');
   if (winBtnMaximize) winBtnMaximize.addEventListener('click', () => {
-    window.electronAPI.maximize();
+    bridge.maximize();
   });
 
   const winBtnRestore = document.getElementById('win-btn-restore');
   if (winBtnRestore) winBtnRestore.addEventListener('click', () => {
-    window.electronAPI.maximize();
+    bridge.maximize();
   });
 
   const winBtnClose = document.getElementById('win-btn-close');
   if (winBtnClose) winBtnClose.addEventListener('click', () => {
-    window.electronAPI.close();
+    bridge.close();
   });
 
-  if (window.electronAPI.onRequestCloseAnimate) {
-    window.electronAPI.onRequestCloseAnimate(() => {
+  if (bridge.onRequestCloseAnimate) {
+    bridge.onRequestCloseAnimate(() => {
       const app = document.getElementById('app');
       if (app && !app.classList.contains('app-closing')) {
         app.classList.add('app-closing');
@@ -225,7 +240,7 @@ function setupWindowControls() {
     });
   }
 
-  window.electronAPI.onWindowStateChanged((data) => {
+  bridge.onWindowStateChanged((data) => {
     isWindowMaximized = data.maximized;
     isWindowMode = !data.fullscreen;
     if (windowModeCheckbox) {
@@ -234,7 +249,7 @@ function setupWindowControls() {
     updateWindowButtons();
   });
 
-  window.electronAPI.onWindowModeChanged((data) => {
+  bridge.onWindowModeChanged((data) => {
     isWindowMode = data.windowMode;
     isWindowMaximized = data.maximized;
     if (windowModeCheckbox) {
@@ -247,18 +262,18 @@ function setupWindowControls() {
     windowModeCheckbox.addEventListener('change', () => {
       const enabled = windowModeCheckbox.checked;
       isWindowMode = enabled;
-      window.electronAPI.setWindowMode(enabled);
+      bridge.setWindowMode(enabled);
       updateWindowButtons();
     });
   }
 
   if (exitLauncherBtn) {
     exitLauncherBtn.addEventListener('click', () => {
-      window.electronAPI.quitApp();
+      bridge.quitApp();
     });
   }
 
-  window.electronAPI.isFullscreen().then((fullscreen) => {
+  bridge.isFullscreen().then((fullscreen) => {
     isWindowMode = !fullscreen;
     if (windowModeCheckbox) {
       windowModeCheckbox.checked = isWindowMode;
@@ -361,7 +376,7 @@ function switchPage(pageName) {
     target.style.animation = 'pageIn 0.35s var(--ease-out-expo) backwards';
   }
 
-  previousPage = currentPage?.id?.replace('page-', '') || null;
+  appState.previousPage = currentPage?.id?.replace('page-', '') || null;
 
   // 切到账户页后，等页面动画/hidden→visible 完成、尺寸稳定，再把轮播轨道定位到中间，
   // 避免首次进入时卡片闪到最左边
@@ -373,18 +388,4 @@ function switchPage(pageName) {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { switchTheme, applyCustomAccent, getThemeLabel, browseFolder, updateHomeStats, applyNavigationMode, setupWindowControls, setupVersionListClicks, updateWindowButtons, setupSettingsSubmenu, switchPage, isWindowMode, isWindowMaximized };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ switchTheme, applyCustomAccent, getThemeLabel, browseFolder, updateHomeStats, applyNavigationMode, setupWindowControls, setupVersionListClicks, updateWindowButtons, setupSettingsSubmenu, switchPage })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'isWindowMode', {
-  configurable: true,
-  get: () => isWindowMode,
-  set: (v) => { isWindowMode = v; },
-});
-Object.defineProperty(window, 'isWindowMaximized', {
-  configurable: true,
-  get: () => isWindowMaximized,
-  set: (v) => { isWindowMaximized = v; },
-});

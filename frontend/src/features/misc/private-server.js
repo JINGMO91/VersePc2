@@ -1,3 +1,5 @@
+import { bridge } from '../../core/tauri-bridge.js';
+
 /**
  * js/app/private-server.js - 私人服务器页面业务逻辑
  *
@@ -8,6 +10,11 @@
  *   4. 一键复制地址
  *   5. 在线状态检测
  */
+
+import { escapeHtml } from '../../core/utils.js';
+import { showToast } from './ui-components.js';
+
+import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
 
 let privateServerList = [];
 let privateServerCheckCache = {}; // id -> { online, error, checkedAt }
@@ -44,7 +51,7 @@ const PS_CATEGORIES = [
 
 async function loadPrivateServers() {
   try {
-    const result = await window.electronAPI.privateServer.list();
+    const result = await bridge.privateServer.list();
     if (result && result.ok && Array.isArray(result.servers)) {
       privateServerList = result.servers;
     } else {
@@ -58,7 +65,7 @@ async function loadPrivateServers() {
 
 async function savePrivateServers() {
   try {
-    const result = await window.electronAPI.privateServer.save(privateServerList);
+    const result = await bridge.privateServer.save(privateServerList);
     return result && result.ok;
   } catch (e) {
     console.error('[PrivateServer] save failed:', e);
@@ -85,7 +92,7 @@ async function deletePrivateServer(id) {
 
 async function copyPrivateServerAddress(address) {
   try {
-    const result = await window.electronAPI.privateServer.copyAddress(address);
+    const result = await bridge.privateServer.copyAddress(address);
     if (result && result.ok) {
       showToast('地址已复制到剪贴板', 'success');
     } else {
@@ -102,7 +109,7 @@ async function loadPrivateServerIcon(img, icon) {
   img.onerror = null; // 防止加载失败后无限循环
   if (!icon) { img.src = 'img/icon.svg'; return; }
   try {
-    const r = await window.electronAPI.privateServer.getIcon(icon);
+    const r = await bridge.privateServer.getIcon(icon);
     if (r && r.ok && r.dataUrl) {
       img.src = r.dataUrl;
       return;
@@ -119,7 +126,7 @@ async function checkPrivateServerStatus(id) {
   privateServerCheckCache[id] = { online: null, error: null, checkedAt: Date.now() };
   renderPrivateServerPage();
   try {
-    const result = await window.electronAPI.privateServer.check(server.address);
+    const result = await bridge.privateServer.check(server.address);
     privateServerCheckCache[id] = {
       online: result && result.online,
       error: result && result.error,
@@ -147,7 +154,7 @@ function openPrivateServerModal(id) {
     <div class="modal" style="max-width:480px">
       <div class="modal-header">
         <h3>${isEdit ? '编辑服务器' : '添加服务器'}</h3>
-        <button class="modal-close" onclick="closePrivateServerModal()">&times;</button>
+        <button class="modal-close"${actionAttrs('closePrivateServerModal')}>&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
@@ -174,7 +181,7 @@ function openPrivateServerModal(id) {
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closePrivateServerModal()">取消</button>
+        <button class="btn btn-secondary"${actionAttrs('closePrivateServerModal')}>取消</button>
         <button class="btn btn-primary" id="ps-modal-confirm">保存</button>
       </div>
     </div>
@@ -213,7 +220,7 @@ function openPrivateServerModal(id) {
       }
     } else {
       try {
-        const result = await window.electronAPI.privateServer.add({
+        const result = await bridge.privateServer.add({
           name, address, description, icon, modpackUrl,
         });
         if (result && result.ok && result.server) {
@@ -261,7 +268,7 @@ function getJoinBannerHtml() {
   return `
     <div class="ps-join-banner">
       <span>如果你想入驻 Verse，</span>
-      <a href="javascript:void(0)" onclick="window.electronAPI?.openExternal('https://afdian.com/a/versejava')">点击这里</a>
+      <a href="javascript:void(0)" data-action="openExternal" data-args="[&quot;https://afdian.com/a/versejava&quot;]">点击这里</a>
     </div>
   `;
 }
@@ -358,7 +365,7 @@ function renderMyServersInner() {
     const iconEsc = String(server.icon || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const iconHtml = `<img src="${iconSrc}" alt="" class="ps-card-icon" onerror="loadPrivateServerIcon(this,'${iconEsc}')">`;
     const modpackBtn = server.modpackUrl
-      ? `<button class="btn btn-ghost btn-sm" onclick="window.open('${escapeHtml(server.modpackUrl)}', '_blank')">下载整合包</button>`
+      ? `<button class="btn btn-ghost btn-sm"${actionAttrs('openWindow', server.modpackUrl)}>下载整合包</button>`
       : '';
     const descParts = [server.description, server.maxPlayers ? `人数限制：${server.maxPlayers}` : ''].filter(Boolean);
     const descHtml = descParts.length ? `<div class="ps-card-desc">${escapeHtml(descParts.join(' ｜ '))}</div>` : '';
@@ -369,17 +376,17 @@ function renderMyServersInner() {
         ${iconHtml}
         <div class="ps-card-info">
           <div class="ps-card-title">${escapeHtml(server.name)}</div>
-          <div class="ps-card-address" onclick="copyPrivateServerAddress('${escapeHtml(server.address)}')" title="点击复制">
+          <div class="ps-card-address"${actionAttrs('copyPrivateServerAddress', server.address)} title="点击复制">
             ${escapeHtml(server.address)}
           </div>
           ${descHtml}
           ${versionHtml}
         </div>
-        <div class="ps-card-status" onclick="checkPrivateServerStatus('${escapeHtml(server.id)}');event.stopPropagation();" title="点击检测">
+        <div class="ps-card-status"${actionAttrsStop('checkPrivateServerStatus', server.id)} title="点击检测">
           ${getPrivateServerStatusHtml(server)}
         </div>
         <div class="ps-card-actions">
-          <button class="btn btn-primary btn-sm" onclick="copyPrivateServerAddress('${escapeHtml(server.address)}')">复制地址</button>
+          <button class="btn btn-primary btn-sm"${actionAttrs('copyPrivateServerAddress', server.address)}>复制地址</button>
           ${modpackBtn}
         </div>
       </div>
@@ -405,7 +412,7 @@ function renderMyServersInner() {
           <svg class="ps-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" id="ps-search-input" class="ps-search-input" placeholder="搜索服务器名称、地址或简介" value="${escapeHtml(psSearchKeyword)}">
         </div>
-        <button class="ps-refresh-btn" onclick="refreshPrivateServerList()" title="刷新列表">
+        <button class="ps-refresh-btn"${actionAttrs('refreshPrivateServerList')} title="刷新列表">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
       </div>
@@ -480,7 +487,7 @@ async function refreshPrivateServerList() {
 async function ensureLobbyServers() {
   if (lobbyServerList.length === 0) {
     try {
-      const result = await window.electronAPI.redstoneOnline.getServers();
+      const result = await bridge.redstoneOnline.getServers();
       if (result && result.ok && Array.isArray(result.servers) && result.servers.length > 0) {
         lobbyServerList = result.servers;
       } else {
@@ -529,7 +536,7 @@ async function loadLobbyRooms(resetOffset = false) {
   lobbyError = '';
   renderPrivateServerPage();
   try {
-    const result = await window.electronAPI.redstoneOnline.listPublicTunnels({
+    const result = await bridge.redstoneOnline.listPublicTunnels({
       serverAddress: lobbyServerAddress,
       offset: lobbyOffset,
     });
@@ -591,7 +598,7 @@ function renderLobbyInner() {
     return toolbarHtml + `
       <div class="ps-empty">
         <p>加载失败：${escapeHtml(lobbyError)}</p>
-        <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="loadLobbyRooms(true)">重试</button>
+        <button class="btn btn-secondary btn-sm" style="margin-top:8px"${actionAttrs('loadLobbyRooms', true)}>重试</button>
       </div>
       ${getLobbyTipHtml()}
     `;
@@ -717,7 +724,7 @@ function bindLobbyEvents(container) {
 async function copyLobbyAddress(address) {
   if (!address) return;
   try {
-    const result = await window.electronAPI.privateServer.copyAddress(address);
+    const result = await bridge.privateServer.copyAddress(address);
     if (result && result.ok) {
       showToast('联机地址已复制，去游戏内直接连接粘贴即可', 'success');
     } else {
@@ -739,13 +746,13 @@ async function showLobbyModsModal(serverAddress, tunnelId, title) {
     <div class="modal" style="max-width:420px">
       <div class="modal-header">
         <h3>房间模组 - ${escapeHtml(title)}</h3>
-        <button class="modal-close" onclick="closeLobbyModsModal()">&times;</button>
+        <button class="modal-close"${actionAttrs('closeLobbyModsModal')}>&times;</button>
       </div>
       <div class="modal-body">
         <div id="lobby-mods-content" style="text-align:center;padding:20px;color:var(--text-muted)">正在加载模组列表...</div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeLobbyModsModal()">关闭</button>
+        <button class="btn btn-secondary"${actionAttrs('closeLobbyModsModal')}>关闭</button>
       </div>
     </div>
   `;
@@ -754,7 +761,7 @@ async function showLobbyModsModal(serverAddress, tunnelId, title) {
 
   const content = document.getElementById('lobby-mods-content');
   try {
-    const result = await window.electronAPI.redstoneOnline.getTunnelMods({
+    const result = await bridge.redstoneOnline.getTunnelMods({
       serverAddress,
       tunnelId,
     });
@@ -781,90 +788,16 @@ function closeLobbyModsModal() {
   if (m) m.remove();
 }
 
+registerActions({
+  closePrivateServerModal,
+  copyPrivateServerAddress: (event, el, address) => copyPrivateServerAddress(address),
+  checkPrivateServerStatus: (event, el, serverId) => checkPrivateServerStatus(serverId),
+  refreshPrivateServerList,
+  loadLobbyRooms: (event, el, resetOffset) => loadLobbyRooms(!!resetOffset),
+  closeLobbyModsModal,
+  openWindow: (event, el, url) => window.open(url, '_blank'),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { loadPrivateServers, savePrivateServers, getPrivateServerById, deletePrivateServer, copyPrivateServerAddress, loadPrivateServerIcon, checkPrivateServerStatus, openPrivateServerModal, closePrivateServerModal, getPrivateServerStatusHtml, getJoinBannerHtml, renderPrivateServerPage, renderMyServersInner, bindPrivateServerToolbarEvents, initPrivateServerPage, refreshPrivateServerList, ensureLobbyServers, lobbyCycleServer, loadLobbyRooms, renderLobbyInner, getLobbyTipHtml, bindLobbyEvents, copyLobbyAddress, showLobbyModsModal, closeLobbyModsModal, PS_PAGE_SIZE, LOBBY_PAGE_SIZE, PS_CATEGORIES, privateServerList, privateServerCheckCache, _privateServerModal, psSearchKeyword, psActiveCategory, psCurrentPage, psActiveView, lobbyRooms, lobbyLoading, lobbyOffset, lobbyHasMore, lobbyServerList, lobbyServerIdx, lobbyServerAddress, lobbyLoaded, lobbyError };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ loadPrivateServers, savePrivateServers, getPrivateServerById, deletePrivateServer, copyPrivateServerAddress, loadPrivateServerIcon, checkPrivateServerStatus, openPrivateServerModal, closePrivateServerModal, getPrivateServerStatusHtml, getJoinBannerHtml, renderPrivateServerPage, renderMyServersInner, bindPrivateServerToolbarEvents, initPrivateServerPage, refreshPrivateServerList, ensureLobbyServers, lobbyCycleServer, loadLobbyRooms, renderLobbyInner, getLobbyTipHtml, bindLobbyEvents, copyLobbyAddress, showLobbyModsModal, closeLobbyModsModal, PS_PAGE_SIZE, LOBBY_PAGE_SIZE, PS_CATEGORIES })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'privateServerList', {
-  configurable: true,
-  get: () => privateServerList,
-  set: (v) => { privateServerList = v; },
-});
-Object.defineProperty(window, 'privateServerCheckCache', {
-  configurable: true,
-  get: () => privateServerCheckCache,
-  set: (v) => { privateServerCheckCache = v; },
-});
-Object.defineProperty(window, '_privateServerModal', {
-  configurable: true,
-  get: () => _privateServerModal,
-  set: (v) => { _privateServerModal = v; },
-});
-Object.defineProperty(window, 'psSearchKeyword', {
-  configurable: true,
-  get: () => psSearchKeyword,
-  set: (v) => { psSearchKeyword = v; },
-});
-Object.defineProperty(window, 'psActiveCategory', {
-  configurable: true,
-  get: () => psActiveCategory,
-  set: (v) => { psActiveCategory = v; },
-});
-Object.defineProperty(window, 'psCurrentPage', {
-  configurable: true,
-  get: () => psCurrentPage,
-  set: (v) => { psCurrentPage = v; },
-});
-Object.defineProperty(window, 'psActiveView', {
-  configurable: true,
-  get: () => psActiveView,
-  set: (v) => { psActiveView = v; },
-});
-Object.defineProperty(window, 'lobbyRooms', {
-  configurable: true,
-  get: () => lobbyRooms,
-  set: (v) => { lobbyRooms = v; },
-});
-Object.defineProperty(window, 'lobbyLoading', {
-  configurable: true,
-  get: () => lobbyLoading,
-  set: (v) => { lobbyLoading = v; },
-});
-Object.defineProperty(window, 'lobbyOffset', {
-  configurable: true,
-  get: () => lobbyOffset,
-  set: (v) => { lobbyOffset = v; },
-});
-Object.defineProperty(window, 'lobbyHasMore', {
-  configurable: true,
-  get: () => lobbyHasMore,
-  set: (v) => { lobbyHasMore = v; },
-});
-Object.defineProperty(window, 'lobbyServerList', {
-  configurable: true,
-  get: () => lobbyServerList,
-  set: (v) => { lobbyServerList = v; },
-});
-Object.defineProperty(window, 'lobbyServerIdx', {
-  configurable: true,
-  get: () => lobbyServerIdx,
-  set: (v) => { lobbyServerIdx = v; },
-});
-Object.defineProperty(window, 'lobbyServerAddress', {
-  configurable: true,
-  get: () => lobbyServerAddress,
-  set: (v) => { lobbyServerAddress = v; },
-});
-Object.defineProperty(window, 'lobbyLoaded', {
-  configurable: true,
-  get: () => lobbyLoaded,
-  set: (v) => { lobbyLoaded = v; },
-});
-Object.defineProperty(window, 'lobbyError', {
-  configurable: true,
-  get: () => lobbyError,
-  set: (v) => { lobbyError = v; },
-});

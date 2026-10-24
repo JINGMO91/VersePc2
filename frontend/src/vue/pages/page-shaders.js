@@ -1,10 +1,15 @@
 /* page-shaders - 光影页 Vue 组件 */
+import { openFolder } from '../../features/launch/java.js';
+
 const PageShaders = {
+  setup() {
+    return { openFolder };
+  },
   template: `
           <div class="page-header">
             <h2>光影包</h2>
             <div class="page-actions">
-              <button class="btn btn-secondary" onclick="openFolder('shaderpacks')">
+              <button class="btn btn-secondary" @click="openFolder('shaderpacks')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
                 打开文件夹
               </button>
@@ -26,7 +31,5 @@ const PageShaders = {
           </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageShaders;

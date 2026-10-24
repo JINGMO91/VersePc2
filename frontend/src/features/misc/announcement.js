@@ -1,15 +1,19 @@
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { switchPage } from '../settings/window-theme.js';
+import { navigateToPage } from '../versions/versions.js';
+
+import { appState } from '../../core/app-state.js';
+
 const SUPPORT_MILESTONES = [1, 50, 100];
 
 function getLaunchCount() {
     try { return parseInt(localStorage.getItem('verse_launchCount') || '0', 10); }
     catch (e) { return 0; }
-}
-
-var _launchCounted = false;
-
+}
 function incrementLaunchCount() {
-    if (_launchCounted) return getLaunchCount();
-    _launchCounted = true;
+    if (appState._launchCounted) return getLaunchCount();
+    appState._launchCounted = true;
     var c = getLaunchCount() + 1;
     try { localStorage.setItem('verse_launchCount', String(c)); } catch (e) {}
     return c;
@@ -83,7 +87,7 @@ var ANNOUNCEMENT_CONTENT = {
         <div class="announcement-section">
             <h4>实验性功能</h4>
             <p>实验性功能（AI 助手等）目前需要<strong>赞助后获取测试版</strong>才能解锁使用。</p>
-            <p>如果你对实验性功能感兴趣，欢迎前往 <a href="javascript:void(0)" onclick="window.electronAPI?.openExternal('https://afdian.com/a/versejava')" style="color:#9b59b6;font-weight:bold;">爱发电</a> 支持我们的发展</p>
+            <p>如果你对实验性功能感兴趣，欢迎前往 <a href="javascript:void(0)" data-action="openExternal" data-args="[&quot;https://afdian.com/a/versejava&quot;]" style="color:#9b59b6;font-weight:bold;">爱发电</a> 支持我们的发展</p>
         </div>
 
         <div class="announcement-section">
@@ -99,12 +103,11 @@ var ANNOUNCEMENT_CONTENT = {
 };
 
 async function showAnnouncementModal(forceShow) {
+    let currentVersion = '1.0.0';
     try {
-        var versionResult = await window.electronAPI.updater.getVersion();
-        var currentVersion = versionResult ? versionResult.version : '1.0.0';
-    } catch (e) {
-        var currentVersion = '1.0.0';
-    }
+        var versionResult = await bridge.updater.getVersion();
+        currentVersion = versionResult ? versionResult.version : '1.0.0';
+    } catch (e) {}
 
     if (!forceShow) {
         try {
@@ -115,7 +118,7 @@ async function showAnnouncementModal(forceShow) {
 
     var noticeMode = 'show-all';
     try {
-        var saved = await window.electronAPI.store.get('versepc_other_settings');
+        var saved = await bridge.store.get('versepc_other_settings');
         if (saved) {
             var settings = JSON.parse(saved);
             if (settings.launcherNoticeMode) noticeMode = settings.launcherNoticeMode;
@@ -212,19 +215,5 @@ async function showUpdateAnnouncement() {
 }
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
-export { getLaunchCount, incrementLaunchCount, isSupportMilestone, checkSupportMilestone, showSupportModal, openSupportPage, dismissSupportModal, showAnnouncementModal, dismissAnnouncementModal, announcementGotoUpdateSettings, checkAnnouncementPopup, showUpdateAnnouncement, SUPPORT_MILESTONES, _launchCounted, ANNOUNCEMENT_CONTENT };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ getLaunchCount, incrementLaunchCount, isSupportMilestone, checkSupportMilestone, showSupportModal, openSupportPage, dismissSupportModal, showAnnouncementModal, dismissAnnouncementModal, announcementGotoUpdateSettings, checkAnnouncementPopup, showUpdateAnnouncement, SUPPORT_MILESTONES })) {
-  window[name] = value;
-}
+export { getLaunchCount, incrementLaunchCount, isSupportMilestone, checkSupportMilestone, showSupportModal, openSupportPage, dismissSupportModal, showAnnouncementModal, dismissAnnouncementModal, announcementGotoUpdateSettings, checkAnnouncementPopup, showUpdateAnnouncement, SUPPORT_MILESTONES, ANNOUNCEMENT_CONTENT };
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, '_launchCounted', {
-  configurable: true,
-  get: () => _launchCounted,
-  set: (v) => { _launchCounted = v; },
-});
-Object.defineProperty(window, 'ANNOUNCEMENT_CONTENT', {
-  configurable: true,
-  get: () => ANNOUNCEMENT_CONTENT,
-  set: (v) => { ANNOUNCEMENT_CONTENT = v; },
-});

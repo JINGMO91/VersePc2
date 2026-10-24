@@ -1,19 +1,28 @@
+import { API } from '../../core/api.js';
 /**
  * @file favorites.js
  * @description 收藏夹管理模块 - 负责收藏夹的加载、渲染、多选、批量操作及子页面交互
  */
+import { escapeHtml } from '../../core/utils.js';
+import { showToast, formatNumber } from '../misc/ui-components.js';
+import { openModDetail } from './mod-detail.js';
+import { quickInstallMod, showModDownloadModal } from './mod-install.js';
+
+import { appState } from '../../core/app-state.js';
+import { formatModNameWithChinese } from './chinese-names.js';
+import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
 
 // 加载收藏夹数据，初始化当前选中项并渲染下拉选择
 async function loadFavoritesData() {
   try {
-    _favorites = await API.getFavorites();
-    if (_favorites.length > 0 && !_currentFavId) {
-      _currentFavId = _favorites[0].id;
+    appState._favorites = await API.getFavorites();
+    if (appState._favorites.length > 0 && !appState._currentFavId) {
+      appState._currentFavId = appState._favorites[0].id;
     }
     renderFavFolderSelect();
   } catch (e) {
     console.error('[Fav] 加载收藏夹失败:', e);
-    _favorites = [{ name: '默认', id: 'default', favs: [], notes: {} }];
+    appState._favorites = [{ name: '默认', id: 'default', favs: [], notes: {} }];
   }
 }
 
@@ -21,20 +30,20 @@ async function loadFavoritesData() {
 function renderFavFolderSelect() {
   const sel = document.getElementById('fav-folder-select');
   if (sel) {
-    sel.innerHTML = _favorites.map((f) => {
-      return '<option value="' + f.id + '"' + (f.id === _currentFavId ? ' selected' : '') + '>' + escapeHtml(f.name) + ' (' + f.favs.length + ')</option>';
+    sel.innerHTML = appState._favorites.map((f) => {
+      return '<option value="' + f.id + '"' + (f.id === appState._currentFavId ? ' selected' : '') + '>' + escapeHtml(f.name) + ' (' + f.favs.length + ')</option>';
     }).join('');
     sel.onchange = () => {
-      _currentFavId = sel.value;
-      _favSelectedItems.clear();
-      _favMultiSelectMode = false;
+      appState._currentFavId = sel.value;
+      appState._favSelectedItems.clear();
+      appState._favMultiSelectMode = false;
       renderFavPage();
     };
   }
   const subSel = document.getElementById('fav-sub-folder-select');
   if (subSel) {
-    subSel.innerHTML = _favorites.map((f) => {
-      return '<option value="' + escapeHtml(f.id) + '"' + (f.id === (_favSubCurrentFavId || _currentFavId) ? ' selected' : '') + '>' + escapeHtml(f.name) + ' (' + (f.favs ? f.favs.length : 0) + ')</option>';
+    subSel.innerHTML = appState._favorites.map((f) => {
+      return '<option value="' + escapeHtml(f.id) + '"' + (f.id === (_favSubCurrentFavId || appState._currentFavId) ? ' selected' : '') + '>' + escapeHtml(f.name) + ' (' + (f.favs ? f.favs.length : 0) + ')</option>';
     }).join('');
   }
 }
@@ -45,7 +54,7 @@ async function renderFavPage() {
   const empty = document.getElementById('fav-empty');
   if (!content || !empty) return;
 
-  const currentFav = _favorites.find((f) => f.id === _currentFavId);
+  const currentFav = appState._favorites.find((f) => f.id === appState._currentFavId);
   if (!currentFav || !currentFav.favs || currentFav.favs.length === 0) {
     content.style.display = 'none';
     empty.style.display = 'block';
@@ -59,15 +68,15 @@ async function renderFavPage() {
   try {
     const projectIds = currentFav.favs;
     const projects = await fetchFavProjects(projectIds);
-    const filtered = _favSearchQuery
+    const filtered = appState._favSearchQuery
       ? projects.filter((p) => {
-        return (p.title || '').toLowerCase().includes(_favSearchQuery.toLowerCase()) ||
-          (p.description || '').toLowerCase().includes(_favSearchQuery.toLowerCase());
+        return (p.title || '').toLowerCase().includes(appState._favSearchQuery.toLowerCase()) ||
+          (p.description || '').toLowerCase().includes(appState._favSearchQuery.toLowerCase());
       })
       : projects;
 
     if (filtered.length === 0) {
-      content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)"><p>' + (_favSearchQuery ? '没有找到匹配的收藏' : '收藏夹为空') + '</p></div>';
+      content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)"><p>' + (appState._favSearchQuery ? '没有找到匹配的收藏' : '收藏夹为空') + '</p></div>';
       return;
     }
 
@@ -85,11 +94,11 @@ async function renderFavPage() {
       const items = grouped[type];
       html += '<div class="fav-category-title">' + (typeLabels[type] || type) + ' (' + items.length + ')</div>';
       items.forEach((p) => {
-        const isChecked = _favSelectedItems.has(p.id);
+        const isChecked = appState._favSelectedItems.has(p.id);
         const note = currentFav.notes && currentFav.notes[p.id] ? currentFav.notes[p.id] : '';
-        html += '<div class="fav-item" data-id="' + escapeHtml(p.id) + '" onclick="openFavItemDetail(\'' + escapeOnclick(p.id) + '\', \'' + escapeOnclick(p.source || 'modrinth') + '\')">';
-        if (_favMultiSelectMode) {
-          html += '<input type="checkbox" class="fav-item-checkbox"' + (isChecked ? ' checked' : '') + ' onclick="event.stopPropagation(); toggleFavItemSelect(\'' + escapeOnclick(p.id) + '\')">';
+        html += '<div class="fav-item" data-id="' + escapeHtml(p.id) + '"' + actionAttrs('openFavItemDetail', p.id, p.source || 'modrinth') + '>';
+        if (appState._favMultiSelectMode) {
+          html += '<input type="checkbox" class="fav-item-checkbox"' + (isChecked ? ' checked' : '') + actionAttrsStop('toggleFavItemSelect', p.id) + '>';
         }
         if (p.icon) {
           html += '<img class="fav-item-icon" src="' + escapeHtml(p.icon) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="fav-item-icon-placeholder" style="display:none">' + escapeHtml((p.title || '?')[0]) + '</div>';
@@ -103,8 +112,8 @@ async function renderFavPage() {
         html += '</div>';
         html += '<span class="fav-item-type">' + (typeLabels[type] || type) + '</span>';
         html += '<div class="fav-item-actions">';
-        html += '<button class="btn-icon" title="编辑备注" onclick="event.stopPropagation(); editFavNote(\'' + escapeOnclick(p.id) + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
-        html += '<button class="btn-icon fav-remove" title="取消收藏" onclick="event.stopPropagation(); removeFavItem(\'' + escapeOnclick(p.id) + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+        html += '<button class="btn-icon" title="编辑备注"' + actionAttrsStop('editFavNote', p.id) + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>';
+        html += '<button class="btn-icon fav-remove" title="取消收藏"' + actionAttrsStop('removeFavItem', p.id) + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
         html += '</div></div>';
       });
     });
@@ -141,7 +150,7 @@ async function fetchFavProjects(projectIds) {
 
 // 打开收藏项目详情（多选模式下切换选中状态）
 function openFavItemDetail(projectId, source) {
-  if (_favMultiSelectMode) {
+  if (appState._favMultiSelectMode) {
     toggleFavItemSelect(projectId);
     return;
   }
@@ -160,7 +169,7 @@ function enterFavSubPage() {
   if (!browseSection || !favSection) return;
   browseSection.style.display = 'none';
   favSection.style.display = 'block';
-  _favSubCurrentFavId = _currentFavId;
+  _favSubCurrentFavId = appState._currentFavId;
   populateFavSubFolderSelect();
   renderFavSubList();
 }
@@ -181,7 +190,7 @@ function exitFavSubPage() {
 function populateFavSubFolderSelect() {
   const sel = document.getElementById('fav-sub-folder-select');
   if (!sel) return;
-  sel.innerHTML = _favorites.map((f) => {
+  sel.innerHTML = appState._favorites.map((f) => {
     return '<option value="' + escapeHtml(f.id) + '"' + (f.id === _favSubCurrentFavId ? ' selected' : '') + '>' + escapeHtml(f.name) + ' (' + (f.favs ? f.favs.length : 0) + ')</option>';
   }).join('');
 }
@@ -189,7 +198,7 @@ function populateFavSubFolderSelect() {
 // 子页面切换收藏夹时触发
 function onFavSubFolderChange(favId) {
   _favSubCurrentFavId = favId;
-  _currentFavId = favId;
+  appState._currentFavId = favId;
   _favSubSelected.clear();
   renderFavSubFolderSelect();
   renderFavSubList();
@@ -211,7 +220,7 @@ async function renderFavSubList() {
   const empty = document.getElementById('fav-sub-empty');
   if (!list || !empty) return;
 
-  const currentFav = _favorites.find((f) => f.id === _favSubCurrentFavId);
+  const currentFav = appState._favorites.find((f) => f.id === _favSubCurrentFavId);
   if (!currentFav || !currentFav.favs || currentFav.favs.length === 0) {
     list.style.display = 'none';
     empty.style.display = 'block';
@@ -236,11 +245,11 @@ async function renderFavSubList() {
     }
 
     list.innerHTML = filtered.map((p) => {
-      const isFav = _favorites.some((f) => f.favs.includes(p.id));
+      const isFav = appState._favorites.some((f) => f.favs.includes(p.id));
       const isChecked = _favSubSelected.has(p.id);
       const source = p.source || 'modrinth';
-      return '<div class="mod-item mod-item-clickable' + (_favSubMultiSelect ? ' mod-multiselect-active' : '') + '" onclick="openModDetail(\'' + escapeOnclick(p.id) + '\', \'' + escapeOnclick(source) + '\')">' +
-        (_favSubMultiSelect ? '<div class="mod-checkbox' + (isChecked ? ' checked' : '') + '" data-mod-id="' + escapeHtml(p.id) + '" onclick="event.stopPropagation();toggleFavSubItemSelect(\'' + escapeOnclick(p.id) + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>' : '') +
+      return '<div class="mod-item mod-item-clickable' + (_favSubMultiSelect ? ' mod-multiselect-active' : '') + '"' + actionAttrs('openModDetail', p.id, source) + '>' +
+        (_favSubMultiSelect ? '<div class="mod-checkbox' + (isChecked ? ' checked' : '') + '" data-mod-id="' + escapeHtml(p.id) + '"' + actionAttrsStop('toggleFavSubItemSelect', p.id) + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>' : '') +
         '<div class="mod-icon"><img src="' + escapeHtml(p.icon || '') + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.classList.add(\'mod-icon--fallback\')"></div>' +
         '<div class="mod-info">' +
           '<div class="mod-name">' + escapeHtml(formatModNameWithChinese(p.slug || p.id, p.title)) + '</div>' +
@@ -251,9 +260,9 @@ async function renderFavSubList() {
             '<span>' + (p.categories || []).slice(0, 3).join(', ') + '</span>' +
           '</div>' +
         '</div>' +
-        '<div class="mod-actions" onclick="event.stopPropagation()">' +
-          '<button class="fav-heart-btn active" data-project-id="' + escapeHtml(p.id) + '" onclick="event.stopPropagation(); showFavSelectDropdown(\'' + escapeOnclick(p.id) + '\', this)"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></button>' +
-          '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openModDetail(\'' + escapeOnclick(p.id) + '\', \'' + escapeOnclick(source) + '\')">安装</button>' +
+        '<div class="mod-actions" data-stop="1">' +
+          '<button class="fav-heart-btn active" data-project-id="' + escapeHtml(p.id) + '"' + actionAttrsStop('showFavSelectDropdown', p.id) + '><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></button>' +
+          '<button class="btn btn-primary btn-sm"' + actionAttrsStop('openModDetail', p.id, source) + '>安装</button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -288,7 +297,7 @@ function toggleFavSubItemSelect(projectId) {
 
 // 子页面全选/取消全选
 function toggleFavSubSelectAll(checked) {
-  const currentFav = _favorites.find((f) => f.id === _favSubCurrentFavId);
+  const currentFav = appState._favorites.find((f) => f.id === _favSubCurrentFavId);
   if (!currentFav) return;
   _favSubSelected.clear();
   if (checked) {
@@ -317,7 +326,7 @@ async function batchRemoveFavSub() {
   try {
     for (const projectId of _favSubSelected) {
       await API.removeFromFavorite(_favSubCurrentFavId, projectId);
-      const fav = _favorites.find((f) => f.id === _favSubCurrentFavId);
+      const fav = appState._favorites.find((f) => f.id === _favSubCurrentFavId);
       if (fav) fav.favs = fav.favs.filter((id) => id !== projectId);
     }
     _favSubSelected.clear();
@@ -346,40 +355,40 @@ async function batchDownloadFavSub() {
 
 // 切换单个项目选中状态
 function toggleFavItemSelect(projectId) {
-  if (_favSelectedItems.has(projectId)) {
-    _favSelectedItems.delete(projectId);
+  if (appState._favSelectedItems.has(projectId)) {
+    appState._favSelectedItems.delete(projectId);
   } else {
-    _favSelectedItems.add(projectId);
+    appState._favSelectedItems.add(projectId);
   }
   updateFavSelectUI();
   const cb = document.querySelector('.fav-item[data-id="' + CSS.escape(projectId) + '"] .fav-item-checkbox');
-  if (cb) cb.checked = _favSelectedItems.has(projectId);
+  if (cb) cb.checked = appState._favSelectedItems.has(projectId);
 }
 
 // 切换主页多选模式
 function toggleFavMultiSelect() {
-  _favMultiSelectMode = !_favMultiSelectMode;
-  _favSelectedItems.clear();
+  appState._favMultiSelectMode = !appState._favMultiSelectMode;
+  appState._favSelectedItems.clear();
   const bar = document.getElementById('fav-multiselect-bar');
-  if (bar) bar.style.display = _favMultiSelectMode ? 'flex' : 'none';
+  if (bar) bar.style.display = appState._favMultiSelectMode ? 'flex' : 'none';
   const btn = document.getElementById('fav-multiselect-toggle');
-  if (btn) btn.classList.toggle('active', _favMultiSelectMode);
+  if (btn) btn.classList.toggle('active', appState._favMultiSelectMode);
   renderFavPage();
 }
 
 // 主页全选/取消全选
 function toggleFavSelectAll(checked) {
-  const currentFav = _favorites.find((f) => f.id === _currentFavId);
+  const currentFav = appState._favorites.find((f) => f.id === appState._currentFavId);
   if (!currentFav) return;
-  _favSelectedItems.clear();
-  if (checked) currentFav.favs.forEach((id) => { _favSelectedItems.add(id); });
+  appState._favSelectedItems.clear();
+  if (checked) currentFav.favs.forEach((id) => { appState._favSelectedItems.add(id); });
   updateFavSelectUI();
   renderFavPage();
 }
 
 // 更新主页多选操作栏状态
 function updateFavSelectUI() {
-  const count = _favSelectedItems.size;
+  const count = appState._favSelectedItems.size;
   const countEl = document.getElementById('fav-selected-count');
   if (countEl) countEl.textContent = '已选 ' + count + ' 个';
   const removeBtn = document.getElementById('fav-batch-remove-btn');
@@ -390,10 +399,10 @@ function updateFavSelectUI() {
 
 // 取消单个项目收藏
 async function removeFavItem(projectId) {
-  if (!_currentFavId) return;
+  if (!appState._currentFavId) return;
   try {
-    await API.removeFromFavorite(_currentFavId, projectId);
-    const fav = _favorites.find((f) => f.id === _currentFavId);
+    await API.removeFromFavorite(appState._currentFavId, projectId);
+    const fav = appState._favorites.find((f) => f.id === appState._currentFavId);
     if (fav) fav.favs = fav.favs.filter((id) => id !== projectId);
     renderFavFolderSelect();
     renderFavPage();
@@ -406,17 +415,17 @@ async function removeFavItem(projectId) {
 
 // 批量取消主页选中项目的收藏
 async function batchRemoveFavorites() {
-  if (_favSelectedItems.size === 0) return;
-  const count = _favSelectedItems.size;
+  if (appState._favSelectedItems.size === 0) return;
+  const count = appState._favSelectedItems.size;
   if (!confirm('确定要取消收藏 ' + count + ' 个项目吗？')) return;
   try {
-    const idsToRemove = Array.from(_favSelectedItems);
+    const idsToRemove = Array.from(appState._favSelectedItems);
     for (let i = 0; i < idsToRemove.length; i++) {
-      await API.removeFromFavorite(_currentFavId, idsToRemove[i]);
+      await API.removeFromFavorite(appState._currentFavId, idsToRemove[i]);
     }
-    const fav = _favorites.find((f) => f.id === _currentFavId);
-    if (fav) fav.favs = fav.favs.filter((id) => !_favSelectedItems.has(id));
-    _favSelectedItems.clear();
+    const fav = appState._favorites.find((f) => f.id === appState._currentFavId);
+    if (fav) fav.favs = fav.favs.filter((id) => !appState._favSelectedItems.has(id));
+    appState._favSelectedItems.clear();
     updateFavSelectUI();
     renderFavFolderSelect();
     renderFavPage();
@@ -429,13 +438,13 @@ async function batchRemoveFavorites() {
 
 // 编辑收藏项目备注
 async function editFavNote(projectId) {
-  const currentFav = _favorites.find((f) => f.id === _currentFavId);
+  const currentFav = appState._favorites.find((f) => f.id === appState._currentFavId);
   if (!currentFav) return;
   const oldNote = currentFav.notes && currentFav.notes[projectId] ? currentFav.notes[projectId] : '';
   const note = prompt('编辑备注:', oldNote);
   if (note === null) return;
   try {
-    await API.updateFavNote(_currentFavId, projectId, note);
+    await API.updateFavNote(appState._currentFavId, projectId, note);
     if (!currentFav.notes) currentFav.notes = {};
     if (note) currentFav.notes[projectId] = note;
     else delete currentFav.notes[projectId];
@@ -456,9 +465,9 @@ function showFavManageMenu() {
   menu.id = 'fav-manage-menu-popup';
   menu.style.top = (rect.bottom + 4) + 'px';
   menu.style.right = (window.innerWidth - rect.right) + 'px';
-  menu.innerHTML = '<div class="fav-manage-menu-item" onclick="createNewFavorite()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新建收藏夹</div>' +
-    '<div class="fav-manage-menu-item" onclick="renameCurrentFavorite()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>重命名当前收藏夹</div>' +
-    '<div class="fav-manage-menu-item danger" onclick="deleteCurrentFavorite()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>删除当前收藏夹</div>';
+  menu.innerHTML = '<div class="fav-manage-menu-item"' + actionAttrs('createNewFavorite') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>新建收藏夹</div>' +
+    '<div class="fav-manage-menu-item"' + actionAttrs('renameCurrentFavorite') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>重命名当前收藏夹</div>' +
+    '<div class="fav-manage-menu-item danger"' + actionAttrs('deleteCurrentFavorite') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>删除当前收藏夹</div>';
   document.body.appendChild(menu);
   setTimeout(() => { document.addEventListener('click', closeFavMenusHandler, { once: true }); }, 0);
 }
@@ -483,8 +492,8 @@ async function createNewFavorite() {
   try {
     const result = await API.createFavorite(name);
     if (result && result.favorite) {
-      _favorites.push(result.favorite);
-      _currentFavId = result.favorite.id;
+      appState._favorites.push(result.favorite);
+      appState._currentFavId = result.favorite.id;
       renderFavFolderSelect();
       renderFavPage();
       showToast('收藏夹已创建', 'success');
@@ -497,12 +506,12 @@ async function createNewFavorite() {
 // 重命名当前收藏夹
 async function renameCurrentFavorite() {
   closeFavMenus();
-  const fav = _favorites.find((f) => f.id === _currentFavId);
+  const fav = appState._favorites.find((f) => f.id === appState._currentFavId);
   if (!fav) return;
   const name = prompt('请输入新名称:', fav.name);
   if (!name || name === fav.name) return;
   try {
-    await API.renameFavorite(_currentFavId, name);
+    await API.renameFavorite(appState._currentFavId, name);
     fav.name = name;
     renderFavFolderSelect();
     showToast('重命名成功', 'success');
@@ -514,17 +523,17 @@ async function renameCurrentFavorite() {
 // 删除当前收藏夹（至少保留一个）
 async function deleteCurrentFavorite() {
   closeFavMenus();
-  if (_favorites.length <= 1) {
+  if (appState._favorites.length <= 1) {
     showToast('至少保留一个收藏夹', 'error');
     return;
   }
-  const fav = _favorites.find((f) => f.id === _currentFavId);
+  const fav = appState._favorites.find((f) => f.id === appState._currentFavId);
   if (!fav) return;
   if (!confirm('确定要删除收藏夹"' + fav.name + '"吗？')) return;
   try {
-    await API.deleteFavorite(_currentFavId);
-    _favorites = _favorites.filter((f) => f.id !== _currentFavId);
-    _currentFavId = _favorites.length > 0 ? _favorites[0].id : '';
+    await API.deleteFavorite(appState._currentFavId);
+    appState._favorites = appState._favorites.filter((f) => f.id !== appState._currentFavId);
+    appState._currentFavId = appState._favorites.length > 0 ? appState._favorites[0].id : '';
     renderFavFolderSelect();
     renderFavPage();
     showToast('收藏夹已删除', 'success');
@@ -535,7 +544,7 @@ async function deleteCurrentFavorite() {
 
 // 导出当前收藏夹内容到剪贴板
 function exportCurrentFav() {
-  const fav = _favorites.find((f) => f.id === _currentFavId);
+  const fav = appState._favorites.find((f) => f.id === appState._currentFavId);
   if (!fav) return;
   const data = JSON.stringify(fav.favs);
   navigator.clipboard.writeText(data).then(() => {
@@ -555,7 +564,7 @@ function showFavImportModal() {
 // 导入收藏数据
 async function importFavData(data) {
   try {
-    const result = await API.importFavorite(data, _currentFavId);
+    const result = await API.importFavorite(data, appState._currentFavId);
     if (result && result.success) {
       await loadFavoritesData();
       renderFavPage();
@@ -568,8 +577,8 @@ async function importFavData(data) {
 
 // 批量下载主页选中项目
 async function batchDownloadFavorites() {
-  if (_favSelectedItems.size === 0) return;
-  const ids = Array.from(_favSelectedItems);
+  if (appState._favSelectedItems.size === 0) return;
+  const ids = Array.from(appState._favSelectedItems);
   showToast('正在准备下载 ' + ids.length + ' 个模组...', 'info');
   for (let i = 0; i < ids.length; i++) {
     try {
@@ -589,7 +598,7 @@ function updateFavHeartButtons() {
   document.querySelectorAll('.fav-heart-btn').forEach((btn) => {
     const projectId = btn.dataset.projectId;
     if (!projectId) return;
-    const isFav = _favorites.some((f) => f.favs.includes(projectId));
+    const isFav = appState._favorites.some((f) => f.favs.includes(projectId));
     btn.classList.toggle('active', isFav);
   });
 }
@@ -604,15 +613,15 @@ function showFavSelectDropdown(projectId, anchorEl) {
   dropdown.style.top = (rect.bottom + 4) + 'px';
   dropdown.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
 
-  const isFavInAny = _favorites.some((f) => f.favs.includes(projectId));
+  const isFavInAny = appState._favorites.some((f) => f.favs.includes(projectId));
   let innerHtml = '';
   if (isFavInAny) {
-    innerHtml += '<div class="fav-select-item" style="color:var(--red)" onclick="removeFromAllFavs(\'' + escapeOnclick(projectId) + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>取消所有收藏</div>';
+    innerHtml += '<div class="fav-select-item" style="color:var(--red)"' + actionAttrs('removeFromAllFavs', projectId) + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>取消所有收藏</div>';
   }
 
-  _favorites.forEach((f) => {
+  appState._favorites.forEach((f) => {
     const has = f.favs.includes(projectId);
-    innerHtml += '<div class="fav-select-item' + (has ? ' active' : '') + '" onclick="toggleFavForProject(\'' + escapeOnclick(f.id) + '\', \'' + escapeOnclick(projectId) + '\', ' + has + ')">';
+    innerHtml += '<div class="fav-select-item' + (has ? ' active' : '') + '"' + actionAttrs('toggleFavForProject', f.id, projectId, has) + '>';
     if (has) {
       innerHtml += '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>';
     } else {
@@ -631,12 +640,12 @@ async function toggleFavForProject(favId, projectId, isRemove) {
   try {
     if (isRemove) {
       await API.removeFromFavorite(favId, projectId);
-      const fav = _favorites.find((f) => f.id === favId);
+      const fav = appState._favorites.find((f) => f.id === favId);
       if (fav) fav.favs = fav.favs.filter((id) => id !== projectId);
       showToast('已取消收藏', 'success');
     } else {
       await API.addToFavorite(favId, projectId);
-      const fav2 = _favorites.find((f) => f.id === favId);
+      const fav2 = appState._favorites.find((f) => f.id === favId);
       if (fav2 && !fav2.favs.includes(projectId)) fav2.favs.push(projectId);
       showToast('已添加到收藏夹', 'success');
     }
@@ -657,8 +666,8 @@ async function toggleFavForProject(favId, projectId, isRemove) {
 async function removeFromAllFavs(projectId) {
   closeFavMenus();
   try {
-    for (let i = 0; i < _favorites.length; i++) {
-      const fav = _favorites[i];
+    for (let i = 0; i < appState._favorites.length; i++) {
+      const fav = appState._favorites[i];
       if (fav.favs.includes(projectId)) {
         await API.removeFromFavorite(fav.id, projectId);
         fav.favs = fav.favs.filter((id) => id !== projectId);
@@ -682,7 +691,7 @@ function setupFavSearchListeners() {
   if (searchBtn && !searchBtn._favBound) {
     searchBtn._favBound = true;
     searchBtn.addEventListener('click', () => {
-      _favSearchQuery = searchInput ? searchInput.value : '';
+      appState._favSearchQuery = searchInput ? searchInput.value : '';
       renderFavPage();
     });
   }
@@ -690,37 +699,27 @@ function setupFavSearchListeners() {
     searchInput._favBound = true;
     searchInput.addEventListener('keyup', (e) => {
       if (e.key === 'Enter' && !e.isComposing) {
-        _favSearchQuery = e.target.value;
+        appState._favSearchQuery = e.target.value;
         renderFavPage();
       }
     });
   }
 }
 
+registerActions({
+  openFavItemDetail: (event, el, projectId, source) => openFavItemDetail(projectId, source),
+  toggleFavItemSelect: (event, el, projectId) => toggleFavItemSelect(projectId),
+  editFavNote: (event, el, projectId) => editFavNote(projectId),
+  removeFavItem: (event, el, projectId) => removeFavItem(projectId),
+  toggleFavSubItemSelect: (event, el, projectId) => toggleFavSubItemSelect(projectId),
+  showFavSelectDropdown: (event, el, projectId) => showFavSelectDropdown(projectId, el),
+  createNewFavorite,
+  renameCurrentFavorite,
+  deleteCurrentFavorite,
+  removeFromAllFavs: (event, el, projectId) => removeFromAllFavs(projectId),
+  toggleFavForProject: (event, el, favId, projectId, isRemove) => toggleFavForProject(favId, projectId, isRemove),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { loadFavoritesData, renderFavFolderSelect, renderFavPage, fetchFavProjects, openFavItemDetail, enterFavSubPage, exitFavSubPage, populateFavSubFolderSelect, onFavSubFolderChange, renderFavSubFolderSelect, onFavSubSearch, renderFavSubList, toggleFavSubMultiSelect, toggleFavSubItemSelect, toggleFavSubSelectAll, updateFavSubMultiBar, batchRemoveFavSub, batchDownloadFavSub, toggleFavItemSelect, toggleFavMultiSelect, toggleFavSelectAll, updateFavSelectUI, removeFavItem, batchRemoveFavorites, editFavNote, showFavManageMenu, closeFavMenus, closeFavMenusHandler, createNewFavorite, renameCurrentFavorite, deleteCurrentFavorite, exportCurrentFav, showFavImportModal, importFavData, batchDownloadFavorites, updateFavHeartButtons, showFavSelectDropdown, toggleFavForProject, removeFromAllFavs, setupFavSearchListeners, _favSubMultiSelect, _favSubSelected, _favSubSearchQuery, _favSubCurrentFavId };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ loadFavoritesData, renderFavFolderSelect, renderFavPage, fetchFavProjects, openFavItemDetail, enterFavSubPage, exitFavSubPage, populateFavSubFolderSelect, onFavSubFolderChange, renderFavSubFolderSelect, onFavSubSearch, renderFavSubList, toggleFavSubMultiSelect, toggleFavSubItemSelect, toggleFavSubSelectAll, updateFavSubMultiBar, batchRemoveFavSub, batchDownloadFavSub, toggleFavItemSelect, toggleFavMultiSelect, toggleFavSelectAll, updateFavSelectUI, removeFavItem, batchRemoveFavorites, editFavNote, showFavManageMenu, closeFavMenus, closeFavMenusHandler, createNewFavorite, renameCurrentFavorite, deleteCurrentFavorite, exportCurrentFav, showFavImportModal, importFavData, batchDownloadFavorites, updateFavHeartButtons, showFavSelectDropdown, toggleFavForProject, removeFromAllFavs, setupFavSearchListeners })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, '_favSubMultiSelect', {
-  configurable: true,
-  get: () => _favSubMultiSelect,
-  set: (v) => { _favSubMultiSelect = v; },
-});
-Object.defineProperty(window, '_favSubSelected', {
-  configurable: true,
-  get: () => _favSubSelected,
-  set: (v) => { _favSubSelected = v; },
-});
-Object.defineProperty(window, '_favSubSearchQuery', {
-  configurable: true,
-  get: () => _favSubSearchQuery,
-  set: (v) => { _favSubSearchQuery = v; },
-});
-Object.defineProperty(window, '_favSubCurrentFavId', {
-  configurable: true,
-  get: () => _favSubCurrentFavId,
-  set: (v) => { _favSubCurrentFavId = v; },
-});

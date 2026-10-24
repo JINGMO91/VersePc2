@@ -22,8 +22,10 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.node,
-        // 迁移过渡：ui-components.js 尚未模块化，仍以全局函数提供
-        showToast: 'readonly',
+        // 第三方全局库保持 classic script 加载
+        marked: 'readonly',
+        THREE: 'readonly',
+        skinview3d: 'readonly',
       },
     },
     rules: {
@@ -41,8 +43,8 @@ export default [
     // 且迁移自旧脚本的代码保留原有写法，先关闭结构性规则，Phase 7 再逐步收紧。
     files: ['frontend/src/features/**/*.js', 'frontend/src/vue/**/*.js'],
     rules: {
-      'no-undef': 'off',
-      'no-redeclare': 'off',
+      'no-undef': 'error',
+      'no-redeclare': 'error',
       'no-useless-assignment': 'off',
       'no-useless-escape': 'off',
     },

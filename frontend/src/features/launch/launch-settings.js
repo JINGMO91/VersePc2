@@ -1,7 +1,19 @@
+import { API } from '../../core/api.js';
 /**
  * @file launch-settings.js
  * @description 启动设置函数 - 内存分配、JVM参数、CDS等启动相关配置
  */
+
+import { bridge } from '../../core/tauri-bridge.js';
+
+let memMonitorTimer = null;
+import { checkCdsStatus } from './launch.js';
+import { showToast, showConfirmDialog } from '../misc/ui-components.js';
+import { applyCustomThemeColor, getSavedCustomThemeLight, clearCustomThemeVars, getSavedCustomThemeColor, syncCustomThemeLightModeUI, toggleCustomThemeColorGroup } from '../settings/custom-theme.js';
+import { getPersonalizeState } from '../settings/personalize.js';
+import { updateWallpaperTheme } from '../settings/wallpaper-engine.js';
+
+import { appState } from '../../core/app-state.js';
 
 let systemMemoryInfo = null;
 
@@ -151,7 +163,7 @@ async function saveLaunchSettings() {
   };
 
   try {
-    await window.electronAPI.store.set('versepc_launch_settings', JSON.stringify(settings));
+    await bridge.store.set('versepc_launch_settings', JSON.stringify(settings));
     showToast('启动设置已保存', 'success');
 
     // 注意：启动分辨率只作用于游戏窗口，不改变启动器窗口大小
@@ -176,11 +188,11 @@ function resolveWindowSizeValue() {
 async function saveWindowSizeOnly() {
   const windowSize = resolveWindowSizeValue();
   try {
-    const saved = await window.electronAPI.store.get('versepc_launch_settings');
+    const saved = await bridge.store.get('versepc_launch_settings');
     let ls = saved ? JSON.parse(saved) : {};
     if (typeof ls !== 'object' || ls === null) ls = {};
     ls.windowSize = windowSize;
-    await window.electronAPI.store.set('versepc_launch_settings', JSON.stringify(ls));
+    await bridge.store.set('versepc_launch_settings', JSON.stringify(ls));
   } catch (e) {
     console.warn('[LaunchSettings] 自动保存窗口大小失败:', e);
   }
@@ -205,7 +217,7 @@ async function browseDataDir() {
     const current = document.getElementById('setting-data-dir').value;
     const opts = { properties: ['openDirectory'] };
     if (current && current !== '加载中...') opts.defaultPath = current;
-    const result = await window.electronAPI.showOpenDialog(opts);
+    const result = await bridge.showOpenDialog(opts);
     if (!result || !result.filePaths || result.filePaths.length === 0) return;
     const selectedPath = result.filePaths[0];
     const data = await API.setDataDir(selectedPath);
@@ -267,12 +279,12 @@ async function resetLaunchSettings() {
   toggleMemoryMode();
   updateMemoryDisplay();
   try { await API.saveSettings({ gameDir: '' }); } catch (e) {}
-  try { await window.electronAPI.store.set('minimizeOnGameRun', true); } catch (e) {}
+  try { await bridge.store.set('minimizeOnGameRun', true); } catch (e) {}
   showToast('启动设置已重置', 'success');
 }
 
 async function optimizeJvmArgs() {
-  const versionId = launchVersionCustomSelect ? launchVersionCustomSelect.getValue() : '';
+  const versionId = appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '';
   if (!versionId) {
     showToast('请先选择一个游戏版本', 'error');
     return;
@@ -290,7 +302,7 @@ async function optimizeJvmArgs() {
 
 async function loadLaunchSettings() {
   try {
-    const saved = await window.electronAPI.store.get('versepc_launch_settings');
+    const saved = await bridge.store.get('versepc_launch_settings');
     if (saved) {
       const settings = JSON.parse(saved);
       if (settings.versionIsolation) document.getElementById('launch-version-isolation').value = settings.versionIsolation;
@@ -346,14 +358,14 @@ async function loadLaunchSettings() {
 
     // 游戏运行低调模式开关（独立 store key，默认开启）
     try {
-      const minimizeOnGameRun = await window.electronAPI.store.get('minimizeOnGameRun');
+      const minimizeOnGameRun = await bridge.store.get('minimizeOnGameRun');
       const cb = document.getElementById('setting-minimize-on-game-run');
       if (cb) {
         cb.checked = (minimizeOnGameRun === undefined || minimizeOnGameRun === null || minimizeOnGameRun === true);
         if (!cb._versepcBound) {
           cb._versepcBound = true;
           cb.addEventListener('change', () => {
-            try { window.electronAPI.store.set('minimizeOnGameRun', cb.checked); } catch (e) {}
+            try { bridge.store.set('minimizeOnGameRun', cb.checked); } catch (e) {}
           });
         }
       }
@@ -361,14 +373,14 @@ async function loadLaunchSettings() {
 
     updateSystemMemoryInfo();
     checkCdsStatus();
-    if (window._memMonitorTimer) clearInterval(window._memMonitorTimer);
-    window._memMonitorTimer = setInterval(() => {
+    if (memMonitorTimer) clearInterval(memMonitorTimer);
+    memMonitorTimer = setInterval(() => {
       const el = document.getElementById('sys-total-memory');
       if (el && el.offsetParent !== null) {
         updateSystemMemoryInfo();
       } else {
-        clearInterval(window._memMonitorTimer);
-        window._memMonitorTimer = null;
+        clearInterval(memMonitorTimer);
+        memMonitorTimer = null;
       }
     }, 2000);
   } catch (e) {
@@ -428,7 +440,7 @@ async function applyThemeByName(theme) {
   if (st) st.theme = theme;
 
   try {
-    await window.electronAPI.store.set('versepc_theme', theme);
+    await bridge.store.set('versepc_theme', theme);
   } catch (e) {
     console.error('[Settings] Save theme error:', e);
   }
@@ -444,13 +456,4 @@ async function selectTheme(element) {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { toggleMemoryMode, updateMemoryDisplay, updateAllocatedMemoryDisplay, updateSystemMemoryInfo, toggleAdvancedOptions, saveLaunchSettings, resolveWindowSizeValue, saveWindowSizeOnly, browseDataDir, resetDataDir, resetLaunchSettings, optimizeJvmArgs, loadLaunchSettings, applyThemeByName, selectTheme, systemMemoryInfo };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ toggleMemoryMode, updateMemoryDisplay, updateAllocatedMemoryDisplay, updateSystemMemoryInfo, toggleAdvancedOptions, saveLaunchSettings, resolveWindowSizeValue, saveWindowSizeOnly, browseDataDir, resetDataDir, resetLaunchSettings, optimizeJvmArgs, loadLaunchSettings, applyThemeByName, selectTheme })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'systemMemoryInfo', {
-  configurable: true,
-  get: () => systemMemoryInfo,
-  set: (v) => { systemMemoryInfo = v; },
-});

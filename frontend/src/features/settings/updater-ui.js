@@ -1,7 +1,12 @@
-/* updater-ui.js - 更新检查 UI 逻辑（从 index.html 内嵌 script 抽出） */
-(function() {
-    const api = window.electronAPI;
-    if (!api || !api.updater) return;
+import { showToast } from '../misc/ui-components.js';
+import { switchPage } from './window-theme.js';
+
+import { bridge } from '../../core/tauri-bridge.js';
+import { _lazyLoadScript } from '../../core/utils.js';
+import { navigateToPage } from '../versions/versions.js';
+
+const api = bridge;
+
 
     let currentUpdateVersion = null;
     let _latestVersion = null;
@@ -109,7 +114,7 @@
         _pillReady = false;
     }
 
-    window.handleWindowUpdatePillClick = async function () {
+    async function handleWindowUpdatePillClick() {
         if (!_pillReady) return;
         showUpdatePill('正在重启安装…', { spinner: true });
         try {
@@ -205,9 +210,8 @@
                 hideUpdatePill();
                 break;
 
-            case 'update-error':
+            case 'update-error': {
                 _lastDownloadPct = -1;
-                const errorType = data.errorType || 'unknown';
                 const hint = data.hint || '';
                 let hintHtml = '';
                 if (hint) hintHtml = '<div class="update-status__hint">' + hint + '</div>';
@@ -224,6 +228,7 @@
                 checkBtn.disabled = false;
                 hideUpdatePill();
                 break;
+            }
 
             case 'start-download':
                 _lastDownloadPct = -1;
@@ -264,7 +269,7 @@
         }
     });
 
-    window.handleCheckUpdate = async function() {
+    async function handleCheckUpdate() {
         try {
             await api.updater.checkForUpdates();
         } catch (e) {
@@ -273,7 +278,7 @@
         }
     };
 
-    window.handleDownloadUpdate = async function() {
+    async function handleDownloadUpdate() {
         const downloadBtn = document.getElementById('updater-download-btn');
         downloadBtn.disabled = true;
         downloadBtn.textContent = '下载中...';
@@ -287,11 +292,11 @@
         }
     };
 
-    window.handleInstallUpdate = async function() {
+    async function handleInstallUpdate() {
         await api.updater.installUpdate();
     };
 
-    window.handleSkipVersion = async function() {
+    async function handleSkipVersion() {
         if (currentUpdateVersion) {
             await api.updater.skipVersion(currentUpdateVersion);
             resetButtons();
@@ -300,17 +305,17 @@
         }
     };
 
-    window.dismissUpdateCard = function() {
+    function dismissUpdateCard() {
         const card = document.getElementById('update-card');
         if (card) card.style.display = 'none';
     };
 
-    window.downloadFromGitHub = function() {
-        window.electronAPI?.openExternal?.('https://www.verselauncher.cn/');
+    function downloadFromGitHub() {
+        bridge.openExternal('https://www.verselauncher.cn/');
     };
 
-    window.downloadFromQuark = function() {
-        window.electronAPI?.openExternal?.('https://pan.quark.cn/s/04ec149d8a93');
+    function downloadFromQuark() {
+        bridge.openExternal('https://pan.quark.cn/s/04ec149d8a93');
     };
 
     function showUpdatePopup(data) {
@@ -360,7 +365,7 @@
         modal._escCleanup = function () { modal.removeEventListener('keydown', onKeyDown); };
     }
 
-    window.dismissUpdateModal = function() {
+    function dismissUpdateModal() {
         const modal = document.getElementById('update-modal');
         if (!modal) return;
         if (typeof modal._escCleanup === 'function') {
@@ -377,8 +382,8 @@
     };
 
     // 立即更新：关闭弹窗 + 跳转到设置页的更新区
-    window.gotoUpdateSettings = function() {
-        window.dismissUpdateModal();
+    function gotoUpdateSettings() {
+        dismissUpdateModal();
         // 跳转到其他设置页面
         if (typeof navigateToPage === 'function') {
             navigateToPage('settings-other');
@@ -417,4 +422,5 @@
     } else {
         initUpdaterUI();
     }
-})();
+
+export { initUpdaterUI, showUpdatedNotice, showUpdatePill, hideUpdatePill, handleWindowUpdatePillClick, resetButtons, formatBytes, showReleaseNotes, escapeHtml, handleCheckUpdate, handleDownloadUpdate, handleInstallUpdate, handleSkipVersion, dismissUpdateCard, downloadFromGitHub, downloadFromQuark, showUpdatePopup, dismissUpdateModal, gotoUpdateSettings, addUpdateDots };

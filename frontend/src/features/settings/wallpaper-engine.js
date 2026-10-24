@@ -4,6 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+import { bridge } from '../../core/tauri-bridge.js';
+import { decodeFileBuffer } from '../../core/utils.js';
+
+import { showToast, showConfirmDialog } from '../misc/ui-components.js';
+
 function wpfilePath(filePath) {
     if (!filePath) return '';
     if (filePath.startsWith('wpfile://') || filePath.startsWith('blob:')) return filePath;
@@ -17,7 +22,7 @@ function wewpVideoPath(workshopId, relFile) {
     const segs = String(relFile).split(/[\\/]/).map(encodeURIComponent).join('/');
     // WebView2 会把自定义协议映射成 http://<scheme>.localhost；
     // <video> 不能直接吃 wewp://，必须用映射后的 http 地址（Windows 专属功能）。
-    const isWindows = !window.bridge || window.bridge.isWindows;
+    const isWindows = !bridge || bridge.isWindows;
     const origin = isWindows ? 'http://wewp.localhost' : 'wewp://localhost';
     return origin + '/' + encodeURIComponent(workshopId) + '/' + segs;
 }
@@ -97,8 +102,8 @@ class WallpaperEngine {
         this.scenePort = 0;
         this._sceneWorkshopId = null;
         try {
-            if (window.bridge && window.bridge.invoke) {
-                await window.bridge.invoke('scene_renderer_stop');
+            if (bridge && bridge.invoke) {
+                await bridge.invoke('scene_renderer_stop');
             }
         } catch (e) {
             console.error('[Wallpaper] scene renderer stop error:', e);
@@ -120,15 +125,15 @@ class WallpaperEngine {
             const size = this._sceneRenderSize();
             const startArgs = { workshopId: workshopId, width: size.width, height: size.height };
             let res = null;
-            if (window.bridge && window.bridge.invoke) {
-                res = await window.bridge.invoke('scene_renderer_start', startArgs);
+            if (bridge && bridge.invoke) {
+                res = await bridge.invoke('scene_renderer_start', startArgs);
             }
             // 组件未安装：引导下载后重试一次
             if (!res || res.missing) {
                 const installed = await ensureSceneRendererInstalled();
                 if (!installed) return false;
-                if (window.bridge && window.bridge.invoke) {
-                    res = await window.bridge.invoke('scene_renderer_start', startArgs);
+                if (bridge && bridge.invoke) {
+                    res = await bridge.invoke('scene_renderer_start', startArgs);
                 }
             }
             if (!res || !res.ok || !res.port) {
@@ -229,8 +234,8 @@ class WallpaperEngine {
         // 内置流光动态背景视频
         // 通过 IPC 从主进程获取路径，兼容开发和打包环境
         try {
-            if (window.electronAPI && window.electronAPI.getAuroraVideoPath) {
-                const p = await window.electronAPI.getAuroraVideoPath();
+            if (bridge && bridge.getAuroraVideoPath) {
+                const p = await bridge.getAuroraVideoPath();
                 console.log('[Wallpaper] Aurora video path from IPC:', p);
                 if (p) return p;
             }
@@ -629,11 +634,11 @@ class CustomImageRenderer {
         let imgUrl = wpfilePath(filePath);
         if (filePath && !filePath.startsWith('blob:') && !filePath.startsWith('wpfile://') && !filePath.startsWith('data:')) {
             try {
-                if (window.electronAPI && window.electronAPI.readFileBuffer) {
-                    const buffer = await window.electronAPI.readFileBuffer(filePath);
+                if (bridge && bridge.readFileBuffer) {
+                    const buffer = await bridge.readFileBuffer(filePath);
                     // Tauri 返回可能是 Base64 字符串 / number[] / Uint8Array，统一解码
-                    const u8 = typeof window.decodeFileBuffer === 'function'
-                        ? window.decodeFileBuffer(buffer)
+                    const u8 = typeof decodeFileBuffer === 'function'
+                        ? decodeFileBuffer(buffer)
                         : (buffer ? (buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)) : null);
                     if (u8 && u8.byteLength > 0) {
                         const ext = filePath.toLowerCase().split('.').pop();
@@ -789,8 +794,8 @@ class CustomVideoRenderer {
             : filePath;
         if (videoUrl && filePath && !isWeStream && !filePath.startsWith('blob:') && !filePath.startsWith('wpfile://')) {
             try {
-                if (window.electronAPI && window.electronAPI.readFileBuffer) {
-                    const buffer = await window.electronAPI.readFileBuffer(filePath);
+                if (bridge && bridge.readFileBuffer) {
+                    const buffer = await bridge.readFileBuffer(filePath);
                     // Tauri 返回的 Vec<u8> 会序列化为数字数组，需先转成 Uint8Array 才能正确构造 Blob
                     const u8 = buffer ? (buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)) : null;
                     if (u8 && u8.byteLength > 0) {
@@ -1210,8 +1215,8 @@ function hideGlobalDownloadProgress() {
  */
 async function ensureSceneRendererInstalled() {
     try {
-        const st = window.bridge && window.bridge.sceneRenderer
-            ? await window.bridge.sceneRenderer.installed()
+        const st = bridge && bridge.sceneRenderer
+            ? await bridge.sceneRenderer.installed()
             : null;
         if (st && st.installed) return true;
     } catch (e) { /* 继续走确认下载流程 */ }
@@ -1222,8 +1227,8 @@ async function ensureSceneRendererInstalled() {
     if (!confirmed) return false;
 
     let unsub = null;
-    if (window.bridge && window.bridge.sceneRenderer && window.bridge.sceneRenderer.onProgress) {
-        unsub = window.bridge.sceneRenderer.onProgress(function (p) {
+    if (bridge && bridge.sceneRenderer && bridge.sceneRenderer.onProgress) {
+        unsub = bridge.sceneRenderer.onProgress(function (p) {
             if (!p) return;
             if (p.stage === 'download') {
                 showGlobalDownloadProgress('正在下载场景渲染器组件', p.percent || 0);
@@ -1233,8 +1238,8 @@ async function ensureSceneRendererInstalled() {
         });
     }
     try {
-        const res = window.bridge && window.bridge.sceneRenderer
-            ? await window.bridge.sceneRenderer.download()
+        const res = bridge && bridge.sceneRenderer
+            ? await bridge.sceneRenderer.download()
             : null;
         hideGlobalDownloadProgress();
         if (res && res.ok) {
@@ -1255,18 +1260,4 @@ async function ensureSceneRendererInstalled() {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { wpfilePath, wewpVideoPath, drawFitMode, initWallpaper, updateWallpaperTheme, switchWallpaperMode, setCustomWallpaperImage, setCustomWallpaperVideo, setWallpaperOpacity, setWallpaperBlur, setWallpaperFitMode, setPanoramaTheme, onWallpaperBrightnessChange, setPanoramaRotationSpeed, setPanoramaMouseFollow, startSceneWallpaper, stopSceneWallpaper, _ensureGlobalDlBar, showGlobalDownloadProgress, hideGlobalDownloadProgress, ensureSceneRendererInstalled, WallpaperEngine, PanoramaRenderer, CustomImageRenderer, CustomVideoRenderer, WebWallpaperRenderer, SceneWallpaperRenderer, wallpaperEngine, _globalDlBarEl };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ wpfilePath, wewpVideoPath, drawFitMode, initWallpaper, updateWallpaperTheme, switchWallpaperMode, setCustomWallpaperImage, setCustomWallpaperVideo, setWallpaperOpacity, setWallpaperBlur, setWallpaperFitMode, setPanoramaTheme, onWallpaperBrightnessChange, setPanoramaRotationSpeed, setPanoramaMouseFollow, startSceneWallpaper, stopSceneWallpaper, _ensureGlobalDlBar, showGlobalDownloadProgress, hideGlobalDownloadProgress, ensureSceneRendererInstalled, WallpaperEngine, PanoramaRenderer, CustomImageRenderer, CustomVideoRenderer, WebWallpaperRenderer, SceneWallpaperRenderer })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'wallpaperEngine', {
-  configurable: true,
-  get: () => wallpaperEngine,
-  set: (v) => { wallpaperEngine = v; },
-});
-Object.defineProperty(window, '_globalDlBarEl', {
-  configurable: true,
-  get: () => _globalDlBarEl,
-  set: (v) => { _globalDlBarEl = v; },
-});

@@ -13,7 +13,7 @@
     "build:portable": "node scripts/build-portable.mjs",
     "test": "vitest run",
     "lint": "eslint frontend/src scripts/*.mjs vite.config.mjs",
-    "verify": "npm run lint && npm run test && npm run build:web && node scripts/check-architecture.mjs",
+    "verify": "npm run lint && npm run test && npm run build:web && node scripts/check-architecture.mjs --strict",
     "tauri": "tauri"
   },
   "devDependencies": {

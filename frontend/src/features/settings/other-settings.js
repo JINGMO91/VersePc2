@@ -1,10 +1,15 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { showToast, showConfirmDialog } from '../misc/ui-components.js';
+
 // ─── 其他设置函数 ──────────────────────────────────────────
 
 async function copyFeedbackEmail(btn) {
     const email = 'verselauncher@verselauncher.cn';
     try {
-        if (window.electronAPI?.clipboard) {
-            await window.electronAPI.clipboard.writeText(email);
+        if (bridge?.clipboard) {
+            await bridge.clipboard.writeText(email);
         } else {
             await navigator.clipboard.writeText(email);
         }
@@ -51,7 +56,7 @@ async function saveOtherSettings() {
     };
 
     try {
-        await window.electronAPI.store.set('versepc_other_settings', JSON.stringify(settings));
+        await bridge.store.set('versepc_other_settings', JSON.stringify(settings));
         showToast('其他设置已保存', 'success');
     } catch (e) {
         showToast('保存失败: ' + e.message, 'error');
@@ -91,7 +96,7 @@ async function resetOtherSettings() {
 
 async function loadOtherSettings() {
     try {
-        const saved = await window.electronAPI.store.get('versepc_other_settings');
+        const saved = await bridge.store.get('versepc_other_settings');
         if (saved) {
             const settings = JSON.parse(saved);
             if (settings.downloadSource) document.getElementById('setting-download-source').value = settings.downloadSource;
@@ -132,7 +137,3 @@ function updateSpeedLimitLabel(value) {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { copyFeedbackEmail, toggleDebugOptions, saveOtherSettings, resetOtherSettings, loadOtherSettings, updateSpeedLimitLabel };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ copyFeedbackEmail, toggleDebugOptions, saveOtherSettings, resetOtherSettings, loadOtherSettings, updateSpeedLimitLabel })) {
-  window[name] = value;
-}

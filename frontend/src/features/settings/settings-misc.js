@@ -1,3 +1,18 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { formatBytes } from '../../core/utils.js';
+import { loadAccounts } from '../accounts/accounts.js';
+import { loadLaunchSettings } from '../launch/launch-settings.js';
+import { showToast } from '../misc/ui-components.js';
+import { loadOtherSettings } from './other-settings.js';
+import { loadPersonalizeSettings } from './personalize.js';
+import { handleCheckUpdate } from './updater-ui.js';
+import { setupSettingsSubmenu } from './window-theme.js';
+
+import { actionAttrs, registerActions } from '../../core/actions.js';
+import { waitForVueMount } from '../../core/vue-ready.js';
+
 function checkForUpdates() {
     showToast('正在检查更新...', 'info');
     handleCheckUpdate();
@@ -53,9 +68,9 @@ async function doMemoryOptimize() {
 async function exportSettings() {
     try {
         const allSettings = {
-            launch: await window.electronAPI.store.get('versepc_launch_settings'),
-            personalize: await window.electronAPI.store.get('versepc_personalize_settings'),
-            other: await window.electronAPI.store.get('versepc_other_settings'),
+            launch: await bridge.store.get('versepc_launch_settings'),
+            personalize: await bridge.store.get('versepc_personalize_settings'),
+            other: await bridge.store.get('versepc_other_settings'),
             exportTime: new Date().toISOString()
         };
 
@@ -87,15 +102,15 @@ function importSettings() {
             const settings = JSON.parse(text);
 
             if (settings.launch) {
-                await window.electronAPI.store.set('versepc_launch_settings', settings.launch);
+                await bridge.store.set('versepc_launch_settings', settings.launch);
                 loadLaunchSettings();
             }
             if (settings.personalize) {
-                await window.electronAPI.store.set('versepc_personalize_settings', settings.personalize);
+                await bridge.store.set('versepc_personalize_settings', settings.personalize);
                 loadPersonalizeSettings();
             }
             if (settings.other) {
-                await window.electronAPI.store.set('versepc_other_settings', settings.other);
+                await bridge.store.set('versepc_other_settings', settings.other);
                 loadOtherSettings();
             }
 
@@ -129,7 +144,7 @@ async function openScreenshots(versionId) {
         const result = await API.getScreenshots(versionId);
         if (result.screenshots && result.screenshots.length > 0) {
             grid.innerHTML = result.screenshots.map(ss => `
-                <div style="position:relative;border-radius:6px;overflow:hidden;cursor:pointer;background:var(--bg-active);" onclick="window.open('${ss.url}','_blank')">
+                <div style="position:relative;border-radius:6px;overflow:hidden;cursor:pointer;background:var(--bg-active);"${actionAttrs('openScreenshot', ss.url)}>
                     <img src="${ss.url}" style="width:100%;height:120px;object-fit:cover;display:block;">
                     <div style="padding:4px 6px;font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ss.name}</div>
                 </div>
@@ -154,6 +169,8 @@ function closeScreenshotModal() {
 
 async function initSettingsPages() {
     setupSettingsSubmenu();
+    // 设置页由 Vue 分批挂载，需等待渲染完成后再填充表单，避免空节点写入
+    await waitForVueMount();
     loadLaunchSettings();
     await loadPersonalizeSettings();
     loadOtherSettings();
@@ -261,8 +278,8 @@ function useDefaultImage(type) {
 }
 
 function browseJavaPath() {
-    if (window.electronAPI && window.electronAPI.showOpenDialog) {
-        window.electronAPI.showOpenDialog({
+    if (bridge && bridge.showOpenDialog) {
+        bridge.showOpenDialog({
             properties: ['openFile'],
             filters: [{ name: 'Java 可执行文件', extensions: ['exe', ''] }]
         }).then(result => {
@@ -277,15 +294,10 @@ function browseJavaPath() {
     }
 }
 
+registerActions({
+  openScreenshot: (event, el, url) => window.open(url, '_blank'),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { checkForUpdates, refreshMemoryInfo, doMemoryOptimize, exportSettings, importSettings, createDesktopShortcut, openScreenshots, closeScreenshotModal, initSettingsPages, uploadImage, handleImageUpload, clearImage, useDefaultImage, browseJavaPath, _memoryOptimizing };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ checkForUpdates, refreshMemoryInfo, doMemoryOptimize, exportSettings, importSettings, createDesktopShortcut, openScreenshots, closeScreenshotModal, initSettingsPages, uploadImage, handleImageUpload, clearImage, useDefaultImage, browseJavaPath })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, '_memoryOptimizing', {
-  configurable: true,
-  get: () => _memoryOptimizing,
-  set: (v) => { _memoryOptimizing = v; },
-});

@@ -673,53 +673,10 @@
   <!--    - 只放 HTML 模板，逻辑全部调用 js/app/*.js 里的函数                 -->
   <!--    - 新增页面一律走 vue/，不再在 app/ 里堆 HTML 字符串                  -->
   <!-- ====================================================================== -->
-  <!-- Vite 模块入口：阶段 1 仅验证构建管线，后续在此显式 import core 与 feature 模块 -->
+  <!-- Vite 模块入口：core、features、Vue 页面均由 main.js 显式导入 -->
   <script type="module" src="/src/main.js"></script>
-  <!-- core 模块由 src/main.js 加载并暴露全局别名 -->
-  <script src="js/rose-loader.js" defer></script>
 
-  <!-- 功能模块已迁入 src/features/，由 src/main.js 按原顺序导入 -->
-  <script src="js/app.js" defer></script>
-  <script src="js/mod-slug-map.js" defer></script>
-  <!-- mod-chinese-names.js 延迟加载 -->
-  <!-- file-browser.js 延迟加载 -->
-  <!-- crashAnalyzerUI.js 延迟加载 -->
-  <!-- v-island/dynamic-island.js 延迟加载 -->
-  <!-- modpack-import.js 延迟加载 -->
-  <!-- updater-ui.js 延迟加载 -->
 
-  <!-- Vue 页面组件已迁入 src/vue/pages，由 src/main.js 的 mount.js 挂载 -->
-  <!-- 置顶面板共享 store 仍是 classic 脚本（后续迁移） -->
-  <script src="js/vue/pinned-store.js" defer></script>
-
-  <!-- 非关键脚本懒加载：首屏渲染后再加载，避免阻塞启动 -->
-  <script>
-    (function() {
-      var _lazyScripts = [
-        'js/mod-chinese-names.js',
-        'js/file-browser.js',
-        'js/crashAnalyzerUI.js',
-        'js/modpack-import.js',
-        'js/updater-ui.js',
-        'v-island/dynamic-island.js'
-      ];
-      function _loadLazyScripts() {
-        _lazyScripts.forEach(function(src) {
-          var s = document.createElement('script');
-          s.src = src;
-          s.async = false;
-          document.head.appendChild(s);
-        });
-      }
-      if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        setTimeout(_loadLazyScripts, 50);
-      } else {
-        window.addEventListener('DOMContentLoaded', function() {
-          setTimeout(_loadLazyScripts, 50);
-        });
-      }
-    })();
-  </script>
 
   <!-- 模组汉化弹窗 -->
   <div id="mod-translate-modal" class="modal" style="display:none">

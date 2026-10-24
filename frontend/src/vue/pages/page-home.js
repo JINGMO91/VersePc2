@@ -10,12 +10,17 @@
  * 交互逻辑调用 js/app/*.js 的全局函数，全局状态变量在 js/app.js。
  */
 
-// 共享响应式 store（launch.js 写入，主页卡片读取）
-if (!window.VersePCGameStore) {
-  window.VersePCGameStore = Vue.reactive({ instances: [], running: false, now: Date.now() });
-  // 每秒刷新一次，用于运行时长倒计时显示
-  setInterval(function () { window.VersePCGameStore.now = Date.now(); }, 1000);
-}
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { gameStore } from '../../core/game-store.js';
+import { decodeFileBuffer } from '../../core/utils.js';
+
+import { loadAccounts } from '../../features/accounts/accounts.js';
+import { handleLaunch, updateGameStatus, stopGameInstance } from '../../features/launch/launch.js';
+import { showToast } from '../../features/misc/ui-components.js';
+import { loadVersions, navigateToPage } from '../../features/versions/versions.js';
+
+import { appState } from '../../core/app-state.js';
 
 const LAYOUT_KEY = 'versepc_home_layout_v1';
 const AVATAR_MIN = 0.5, AVATAR_MAX = 2.0, DRAG_THRESHOLD = 5;
@@ -121,12 +126,12 @@ const PageHome = {
   `,
   computed: {
     gameInstances() {
-      return window.VersePCGameStore ? window.VersePCGameStore.instances : [];
+      return gameStore ? gameStore.instances : [];
     },
     currentVersionName() {
       const vid = this.currentVersionId;
       if (!vid) return '未选择版本';
-      const v = (typeof installedVersions !== 'undefined' && installedVersions || []).find(x => x.id === vid);
+      const v = (typeof appState.installedVersions !== 'undefined' && appState.installedVersions || []).find(x => x.id === vid);
       return (v && v.customName) || vid;
     }
   },
@@ -289,7 +294,7 @@ const PageHome = {
     },
     // ── 存档坞 ──
     async pollVersionChange() {
-      const vid = (typeof currentLaunchVersionId !== 'undefined' && currentLaunchVersionId) || '';
+      const vid = (typeof appState.currentLaunchVersionId !== 'undefined' && appState.currentLaunchVersionId) || '';
       if (vid !== this._lastVersionId) {
         this._lastVersionId = vid;
         this.currentVersionId = vid;
@@ -318,7 +323,7 @@ const PageHome = {
       }
       this.savesLoading = true;
       try {
-        const res = await window.bridge.invoke('version_list_saves', { versionId: vid });
+        const res = await bridge.invoke('version_list_saves', { versionId: vid });
         this.saves = (res && res.saves) || [];
       } catch (e) {
         console.error('[HomeSaves] Load error:', e);
@@ -333,10 +338,10 @@ const PageHome = {
       if (this._saveIconLoading[s.folder]) return '';
       this._saveIconLoading[s.folder] = true;
       const self = this;
-      Promise.resolve(window.bridge && window.bridge.readFileBuffer(s.icon)).then((buffer) => {
+      Promise.resolve(bridge && bridge.readFileBuffer(s.icon)).then((buffer) => {
         try {
-          const u8 = typeof window.decodeFileBuffer === 'function'
-            ? window.decodeFileBuffer(buffer)
+          const u8 = typeof decodeFileBuffer === 'function'
+            ? decodeFileBuffer(buffer)
             : (buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer || []));
           if (!u8 || u8.byteLength === 0) return;
           const blob = new Blob([u8], { type: 'image/png' });
@@ -351,11 +356,11 @@ const PageHome = {
         showToast('请先选择游戏版本', 'warning');
         return;
       }
-      if (typeof quickPlayWorld === 'undefined') {
+      if (typeof appState.quickPlayWorld === 'undefined') {
         showToast('启动入口未就绪', 'error');
         return;
       }
-      quickPlayWorld = s.folder;
+      appState.quickPlayWorld = s.folder;
       if (typeof handleLaunch === 'function') {
         handleLaunch();
       } else {
@@ -367,7 +372,7 @@ const PageHome = {
     },
     // 计算运行时长（每秒由 store.now 触发重新渲染）
     formatElapsed(inst) {
-      const elapsed = Math.floor(((window.VersePCGameStore.now || Date.now()) - inst.startTime) / 1000);
+      const elapsed = Math.floor(((gameStore.now || Date.now()) - inst.startTime) / 1000);
       const mins = Math.floor(elapsed / 60);
       const secs = elapsed % 60;
       return mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
@@ -404,6 +409,4 @@ const PageHome = {
 };
 
 // 导出供主入口使用
-window.VersePC = window.VersePC || {};
-
 export default PageHome;

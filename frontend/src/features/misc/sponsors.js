@@ -1,3 +1,8 @@
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { escapeHtml } from '../../core/utils.js';
+import { showToast } from './ui-components.js';
+
 const SPONSORS = [
     '爱发电用户_f6954', '我不会起名', 'xyh', '硕硕小主', 'ZJ_Rider 肆年',
     'MC_不会玩的梓茗同学', 'ffhcv', '爱发电用户_364y', '爱发电用户_Kfq6',
@@ -105,8 +110,8 @@ async function copyMachineId(btn) {
             showToast('识别码获取中，请稍候', 'info');
             return;
         }
-        if (window.electronAPI && window.electronAPI.clipboard) {
-            await window.electronAPI.clipboard.writeText(el.value);
+        if (bridge && bridge.clipboard) {
+            await bridge.clipboard.writeText(el.value);
         } else {
             await navigator.clipboard.writeText(el.value);
         }
@@ -122,13 +127,4 @@ async function copyMachineId(btn) {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { renderSponsors, toggleShowMoreSponsors, filterSponsors, copyMachineId, SPONSORS, sponsorExpanded };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ renderSponsors, toggleShowMoreSponsors, filterSponsors, copyMachineId, SPONSORS })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'sponsorExpanded', {
-  configurable: true,
-  get: () => sponsorExpanded,
-  set: (v) => { sponsorExpanded = v; },
-});

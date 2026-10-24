@@ -1,5 +1,12 @@
 /* page-downloads - 下载页 Vue 组件 */
+import { dlManager } from '../../features/versions/custom-download.js';
+
+import { clearCompletedDownloads } from '../../features/versions/custom-download.js';
+
 const PageDownloads = {
+  setup() {
+    return { clearCompletedDownloads };
+  },
   template: `
           <div class="page-header dl-page-header">
             <h2>下载管理</h2>
@@ -8,7 +15,7 @@ const PageDownloads = {
                 <svg class="dl-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                 <input type="text" id="dl-search-input" class="dl-search-input" placeholder="搜索下载任务..." oninput="dlManager.applySearch(this.value)">
               </div>
-              <button class="btn btn-secondary btn-sm" onclick="clearCompletedDownloads()">清空已完成</button>
+              <button class="btn btn-secondary btn-sm" @click="clearCompletedDownloads()">清空已完成</button>
             </div>
           </div>
           <div id="download-queue-list" class="dl-queue-list">
@@ -16,7 +23,5 @@ const PageDownloads = {
           </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageDownloads;

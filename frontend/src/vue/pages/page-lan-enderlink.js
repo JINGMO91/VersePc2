@@ -6,7 +6,19 @@
  *   4. 加入流程：输入联机地址 → 下一步 → 连接中(转圈) → 连接成功 + 退出
  * 后端对接 enderlinkOnline（lytapi 大厅 + frp 内网穿透）。
  */
+import { featureBridge } from '../../core/feature-bridge.js';
+
+import { gameStore } from '../../core/game-store.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { enderlinkHostStep1 } from '../../features/misc/lan.js';
+
+import { enderlinkStartOnboarding, enderlinkHostNext, enderlinkCopyAddr, enderlinkDisconnect } from '../../features/misc/lan.js';
+
 const PageLanEnderlink = {
+  setup() {
+    return { enderlinkStartOnboarding, enderlinkHostNext, enderlinkCopyAddr, enderlinkDisconnect };
+  },
   name: 'PageLanEnderlink',
   data() {
     return {
@@ -18,7 +30,7 @@ const PageLanEnderlink = {
   computed: {
     // 运行中的游戏实例（与首页共用共享响应式 store）
     gameInstances() {
-      return window.VersePCGameStore ? window.VersePCGameStore.instances : [];
+      return gameStore ? gameStore.instances : [];
     }
   },
   mounted() {
@@ -26,20 +38,20 @@ const PageLanEnderlink = {
   },
   methods: {
     formatElapsed(inst) {
-      const elapsed = Math.floor(((window.VersePCGameStore.now || Date.now()) - inst.startTime) / 1000);
+      const elapsed = Math.floor(((gameStore.now || Date.now()) - inst.startTime) / 1000);
       const mins = Math.floor(elapsed / 60);
       const secs = elapsed % 60;
       return mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
     },
     async loadEnderlinkNodes() {
       try {
-        const r = await window.electronAPI.enderlinkOnline.getNodes();
+        const r = await bridge.enderlinkOnline.getNodes();
         const nodes = (r && r.ok && r.nodes) ? r.nodes : [];
         this.enderlinkNodes = nodes;
-        window.VersePC.enderlinkNodes = nodes;
+        featureBridge.enderlinkNodes = nodes;
       } catch (e) {
         this.enderlinkNodes = [];
-        window.VersePC.enderlinkNodes = [];
+        featureBridge.enderlinkNodes = [];
       } finally {
         this.enderlinkLoading = false;
       }
@@ -47,7 +59,7 @@ const PageLanEnderlink = {
     enderlinkSelectNode(i) {
       if (i < 0 || i >= this.enderlinkNodes.length) return;
       this.enderlinkSelectedIdx = i;
-      window.VersePC.enderlinkSelectedNode = this.enderlinkNodes[i];
+      featureBridge.enderlinkSelectedNode = this.enderlinkNodes[i];
     },
     host() {
       if (typeof enderlinkHostStep1 === 'function') enderlinkHostStep1();
@@ -61,7 +73,7 @@ const PageLanEnderlink = {
             </div>
             <h2 class="terracotta-ob-title" id="enderlink-ob-title">你好！欢迎使用 EnderLink 联机</h2>
             <p class="terracotta-ob-desc" id="enderlink-ob-desc">基于 lytapi 大厅 + frp 内网穿透，一键开启外网联机</p>
-            <button class="terracotta-ob-dl" id="enderlink-ob-dl" onclick="enderlinkStartOnboarding()" title="开始使用 EnderLink 联机">
+            <button class="terracotta-ob-dl" id="enderlink-ob-dl" @click="enderlinkStartOnboarding()" title="开始使用 EnderLink 联机">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
             <div class="terracotta-ob-spinner" id="enderlink-ob-spinner" style="display:none">
@@ -128,7 +140,7 @@ const PageLanEnderlink = {
                   </div>
                   <div v-else class="terracotta-node-empty">{{ enderlinkLoading ? '正在加载节点列表...' : '暂无可用节点' }}</div>
                 </div>
-                <button class="terracotta-next-btn" id="enderlink-host-next" onclick="enderlinkHostNext()" disabled title="请先启动游戏并开放局域网">
+                <button class="terracotta-next-btn" id="enderlink-host-next" @click="enderlinkHostNext()" disabled title="请先启动游戏并开放局域网">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
               </div>
@@ -144,10 +156,10 @@ const PageLanEnderlink = {
                 <div class="terracotta-info-row">
                   <span class="terracotta-info-label">联机地址</span>
                   <span class="terracotta-info-value" id="enderlink-room-addr">--</span>
-                  <button class="terracotta-copy-btn" onclick="enderlinkCopyAddr()" title="复制联机地址">复制</button>
+                  <button class="terracotta-copy-btn" @click="enderlinkCopyAddr()" title="复制联机地址">复制</button>
                 </div>
                 <p class="terracotta-step-desc">将联机地址发送给朋友，朋友在 Minecraft 多人游戏中添加该地址即可加入</p>
-                <button class="terracotta-close-btn" onclick="enderlinkDisconnect()" title="关闭联机">
+                <button class="terracotta-close-btn" @click="enderlinkDisconnect()" title="关闭联机">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
@@ -158,7 +170,5 @@ const PageLanEnderlink = {
           </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageLanEnderlink;

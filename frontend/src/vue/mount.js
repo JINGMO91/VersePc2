@@ -2,6 +2,7 @@
 // 主页立即挂载；其余页面按每批 4 个动态加载，保留原有的分批挂载节奏。
 import { createApp } from 'vue';
 import PageHome from './pages/page-home.js';
+import { markVueMountDone } from '../core/vue-ready.js';
 
 const OTHER_PAGES = [
   ['PageVersions', '#page-versions', () => import('./pages/page-versions.js')],
@@ -40,13 +41,9 @@ function mountBatch(state) {
   Promise.all(
     batch.map(async ([name, selector, loader]) => {
       try {
-        let component = null;
-        if (loader) {
-          const mod = await loader();
-          component = mod && (mod.default || mod);
-        } else {
-          component = window.VersePC && window.VersePC[name];
-        }
+        if (!loader) return;
+        const mod = await loader();
+        const component = mod && (mod.default || mod);
         if (component) createApp(component).mount(selector);
       } catch (e) {
         console.error('Vue mount failed:', name, e);
@@ -54,8 +51,7 @@ function mountBatch(state) {
     })
   ).then(() => {
     if (indexRef.value >= list.length) {
-      window._vueMountDone = true;
-      if (window._vueMountResolve) window._vueMountResolve();
+      markVueMountDone();
       return;
     }
     const schedule = window.requestIdleCallback || ((cb) => setTimeout(cb, 16));
@@ -64,8 +60,6 @@ function mountBatch(state) {
 }
 
 window.addEventListener('DOMContentLoaded', function () {
-  window._vueMountDone = false;
-
   // 主页优先同步挂载，保证首屏最快可见
   createApp(PageHome).mount('#page-home');
 

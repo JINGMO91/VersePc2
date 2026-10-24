@@ -1,30 +1,55 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+import { vmHolders } from '../../core/vm-holders.js';
+import { showLegalNotice, VERSE_FEATURES } from '../misc/feature-flags.js';
+
 /**
  * @file versions.js
  * @description 版本列表管理 - 加载、筛选、渲染游戏版本列表
  */
+import { escapeHtml, formatDate, formatBytes } from '../../core/utils.js';
+import { resetCarouselPosition } from '../accounts/accounts.js';
+import { updateGameStatus } from '../launch/launch.js';
+import { onCloudPageShow } from '../misc/cloud.js';
+import { CustomSelect } from '../misc/custom-select.js';
+import { initTerracottaPage, redstoneInitPage, enderlinkInitPage } from '../misc/lan.js';
+import { initServerHostPage } from '../misc/server-host.js';
+import { showToast, showModal, hideModal, showConfirmDialog, getVersionTypeLabel } from '../misc/ui-components.js';
+import { renderFavPage, setupFavSearchListeners } from '../mods/favorites.js';
+import { populateModVersionFilter, loadMods } from '../mods/mod-browse.js';
+import { openModDetail } from '../mods/mod-detail.js';
+import { updateModSelectUI } from '../mods/mod-install.js';
+import { loadResourcePage, openResourceDetail } from '../mods/resource.js';
+import { refreshMemoryInfo } from '../settings/settings-misc.js';
+import { updateHomeStats } from '../settings/window-theme.js';
+import { dlManager } from './custom-download.js';
+import { openVersionSettings } from './version-settings.js';
+
+import { appState } from '../../core/app-state.js';
+import { isPinned, PIN_ICONS, pinBtnToggle } from './pinned-store.js';
+import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
+import { modDetailState } from '../mods/detail-state.js';
+
 let versionsLoadFailed = false;
 let versionsRetryTimer = null;
 let _versionsLoadTime = 0;
-const _VERSIONS_CACHE_TTL = 300000;
-
-let currentLaunchVersionId = '';
-
+const _VERSIONS_CACHE_TTL = 300000;
 // ============================================================================
 // 版本列表管理 - 加载、筛选、渲染游戏版本列表
 // ============================================================================
 async function loadVersions(forceRefresh = false) {
   if (!forceRefresh && _versionsLoadTime > 0 &&
     (Date.now() - _versionsLoadTime) < _VERSIONS_CACHE_TTL &&
-    (allVersions.length > 0 || installedVersions.length > 0)) {
+    (appState.allVersions.length > 0 || appState.installedVersions.length > 0)) {
     return;
   }
   try {
     const data = await API.getVersions(forceRefresh);
-    allVersions = data.versions || [];
-    installedVersions = data.installed || [];
-    if (!Array.isArray(allVersions)) allVersions = [];
-    if (!Array.isArray(installedVersions)) installedVersions = [];
-    versionIconsTimestamp = Date.now();
+    appState.allVersions = data.versions || [];
+    appState.installedVersions = data.installed || [];
+    if (!Array.isArray(appState.allVersions)) appState.allVersions = [];
+    if (!Array.isArray(appState.installedVersions)) appState.installedVersions = [];
+    appState.versionIconsTimestamp = Date.now();
     versionsLoadFailed = false;
     _versionsLoadTime = Date.now();
 
@@ -37,8 +62,8 @@ async function loadVersions(forceRefresh = false) {
     versionsLoadFailed = true;
     
     const container = document.getElementById('versions-list');
-    if (container && installedVersions.length > 0) {
-      currentVersionTab = 'installed';
+    if (container && appState.installedVersions.length > 0) {
+      appState.currentVersionTab = 'installed';
       renderVersions();
       const tabs = document.querySelectorAll('.tab-btn[data-tab]');
       tabs.forEach(t => t.classList.remove('active'));
@@ -47,7 +72,7 @@ async function loadVersions(forceRefresh = false) {
     } else if (container) {
       container.innerHTML = `
         <p class="empty-text">加载版本列表失败</p>
-        <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="retryLoadVersions()">
+        <button class="btn btn-primary btn-sm" style="margin-top:12px"${actionAttrs('retryLoadVersions')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px">
             <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
           </svg> 重试
@@ -78,24 +103,22 @@ function retryLoadVersions() {
 
 // ============================================================================
 // 版本选择器 - 自定义下拉选择框的选项填充
-// ============================================================================
-let _cachedLastLaunchVersion = null;
-async function updateVersionSelects() {
-  let currentVal = currentLaunchVersionId;
-  if (!currentVal && launchVersionCustomSelect) {
-    currentVal = launchVersionCustomSelect.getValue();
+// ============================================================================async function updateVersionSelects() {
+  let currentVal = appState.currentLaunchVersionId;
+  if (!currentVal && appState.launchVersionCustomSelect) {
+    currentVal = appState.launchVersionCustomSelect.getValue();
   }
 
   if (!currentVal) {
     try {
-      if (_cachedLastLaunchVersion === null) {
-        _cachedLastLaunchVersion = await window.electronAPI.store.get('versepc_last_launch_version') || '';
+      if (appState._cachedLastLaunchVersion === null) {
+        appState._cachedLastLaunchVersion = await bridge.store.get('versepc_last_launch_version') || '';
       }
-      currentVal = _cachedLastLaunchVersion;
+      currentVal = appState._cachedLastLaunchVersion;
     } catch (_) {}
   }
 
-  const versionOptions = installedVersions.filter(v => !v.error).map(v => {
+  const versionOptions = appState.installedVersions.filter(v => !v.error).map(v => {
     const customName = v.customName || '';
     let baseName = v.isExternal ? v.id.replace(/ \[外部\d*\]/, '') : v.id;
     let text = customName || baseName;
@@ -116,17 +139,17 @@ async function updateVersionSelects() {
     currentVal = versionOptions[0].value;
   }
 
-  // 同步 currentLaunchVersionId 状态变量
-  currentLaunchVersionId = currentVal;
-  _cachedLastLaunchVersion = currentVal;
+  // 同步 appState.currentLaunchVersionId 状态变量
+  appState.currentLaunchVersionId = currentVal;
+  appState._cachedLastLaunchVersion = currentVal;
   try {
-    if (currentVal) window.electronAPI.store.set('versepc_last_launch_version', currentVal);
+    if (currentVal) bridge.store.set('versepc_last_launch_version', currentVal);
   } catch (_) {}
 
   // 同步底部启动栏（隐藏）的选择器
-  if (launchVersionCustomSelect) {
-    launchVersionCustomSelect.setOptions(versionOptions);
-    launchVersionCustomSelect.setValue(currentVal);
+  if (appState.launchVersionCustomSelect) {
+    appState.launchVersionCustomSelect.setOptions(versionOptions);
+    appState.launchVersionCustomSelect.setValue(currentVal);
   }
 
   // 渲染主页内嵌版本卡片
@@ -148,15 +171,15 @@ function renderHomeCurrentVersionCard() {
     <span>点击选择版本</span>
   </div>`;
 
-  if (!currentLaunchVersionId) {
+  if (!appState.currentLaunchVersionId) {
     card.innerHTML = placeholder + arrow;
     return;
   }
 
-  const v = installedVersions.find(x => x.id === currentLaunchVersionId);
+  const v = appState.installedVersions.find(x => x.id === appState.currentLaunchVersionId);
   if (!v) {
     // 选中的版本已被删除，重置
-    currentLaunchVersionId = '';
+    appState.currentLaunchVersionId = '';
     card.innerHTML = placeholder + arrow;
     return;
   }
@@ -174,9 +197,8 @@ function renderHomeCurrentVersionCard() {
 
   // 星星收藏按钮（置顶到便利贴面板）；必须 stopPropagation，避免命中页面切换委托
   const starBtn = `<button class="pin-btn pin-btn-star${isPinned('version', v.id) ? ' active' : ''}"
-    title="${isPinned('version', v.id) ? '取消置顶' : '置顶版本'}"
-    onclick="event.stopPropagation();pinBtnToggle(this,'version','${escapeOnclick(v.id)}','${escapeOnclick(displayName)}',{versionId:'${escapeOnclick(v.id)}',loaderText:'${escapeOnclick(badge)}'},'取消置顶','置顶版本')">
-    ${window.VersePC.PIN_ICONS.star}</button>`;
+    title="${isPinned('version', v.id) ? '取消置顶' : '置顶版本'}"${actionAttrsStop('pinVersion', v.id, displayName, badge)}>
+    ${PIN_ICONS.star}</button>`;
 
   card.innerHTML = `
     <div class="version-item-left">
@@ -194,12 +216,12 @@ function renderHomeCurrentVersionCard() {
 
 function selectLaunchVersion(versionId) {
   if (!versionId) return;
-  currentLaunchVersionId = versionId;
-  _cachedLastLaunchVersion = versionId;
-  try { window.electronAPI.store.set('versepc_last_launch_version', versionId); } catch (_) {}
+  appState.currentLaunchVersionId = versionId;
+  appState._cachedLastLaunchVersion = versionId;
+  try { bridge.store.set('versepc_last_launch_version', versionId); } catch (_) {}
   // 同步底部启动栏（隐藏）的选择器
-  if (launchVersionCustomSelect) {
-    launchVersionCustomSelect.setValue(versionId);
+  if (appState.launchVersionCustomSelect) {
+    appState.launchVersionCustomSelect.setValue(versionId);
   }
   // 更新"已安装"tab 中卡片的 selected 类
   document.querySelectorAll('.version-item-clickable[data-installed="true"]').forEach(item => {
@@ -242,7 +264,7 @@ function toggleErrorVersions(id) {
 // 渲染已安装版本列表到指定容器（供独立"已安装版本"页面和版本管理页复用）
 function renderInstalledVersionsInto(container) {
   const selectedFolder = getSelectedFolder();
-  let versions = installedVersions;
+  let versions = appState.installedVersions;
   if (selectedFolder === '__internal') {
     versions = versions.filter(v => !v.isExternal);
   } else {
@@ -274,16 +296,15 @@ function renderInstalledVersionsInto(container) {
     const externalBadgeHtml = v.isExternal ? '<span style="display:inline-block;background:rgba(255,165,0,0.15);color:#ffa500;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px">外部文件夹</span>' : '';
     const externalPathHtml = v.isExternal && v.externalPath ? `<span style="color:var(--text-muted);font-size:11px;margin-left:4px" title="${escapeHtml(v.externalPath)}">${escapeHtml(v.externalPath)}</span>` : '';
     const displayName = v.isExternal ? (v.customName || v.id.replace(/ \[外部\d*\]/, '')) : (v.customName || v.id);
-    const deleteBtnHtml = `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteVersion('${escapeOnclick(v.id)}')">${v.isExternal ? '移除' : '删除'}</button>`;
+    const deleteBtnHtml = `<button class="btn btn-danger btn-sm"${actionAttrsStop('deleteVersion', v.id)}>${v.isExternal ? '移除' : '删除'}</button>`;
     const loaderText = getVersionTypeLabel(v);
     const starBtnHtml = `<button class="pin-btn pin-btn-star${isPinned('version', v.id) ? ' active' : ''}"
-      title="${isPinned('version', v.id) ? '取消置顶' : '置顶版本'}"
-      onclick="event.stopPropagation();pinBtnToggle(this,'version','${escapeOnclick(v.id)}','${escapeOnclick(displayName)}',{versionId:'${escapeOnclick(v.id)}',loaderText:'${escapeOnclick(loaderText)}'},'取消置顶','置顶版本')">
-      ${window.VersePC.PIN_ICONS.star}</button>`;
-    const settingsBtnHtml = `<button class="version-item-settings-btn" data-version-id="${escapeHtml(v.id)}" data-custom-name="${escapeHtml(v.customName || '')}" title="版本设置" onclick="event.stopPropagation();openVersionSettings('${escapeOnclick(v.id)}','${escapeOnclick(displayName)}')">
+      title="${isPinned('version', v.id) ? '取消置顶' : '置顶版本'}"${actionAttrsStop('pinVersion', v.id, displayName, loaderText)}>
+      ${PIN_ICONS.star}</button>`;
+    const settingsBtnHtml = `<button class="version-item-settings-btn" data-version-id="${escapeHtml(v.id)}" data-custom-name="${escapeHtml(v.customName || '')}" title="版本设置"${actionAttrsStop('openVersionSettings', v.id, displayName)}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"></path></svg>
     </button>`;
-    const selectedClass = currentLaunchVersionId === v.id ? ' selected' : '';
+    const selectedClass = appState.currentLaunchVersionId === v.id ? ' selected' : '';
     return `<div class="version-item version-item-clickable${selectedClass}"
       data-version-id="${escapeHtml(v.id)}"
       data-version-url=""
@@ -318,15 +339,14 @@ function renderInstalledVersionsInto(container) {
     const bgInner = (v.isModpack || !bannerUrl)
       ? `<img src="" alt="" class="version-icon-img ver-dl-card-img" ${iconDataAttrs}>`
       : `<img src="${bannerUrl}" alt="" class="ver-dl-card-banner" loading="lazy">`;
-    const selectedClass = currentLaunchVersionId === v.id ? ' selected' : '';
+    const selectedClass = appState.currentLaunchVersionId === v.id ? ' selected' : '';
     const starBtnHtml = `<button class="pin-btn pin-btn-star${isPinned('version', v.id) ? ' active' : ''}"
-      title="${isPinned('version', v.id) ? '取消置顶' : '置顶版本'}"
-      onclick="event.stopPropagation();pinBtnToggle(this,'version','${escapeOnclick(v.id)}','${escapeOnclick(displayName)}',{versionId:'${escapeOnclick(v.id)}',loaderText:'${escapeOnclick(loaderText)}'},'取消置顶','置顶版本')">
-      ${window.VersePC.PIN_ICONS.star}</button>`;
-    const settingsBtnHtml = `<button class="pin-btn ver-dl-card-settings" data-version-id="${escapeHtml(v.id)}" data-custom-name="${escapeHtml(v.customName || '')}" title="版本设置" onclick="event.stopPropagation();openVersionSettings('${escapeOnclick(v.id)}','${escapeOnclick(displayName)}')">
+      title="${isPinned('version', v.id) ? '取消置顶' : '置顶版本'}"${actionAttrsStop('pinVersion', v.id, displayName, loaderText)}>
+      ${PIN_ICONS.star}</button>`;
+    const settingsBtnHtml = `<button class="pin-btn ver-dl-card-settings" data-version-id="${escapeHtml(v.id)}" data-custom-name="${escapeHtml(v.customName || '')}" title="版本设置"${actionAttrsStop('openVersionSettings', v.id, displayName)}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"></path></svg>
     </button>`;
-    const deleteBtnHtml = `<button class="ver-dl-card-del" title="${v.isExternal ? '移除' : '删除'}" onclick="event.stopPropagation();deleteVersion('${escapeOnclick(v.id)}')">
+    const deleteBtnHtml = `<button class="ver-dl-card-del" title="${v.isExternal ? '移除' : '删除'}"${actionAttrsStop('deleteVersion', v.id)}>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
     </button>`;
     return `<div class="ver-dl-card version-item-clickable${selectedClass}"
@@ -373,7 +393,7 @@ function renderInstalledVersionsInto(container) {
     const errorId = 'error-versions-' + Date.now();
     const tntIcon = `<img src="assets/tnt.png" alt="TNT" width="40" height="40" style="image-rendering:pixelated;image-rendering:crisp-edges;">`;
     html += `<div class="error-versions-section" style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(239,68,68,0.2)">
-      <div class="error-versions-header" onclick="toggleErrorVersions('${errorId}')">
+      <div class="error-versions-header"${actionAttrs('toggleErrorVersions', errorId)}>
         <span>\u26A0 错误的版本 (<span class="error-count">${errorVersions.length}</span>)</span>
         <span class="error-chevron">▼</span>
       </div>
@@ -386,7 +406,7 @@ function renderInstalledVersionsInto(container) {
               <span class="error-version-name">${escapeHtml(displayName)}</span>
               <span class="error-version-reason">${escapeHtml(v.errorReason || '无法识别')}</span>
             </div>
-            <button class="btn btn-danger btn-sm" style="flex-shrink:0;padding:4px 12px;font-size:12px" onclick="event.stopPropagation();quickDeleteErrorVersion('${escapeOnclick(v.id)}')">删除</button>
+            <button class="btn btn-danger btn-sm" style="flex-shrink:0;padding:4px 12px;font-size:12px"${actionAttrsStop('quickDeleteErrorVersion', v.id)}>删除</button>
           </div>`;
         }).join('')}
       </div>
@@ -422,7 +442,7 @@ function fetchVersionBanners() {
       });
       _versionBannerMap = map;
       // 已有卡片在渲染：填充宣传图并重新渲染当前列表
-      if (getVersionCardStyle() && currentVersionTab !== 'installed') renderVersions();
+      if (getVersionCardStyle() && appState.currentVersionTab !== 'installed') renderVersions();
     })
     .catch(() => {})
     .finally(() => { _versionBannerLoading = false; });
@@ -460,16 +480,16 @@ function toggleVersionCardStyle() {
 function renderVersions() {
   const container = document.getElementById('versions-list');
   if (!container) return;
-  if (currentVersionTab === 'installed') {
+  if (appState.currentVersionTab === 'installed') {
     renderInstalledVersionsInto(container);
     return;
   }
 
   let versions;
-  if (currentVersionTab === 'old') {
-    versions = allVersions.filter(v => v.type === 'old_beta' || v.type === 'old_alpha');
+  if (appState.currentVersionTab === 'old') {
+    versions = appState.allVersions.filter(v => v.type === 'old_beta' || v.type === 'old_alpha');
   } else {
-    versions = allVersions.filter(v => v.type === currentVersionTab);
+    versions = appState.allVersions.filter(v => v.type === appState.currentVersionTab);
   }
 
   if (versions.length === 0) {
@@ -592,11 +612,11 @@ function runPageExitAnim(pageEl, done) {
 
 async function navigateToPage(pageName) {
   // 功能开关：下载/联机入口保留，进入时统一展示合规提示页
-  const vf = window.VERSE_FEATURES || {};
+  const vf = VERSE_FEATURES || {};
   const isLanPage = pageName.indexOf('lan-') === 0 || pageName === 'private-server';
   if ((pageName === 'versions' && !vf.versionDownload) || (isLanPage && !vf.lan)) {
-    if (typeof window.showLegalNotice === 'function') {
-      window.showLegalNotice(pageName);
+    if (typeof showLegalNotice === 'function') {
+      showLegalNotice(pageName);
       return;
     }
   }
@@ -653,7 +673,7 @@ async function navigateToPage(pageName) {
     const currentPageName = currentPage.id.replace('page-', '');
     const detailPages = ['version-detail', 'mod-detail', 'version-settings'];
     if (!detailPages.includes(currentPageName)) {
-      previousPage = currentPageName;
+      appState.previousPage = currentPageName;
     }
   }
 
@@ -716,7 +736,7 @@ async function navigateToPage(pageName) {
   
   if (isDetailPage) {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    const backPage = previousPage || 'mods';
+    const backPage = appState.previousPage || 'mods';
     const navBtn = document.querySelector(`.nav-btn[data-page="${backPage}"]`);
     if (navBtn) {
       navBtn.classList.add('active');
@@ -749,7 +769,7 @@ async function navigateToPage(pageName) {
   }
 
   if (pageName === 'modpacks') {
-    modDetailHistory = [];
+    appState.modDetailHistory = [];
     setTimeout(() => loadResourcePage('modpack'), 100);
   } else if (pageName === 'settings-other') {
     setTimeout(() => { refreshMemoryInfo(); }, 200);
@@ -759,8 +779,8 @@ async function navigateToPage(pageName) {
     setTimeout(() => loadResourcePage('resourcepack'), 100);
   } else if (pageName === 'shaders') {
     setTimeout(() => loadResourcePage('shader'), 100);
-  } else if (pageName === 'mods' && modMultiSelectMode) {
-    modDetailHistory = [];
+  } else if (pageName === 'mods' && appState.modMultiSelectMode) {
+    appState.modDetailHistory = [];
     setTimeout(() => {
       document.getElementById('mod-multiselect-bar').style.display = 'flex';
       document.getElementById('mod-multiselect-toggle').classList.add('btn-primary');
@@ -769,18 +789,18 @@ async function navigateToPage(pageName) {
       loadMods();
     }, 200);
   } else if (pageName === 'mod-favorites') {
-    modDetailHistory = [];
+    appState.modDetailHistory = [];
     setupFavSearchListeners();
     setTimeout(function() { renderFavPage(); }, 100);
   } else if (pageName === 'mods') {
-    modDetailHistory = [];
+    appState.modDetailHistory = [];
   } else if (pageName === 'downloads') {
     dlManager.render();
   } else if (pageName === 'installed-versions') {
     populateFolderSelector();
     const container = document.getElementById('installed-versions-list');
     if (container) {
-      if (!installedVersions || installedVersions.length === 0) {
+      if (!appState.installedVersions || appState.installedVersions.length === 0) {
         container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>加载已安装版本...</p></div>';
         loadVersions(false).then(() => {
           populateFolderSelector();
@@ -816,17 +836,17 @@ async function navigateToPage(pageName) {
 }
 
 function goBackFromDetail() {
-  if (modDetailHistory.length > 0) {
-    const prev = modDetailHistory.pop();
-    _isRestoringModDetail = true;
+  if (appState.modDetailHistory.length > 0) {
+    const prev = appState.modDetailHistory.pop();
+    appState._isRestoringModDetail = true;
     if (prev && prev.type !== 'mod') {
       openResourceDetail(prev.id, prev.type, prev.source);
     } else {
       openModDetail(prev && prev.id, prev && prev.source);
     }
-    _isRestoringModDetail = false;
+    appState._isRestoringModDetail = false;
   } else {
-    const backPage = previousPage || 'mods';
+    const backPage = appState.previousPage || 'mods';
     navigateToPage(backPage);
   }
 }
@@ -834,17 +854,17 @@ function goBackFromDetail() {
 // 压栈当前详情为返回历史：仅在当前正展示详情页且非恢复操作时压栈，
 // 记录"来源"（即正在查看的详情），从而支持前置模组逐级返回。
 function pushModDetailHistory() {
-  if (_isRestoringModDetail) return;
+  if (appState._isRestoringModDetail) return;
   const active = document.querySelector('.page.active');
   if (!active || active.id !== 'page-mod-detail') return;
-  if (modDetailHistory.length > 0) {
-    const last = modDetailHistory[modDetailHistory.length - 1];
-    if (last.id === currentModDetailId && last.source === currentModDetailSource) return;
+  if (appState.modDetailHistory.length > 0) {
+    const last = appState.modDetailHistory[appState.modDetailHistory.length - 1];
+    if (last.id === appState.currentModDetailId && last.source === appState.currentModDetailSource) return;
   }
-  modDetailHistory.push({
-    id: currentModDetailId,
-    source: currentModDetailSource,
-    type: currentModDetailType
+  appState.modDetailHistory.push({
+    id: appState.currentModDetailId,
+    source: appState.currentModDetailSource,
+    type: modDetailState.type
   });
 }
 
@@ -860,8 +880,8 @@ function openVersionDetail(versionId, versionUrl, versionType) {
     if (window.__TAURI_INTERNALS__) return window.__TAURI_INTERNALS__;
     return null;
   }
-  if (window.__TAURI_PROXY__ && window.__TAURI_PROXY__.apiProxy) {
-    window.__TAURI_PROXY__.apiProxy('GET', '/api/version-icon', {
+  if (bridge.apiProxy) {
+    bridge.apiProxy('GET', '/api/version-icon', {
       versionId: versionId,
       type: versionType,
       forge: '0', fabric: '0', neoforge: '0', modpack: '0'
@@ -888,7 +908,12 @@ function openVersionDetail(versionId, versionUrl, versionType) {
         }
       }).catch(() => { iconEl.src = ''; });
     } else {
-      iconEl.src = `/api/version-icon?${iconParams}&_t=${versionIconsTimestamp}`;
+      const iconParams = new URLSearchParams({
+        versionId,
+        type: versionType,
+        forge: '0', fabric: '0', neoforge: '0', modpack: '0'
+      }).toString();
+      iconEl.src = `/api/version-icon?${iconParams}&_t=${appState.versionIconsTimestamp}`;
     }
   }
   document.getElementById('verdetail-name').textContent = versionId;
@@ -1018,7 +1043,7 @@ async function populateLoaderVersionSelect(loaderType) {
       listContainer.innerHTML = versions.map((v, i) => {
         const verStr = v.version || v.id || v;
         const verType = v.type || (i === 0 ? '推荐' : '');
-        return `<div class="lver-item ${i === 0 ? 'selected' : ''}" data-version="${escapeHtml(verStr)}" onclick="selectLoaderVersion('${escapeOnclick(verStr)}')">
+        return `<div class="lver-item ${i === 0 ? 'selected' : ''}" data-version="${escapeHtml(verStr)}"${actionAttrs('selectLoaderVersion', verStr)}>
           <div class="lver-icon"><img src="img/${iconFile}" alt="" style="width:24px;height:24px;image-rendering:pixelated"></div>
           <div class="lver-info">
             <div class="lver-name">${loaderName} ${escapeHtml(verStr)}</div>
@@ -1090,7 +1115,7 @@ async function installVersionWithLoader(versionUrl, versionId, loaderInfo, downl
   try {
     const result = await API.installVersion(versionUrl, versionId, loaderInfo, downloadSource, customName);
     if (result.success) {
-      currentInstallSessionId = result.sessionId;
+      appState.currentInstallSessionId = result.sessionId;
       // 如果有 Fabric API 待安装，保存信息供安装完成后使用
       if (loaderInfo && loaderInfo.fabricApiId) {
         _pendingFabricApiAfterInstall = {
@@ -1119,7 +1144,7 @@ async function installVersion(versionUrl, versionId) {
   try {
     const result = await API.installVersion(versionUrl, versionId);
     if (result.success) {
-      currentInstallSessionId = result.sessionId;
+      appState.currentInstallSessionId = result.sessionId;
       showInstallModal(versionId);
       pollInstallProgress(result.sessionId);
     } else if (result.alreadyInstalled) {
@@ -1235,7 +1260,7 @@ function showVersionNameModal(defaultName, versionUrl, versionId, loaderInfo, do
 }
 
 function showInstallModal(versionId) {
-  const taskId = 'version-' + currentInstallSessionId;
+  const taskId = 'version-' + appState.currentInstallSessionId;
   // 默认使用 API 图标地址，安装任务一出现就能显示对应版本图标
   let iconUrl = `/api/version-icon?id=${encodeURIComponent(versionId)}&type=release`;
   if (window.__TAURI__ && window.__TAURI__.core) {
@@ -1253,13 +1278,13 @@ function showInstallModal(versionId) {
       }
     }).catch(() => {});
   }
-  dlManager.add(taskId, `安装 ${versionId}`, 'version', currentInstallSessionId, iconUrl);
+  dlManager.add(taskId, `安装 ${versionId}`, 'version', appState.currentInstallSessionId, iconUrl);
 }
 
 function closeInstallModal() {
-  if (currentInstallSessionId) {
-    API.cancelInstall(currentInstallSessionId);
-    currentInstallSessionId = null;
+  if (appState.currentInstallSessionId) {
+    API.cancelInstall(appState.currentInstallSessionId);
+    appState.currentInstallSessionId = null;
   }
 }
 
@@ -1332,7 +1357,7 @@ async function pollInstallProgress(sessionId) {
 
       if (data.status === 'completed') {
         showToast(data.versionId + ' 安装完成！', 'success');
-        currentInstallSessionId = null;
+        appState.currentInstallSessionId = null;
         // 安装完成后如果有待安装的 Fabric API，自动安装
         if (_pendingFabricApiAfterInstall) {
           const fa = _pendingFabricApiAfterInstall;
@@ -1355,18 +1380,18 @@ async function pollInstallProgress(sessionId) {
       }
       if (data.status === 'failed') {
         showToast('安装失败: ' + (data.message || '未知错误'), 'error');
-        currentInstallSessionId = null;
+        appState.currentInstallSessionId = null;
         dlManager.update(taskId, { status: 'failed', message: data.message || '安装失败', progress: smoothPct });
         return;
       }
-      if (data.status === 'cancelled') { currentInstallSessionId = null; dlManager.update(taskId, { status: 'failed', message: '已取消', progress: smoothPct }); return; }
+      if (data.status === 'cancelled') { appState.currentInstallSessionId = null; dlManager.update(taskId, { status: 'failed', message: '已取消', progress: smoothPct }); return; }
       setTimeout(poll, 500);
     } catch (e) {
       _pollErrorCount++;
       if (_pollErrorCount > 5) {
         console.error('[Install] 进度查询多次失败，停止轮询:', e.message);
         dlManager.update(taskId, { status: 'failed', message: '进度查询失败' });
-        currentInstallSessionId = null;
+        appState.currentInstallSessionId = null;
         return;
       }
       if (dlManager.tasks.has(taskId)) setTimeout(poll, 1000);
@@ -1399,7 +1424,7 @@ document.addEventListener('keyup', (e) => { if (e.key === 'Shift') _shiftKeyDown
 
 async function deleteVersion(versionId) {
   const isExternal = versionId.includes(' [外部');
-  const ver = installedVersions.find(v => v.id === versionId);
+  const ver = appState.installedVersions.find(v => v.id === versionId);
   const isPermanent = !isExternal && _shiftKeyDown;
   let warningParts = [];
   if (ver?.hasMods) warningParts.push('模组');
@@ -1599,8 +1624,8 @@ function setSelectedFolder(folder) {
 
 async function populateFolderSelector() {
   _selectedFolder = getSelectedFolder();
-  if (window.VerseInstalledVM && typeof window.VerseInstalledVM.loadFolders === 'function') {
-    await window.VerseInstalledVM.loadFolders();
+  if (vmHolders.installedVersions && typeof vmHolders.installedVersions.loadFolders === 'function') {
+    await vmHolders.installedVersions.loadFolders();
     return;
   }
   const select = document.getElementById('folder-selector');
@@ -1642,24 +1667,24 @@ async function refreshInstalledVersions() {
 function openModLoaderModal(gameVersion) {
   showModal('modloader-modal');
 
-  if (!modloaderGameVersionCustomSelect) {
-    modloaderGameVersionCustomSelect = new CustomSelect('modloader-game-version-wrapper', {
+  if (!appState.modloaderGameVersionCustomSelect) {
+    appState.modloaderGameVersionCustomSelect = new CustomSelect('modloader-game-version-wrapper', {
       onChange: () => loadModLoaderVersions()
     });
   }
 
-  const installedBase = installedVersions.filter(v => !v.isFabric && !v.isForge && !v.isNeoForge);
-  const versions = installedBase.length > 0 ? installedBase : allVersions.filter(v => v.type === 'release').slice(0, 20);
+  const installedBase = appState.installedVersions.filter(v => !v.isFabric && !v.isForge && !v.isNeoForge);
+  const versions = installedBase.length > 0 ? installedBase : appState.allVersions.filter(v => v.type === 'release').slice(0, 20);
 
   const options = versions.map(v => ({
     value: v.id,
     text: v.id
   }));
 
-  modloaderGameVersionCustomSelect.setOptions(options);
+  appState.modloaderGameVersionCustomSelect.setOptions(options);
 
   if (gameVersion && options.find(o => o.value === gameVersion)) {
-    modloaderGameVersionCustomSelect.setValue(gameVersion);
+    appState.modloaderGameVersionCustomSelect.setValue(gameVersion);
   }
 
   loadModLoaderVersions();
@@ -1678,23 +1703,23 @@ function closeModLoaderModal() {
 }
 
 async function loadModLoaderVersions() {
-  const gameVersion = modloaderGameVersionCustomSelect ? modloaderGameVersionCustomSelect.getValue() : '';
+  const gameVersion = appState.modloaderGameVersionCustomSelect ? appState.modloaderGameVersionCustomSelect.getValue() : '';
 
-  if (!modloaderVersionCustomSelect) {
-    modloaderVersionCustomSelect = new CustomSelect('modloader-version-wrapper');
+  if (!appState.modloaderVersionCustomSelect) {
+    appState.modloaderVersionCustomSelect = new CustomSelect('modloader-version-wrapper');
   }
 
-  modloaderVersionCustomSelect.setOptions([{ value: '', text: '加载中...' }]);
+  appState.modloaderVersionCustomSelect.setOptions([{ value: '', text: '加载中...' }]);
   try {
-    if (currentLoaderType === 'fabric') {
+    if (appState.currentLoaderType === 'fabric') {
       const versions = await API.getModLoaderVersions(gameVersion, 'fabric');
       const options = versions.map(v => ({
         value: v.version,
         text: `${v.version} ${v.stable ? '(稳定)' : ''}`
       }));
-      modloaderVersionCustomSelect.setOptions(options);
+      appState.modloaderVersionCustomSelect.setOptions(options);
       const stable = versions.find(v => v.stable);
-      if (stable) modloaderVersionCustomSelect.setValue(stable.version);
+      if (stable) appState.modloaderVersionCustomSelect.setValue(stable.version);
       // 游戏版本变化时重置 Fabric API 选择状态（列表在点击卡片时懒加载）
       _fabricApiPickerLoadedFor = '';
       _fabricApiSelectedId = '';
@@ -1706,28 +1731,28 @@ async function loadModLoaderVersions() {
         cardText.textContent = '不安装';
         cardText.style.color = 'var(--text-muted)';
       }
-    } else if (currentLoaderType === 'forge') {
+    } else if (appState.currentLoaderType === 'forge') {
       const versions = await API.getModLoaderVersions(gameVersion, 'forge');
       const options = versions.map(v => ({
         value: v.version,
         text: `${v.version} (${v.type})`
       }));
-      modloaderVersionCustomSelect.setOptions(options);
-    } else if (currentLoaderType === 'neoforge') {
+      appState.modloaderVersionCustomSelect.setOptions(options);
+    } else if (appState.currentLoaderType === 'neoforge') {
       const versions = await API.getModLoaderVersions(gameVersion, 'neoforge');
       const options = versions.map(v => ({
         value: v.version,
         text: `${v.version} ${v.type ? '(' + v.type + ')' : ''}`
       }));
-      modloaderVersionCustomSelect.setOptions(options);
-      if (versions.length > 0) modloaderVersionCustomSelect.setValue(versions[0].version);
+      appState.modloaderVersionCustomSelect.setOptions(options);
+      if (versions.length > 0) appState.modloaderVersionCustomSelect.setValue(versions[0].version);
     }
-  } catch (e) { modloaderVersionCustomSelect.setOptions([{ value: '', text: '加载失败' }]); }
+  } catch (e) { appState.modloaderVersionCustomSelect.setOptions([{ value: '', text: '加载失败' }]); }
 
   // 非 Fabric 类型时隐藏 Fabric API 区域
   const apiSection = document.getElementById('fabric-api-section');
   if (apiSection) {
-    apiSection.style.display = (currentLoaderType === 'fabric' && gameVersion) ? '' : 'none';
+    apiSection.style.display = (appState.currentLoaderType === 'fabric' && gameVersion) ? '' : 'none';
   }
 }
 
@@ -1740,7 +1765,7 @@ let _fabricApiRecommendedId = ''; // 推荐版本 ID
 
 // 点击 Fabric API 卡片，进入版本选择视图
 function openFabricApiPicker() {
-  const gameVersion = modloaderGameVersionCustomSelect ? modloaderGameVersionCustomSelect.getValue() : '';
+  const gameVersion = appState.modloaderGameVersionCustomSelect ? appState.modloaderGameVersionCustomSelect.getValue() : '';
   if (!gameVersion) {
     showToast('请先选择游戏版本', 'error');
     return;
@@ -1767,7 +1792,7 @@ function backFromFabricApiPicker() {
   const formGroups = document.querySelectorAll('#modloader-modal .modal-body > .form-group');
   formGroups.forEach(g => g.style.display = '');
   // Fabric 类型时确保 Fabric API 区域可见
-  if (currentLoaderType === 'fabric') {
+  if (appState.currentLoaderType === 'fabric') {
     const apiSection = document.getElementById('fabric-api-section');
     if (apiSection) apiSection.style.display = '';
   }
@@ -1818,7 +1843,7 @@ function renderFabricApiList() {
   const items = [];
   // 第一项：不安装
   items.push(`
-    <div class="fabric-api-item${_fabricApiSelectedId === '' ? ' selected' : ''}" onclick="selectFabricApiVersion('', '不安装')" style="padding:12px 14px;border:1px solid ${_fabricApiSelectedId === '' ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${_fabricApiSelectedId === '' ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s">
+    <div class="fabric-api-item${_fabricApiSelectedId === '' ? ' selected' : ''}"${actionAttrs('selectFabricApiVersion', '', '不安装')} style="padding:12px 14px;border:1px solid ${_fabricApiSelectedId === '' ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${_fabricApiSelectedId === '' ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s">
       <div>
         <div style="font-size:14px;font-weight:500;color:var(--text-primary)">不安装 Fabric API</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">仅安装 Fabric 加载器，不安装 API</div>
@@ -1832,7 +1857,7 @@ function renderFabricApiList() {
     const date = v.datePublished ? v.datePublished.substring(0, 10) : '';
     const isRecommended = v.versionId === _fabricApiRecommendedId;
     items.push(`
-      <div class="fabric-api-item${isSelected ? ' selected' : ''}" onclick="selectFabricApiVersion('${escapeHtml(v.versionId)}')" style="padding:12px 14px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${isSelected ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s" onmouseover="if(!this.classList.contains('selected'))this.style.borderColor='var(--accent)'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--border-color)'">
+      <div class="fabric-api-item${isSelected ? ' selected' : ''}"${actionAttrs('selectFabricApiVersion', v.versionId)} style="padding:12px 14px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${isSelected ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s" onmouseover="if(!this.classList.contains('selected'))this.style.borderColor='var(--accent)'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--border-color)'">
         <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px;font-weight:500;color:var(--text-primary)">${escapeHtml(v.versionNumber)}</span>
@@ -1871,14 +1896,14 @@ function selectFabricApiVersion(versionId) {
 }
 
 async function installModLoader() {
-  const gameVersion = modloaderGameVersionCustomSelect ? modloaderGameVersionCustomSelect.getValue() : '';
-  const loaderVersion = modloaderVersionCustomSelect ? modloaderVersionCustomSelect.getValue() : '';
+  const gameVersion = appState.modloaderGameVersionCustomSelect ? appState.modloaderGameVersionCustomSelect.getValue() : '';
+  const loaderVersion = appState.modloaderVersionCustomSelect ? appState.modloaderVersionCustomSelect.getValue() : '';
   if (!gameVersion) { showToast('请选择游戏版本', 'error'); return; }
 
   // 读取 Fabric API 选项（来自二级页面选择）
   let installFabricApi = false;
   let fabricApiVersionId = '';
-  if (currentLoaderType === 'fabric' && _fabricApiSelectedId) {
+  if (appState.currentLoaderType === 'fabric' && _fabricApiSelectedId) {
     installFabricApi = true;
     fabricApiVersionId = _fabricApiSelectedId;
   }
@@ -1890,12 +1915,12 @@ async function installModLoader() {
   try {
     let result;
     const loaderNames = { fabric: 'Fabric', forge: 'Forge', neoforge: 'NeoForge' };
-    if (currentLoaderType === 'fabric') {
+    if (appState.currentLoaderType === 'fabric') {
       result = await API.installFabric(gameVersion, loaderVersion);
-    } else if (currentLoaderType === 'forge') {
+    } else if (appState.currentLoaderType === 'forge') {
       if (!loaderVersion) { showToast('请选择Forge版本', 'error'); return; }
       result = await API.installForge(gameVersion, loaderVersion);
-    } else if (currentLoaderType === 'neoforge') {
+    } else if (appState.currentLoaderType === 'neoforge') {
       if (!loaderVersion) { showToast('请选择NeoForge版本', 'error'); return; }
       result = await API.installNeoForge(gameVersion, loaderVersion);
     } else {
@@ -1905,15 +1930,15 @@ async function installModLoader() {
     if (result.success) {
       let installedId = result.versionId;
       if (!installedId) {
-        if (currentLoaderType === 'fabric') installedId = `fabric-loader-${loaderVersion}-${gameVersion}`;
-        else if (currentLoaderType === 'forge') installedId = `${gameVersion}-forge-${loaderVersion}`;
-        else if (currentLoaderType === 'neoforge') installedId = `${gameVersion}-neoforge-${loaderVersion}`;
-        else installedId = `${gameVersion}-${currentLoaderType}-${loaderVersion}`;
+        if (appState.currentLoaderType === 'fabric') installedId = `fabric-loader-${loaderVersion}-${gameVersion}`;
+        else if (appState.currentLoaderType === 'forge') installedId = `${gameVersion}-forge-${loaderVersion}`;
+        else if (appState.currentLoaderType === 'neoforge') installedId = `${gameVersion}-neoforge-${loaderVersion}`;
+        else installedId = `${gameVersion}-${appState.currentLoaderType}-${loaderVersion}`;
       }
 
       // Fabric 安装成功后，按需安装 Fabric API
       let apiOk = true;
-      if (installFabricApi && currentLoaderType === 'fabric') {
+      if (installFabricApi && appState.currentLoaderType === 'fabric') {
         if (installBtn) installBtn.textContent = '正在安装 Fabric API...';
         try {
           const apiFile = _fabricApiVersionsCache.find(v => v.versionId === fabricApiVersionId);
@@ -1935,15 +1960,15 @@ async function installModLoader() {
       }
 
       const msg = apiOk
-        ? `${loaderNames[currentLoaderType] || currentLoaderType} 安装成功！${installFabricApi ? ' Fabric API 已一并安装' : ''}`
-        : `${loaderNames[currentLoaderType] || currentLoaderType} 安装成功，但 Fabric API 安装失败`;
+        ? `${loaderNames[appState.currentLoaderType] || appState.currentLoaderType} 安装成功！${installFabricApi ? ' Fabric API 已一并安装' : ''}`
+        : `${loaderNames[appState.currentLoaderType] || appState.currentLoaderType} 安装成功，但 Fabric API 安装失败`;
       showToast(msg, apiOk ? 'success' : 'warning', 4000);
       closeModLoaderModal();
       await loadVersions(true);
-      if (launchVersionCustomSelect) {
-        launchVersionCustomSelect.setValue(installedId);
-        _cachedLastLaunchVersion = installedId;
-        try { window.electronAPI.store.set('versepc_last_launch_version', installedId); } catch (_) {}
+      if (appState.launchVersionCustomSelect) {
+        appState.launchVersionCustomSelect.setValue(installedId);
+        appState._cachedLastLaunchVersion = installedId;
+        try { bridge.store.set('versepc_last_launch_version', installedId); } catch (_) {}
       }
     } else {
       showToast(result.error || '安装失败', 'error');
@@ -2056,7 +2081,7 @@ function renderFabricApiDetailList() {
   const items = [];
   // 第一项：不安装
   items.push(`
-    <div class="fabric-api-item${_fabricApiDetailId === '' ? ' selected' : ''}" onclick="selectFabricApiDetailVersion('', '不安装')" style="padding:12px 14px;border:1px solid ${_fabricApiDetailId === '' ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${_fabricApiDetailId === '' ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s">
+    <div class="fabric-api-item${_fabricApiDetailId === '' ? ' selected' : ''}"${actionAttrs('selectFabricApiDetailVersion', '', '不安装')} style="padding:12px 14px;border:1px solid ${_fabricApiDetailId === '' ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${_fabricApiDetailId === '' ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s">
       <div>
         <div style="font-size:14px;font-weight:500;color:var(--text-primary)">不安装 Fabric API</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">仅安装 Fabric 加载器，不安装 API</div>
@@ -2070,7 +2095,7 @@ function renderFabricApiDetailList() {
     const date = v.datePublished ? v.datePublished.substring(0, 10) : '';
     const isRecommended = v.versionId === _fabricApiDetailRecommendedId;
     items.push(`
-      <div class="fabric-api-item${isSelected ? ' selected' : ''}" onclick="selectFabricApiDetailVersion('${escapeHtml(v.versionId)}', '${escapeHtml(v.versionNumber + ' (' + typeLabel + ')')}')" style="padding:12px 14px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${isSelected ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s" onmouseover="if(!this.classList.contains('selected'))this.style.borderColor='var(--accent)'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--border-color)'">
+      <div class="fabric-api-item${isSelected ? ' selected' : ''}"${actionAttrs('selectFabricApiDetailVersion', v.versionId, v.versionNumber + ' (' + typeLabel + ')')} style="padding:12px 14px;border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border-color)'};border-radius:8px;background:${isSelected ? 'rgba(99,102,241,0.08)' : 'var(--bg-secondary)'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s" onmouseover="if(!this.classList.contains('selected'))this.style.borderColor='var(--accent)'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='var(--border-color)'">
         <div style="min-width:0">
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:14px;font-weight:500;color:var(--text-primary)">${escapeHtml(v.versionNumber)}</span>
@@ -2117,9 +2142,9 @@ function _loadVersionIcons(container) {
     const modpack = img.dataset.viModpack === '1';
     const extDir = img.dataset.viExtdir || undefined;
 
-    if (window.__TAURI_PROXY__ && window.__TAURI_PROXY__.apiProxy) {
+    if (bridge.apiProxy) {
       // 通过 tauri-bridge 的 proxy 调用（兼容 v2）
-      window.__TAURI_PROXY__.apiProxy('GET', '/api/version-icon', {
+      bridge.apiProxy('GET', '/api/version-icon', {
         versionId: id,
         type: versionType,
         forge: forge ? '1' : '0',
@@ -2166,150 +2191,21 @@ function _loadVersionIcons(container) {
   });
 }
 
+// 事件委托动作：动态 HTML 不再依赖全局函数
+registerActions({
+  retryLoadVersions,
+  pinVersion: (event, el, versionId, name, loaderText) => {
+    pinBtnToggle(el, 'version', versionId, name, { versionId, loaderText }, '取消置顶', '置顶版本');
+  },
+  deleteVersion: (event, el, versionId) => deleteVersion(versionId),
+  openVersionSettings: (event, el, versionId, versionName) => openVersionSettings(versionId, versionName),
+  toggleErrorVersions: (event, el, id) => toggleErrorVersions(id),
+  quickDeleteErrorVersion: (event, el, versionId) => quickDeleteErrorVersion(versionId),
+  selectLoaderVersion: (event, el, version) => selectLoaderVersion(version),
+  selectFabricApiVersion: (event, el, versionId, displayText) => selectFabricApiVersion(versionId || '', displayText),
+  selectFabricApiDetailVersion: (event, el, versionId, displayText) => selectFabricApiDetailVersion(versionId || '', displayText),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
-export { loadVersions, retryLoadVersions, updateVersionSelects, renderHomeCurrentVersionCard, selectLaunchVersion, quickDeleteErrorVersion, toggleErrorVersions, renderInstalledVersionsInto, getVersionCardStyle, fetchVersionBanners, getVersionBannerUrl, syncVersionCardSwitches, toggleVersionCardStyle, renderVersions, _collectPclBlocks, runPageEnterAnim, runPageExitAnim, navigateToPage, goBackFromDetail, pushModDetailHistory, openVersionDetail, loadLoaderVersions, selectLoaderCard, populateLoaderVersionSelect, selectLoaderVersion, confirmInstallVersion, installVersionWithLoader, installVersion, showVersionNameModal, showInstallModal, closeInstallModal, cancelInstall, pollInstallProgress, getStageText, deleteVersion, addExternalFolder, closeExternalFolderModal, autoDetectExternalFolders, selectExternalFolderPath, confirmAddExternalFolder, getSelectedFolder, setSelectedFolder, populateFolderSelector, onFolderSelectorChange, refreshInstalledVersions, openModLoaderModal, closeModLoaderModal, loadModLoaderVersions, openFabricApiPicker, backFromFabricApiPicker, loadFabricApiVersions, renderFabricApiList, selectFabricApiVersion, installModLoader, openFabricApiDetailPicker, backFromFabricApiDetailPicker, loadFabricApiDetailVersions, renderFabricApiDetailList, selectFabricApiDetailVersion, _loadVersionIcons, _VERSIONS_CACHE_TTL, AVATAR_CACHE_VERSION, _PCL_BLOCK_SELECTOR, versionsLoadFailed, versionsRetryTimer, _versionsLoadTime, currentLaunchVersionId, _cachedLastLaunchVersion, _versionBannerMap, _versionBannerLoading, currentVersionDetail, selectedLoaderType, selectedLoaderVersion, _pageTransitionLock, _pendingPageTransition, _shiftKeyDown, pendingExternalFolderPath, _detectingFolders, _selectedFolder, _fabricApiVersionsCache, _fabricApiSelectedId, _fabricApiSelectedText, _fabricApiSelectedFile, _fabricApiPickerLoadedFor, _fabricApiRecommendedId, _fabricApiDetailVersions, _fabricApiDetailId, _fabricApiDetailText, _fabricApiDetailLoadedFor, _fabricApiDetailRecommendedId, _pendingFabricApiAfterInstall };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ loadVersions, retryLoadVersions, updateVersionSelects, renderHomeCurrentVersionCard, selectLaunchVersion, quickDeleteErrorVersion, toggleErrorVersions, renderInstalledVersionsInto, getVersionCardStyle, fetchVersionBanners, getVersionBannerUrl, syncVersionCardSwitches, toggleVersionCardStyle, renderVersions, _collectPclBlocks, runPageEnterAnim, runPageExitAnim, navigateToPage, goBackFromDetail, pushModDetailHistory, openVersionDetail, loadLoaderVersions, selectLoaderCard, populateLoaderVersionSelect, selectLoaderVersion, confirmInstallVersion, installVersionWithLoader, installVersion, showVersionNameModal, showInstallModal, closeInstallModal, cancelInstall, pollInstallProgress, getStageText, deleteVersion, addExternalFolder, closeExternalFolderModal, autoDetectExternalFolders, selectExternalFolderPath, confirmAddExternalFolder, getSelectedFolder, setSelectedFolder, populateFolderSelector, onFolderSelectorChange, refreshInstalledVersions, openModLoaderModal, closeModLoaderModal, loadModLoaderVersions, openFabricApiPicker, backFromFabricApiPicker, loadFabricApiVersions, renderFabricApiList, selectFabricApiVersion, installModLoader, openFabricApiDetailPicker, backFromFabricApiDetailPicker, loadFabricApiDetailVersions, renderFabricApiDetailList, selectFabricApiDetailVersion, _loadVersionIcons, _VERSIONS_CACHE_TTL, AVATAR_CACHE_VERSION, _PCL_BLOCK_SELECTOR })) {
-  window[name] = value;
-}
+export { loadVersions, retryLoadVersions, updateVersionSelects, renderHomeCurrentVersionCard, selectLaunchVersion, quickDeleteErrorVersion, toggleErrorVersions, renderInstalledVersionsInto, getVersionCardStyle, fetchVersionBanners, getVersionBannerUrl, syncVersionCardSwitches, toggleVersionCardStyle, renderVersions, _collectPclBlocks, runPageEnterAnim, runPageExitAnim, navigateToPage, goBackFromDetail, pushModDetailHistory, openVersionDetail, loadLoaderVersions, selectLoaderCard, populateLoaderVersionSelect, selectLoaderVersion, confirmInstallVersion, installVersionWithLoader, installVersion, showVersionNameModal, showInstallModal, closeInstallModal, cancelInstall, pollInstallProgress, getStageText, deleteVersion, addExternalFolder, closeExternalFolderModal, autoDetectExternalFolders, selectExternalFolderPath, confirmAddExternalFolder, getSelectedFolder, setSelectedFolder, populateFolderSelector, onFolderSelectorChange, refreshInstalledVersions, openModLoaderModal, closeModLoaderModal, loadModLoaderVersions, openFabricApiPicker, backFromFabricApiPicker, loadFabricApiVersions, renderFabricApiList, selectFabricApiVersion, installModLoader, openFabricApiDetailPicker, backFromFabricApiDetailPicker, loadFabricApiDetailVersions, renderFabricApiDetailList, selectFabricApiDetailVersion, _loadVersionIcons, _VERSIONS_CACHE_TTL, AVATAR_CACHE_VERSION, _PCL_BLOCK_SELECTOR, versionsLoadFailed, versionsRetryTimer, _versionsLoadTime, _versionBannerMap, _versionBannerLoading, currentVersionDetail, selectedLoaderType, selectedLoaderVersion, _pageTransitionLock, _pendingPageTransition, _shiftKeyDown, pendingExternalFolderPath, _detectingFolders, _selectedFolder, _fabricApiVersionsCache, _fabricApiSelectedId, _fabricApiSelectedText, _fabricApiSelectedFile, _fabricApiPickerLoadedFor, _fabricApiRecommendedId, _fabricApiDetailVersions, _fabricApiDetailId, _fabricApiDetailText, _fabricApiDetailLoadedFor, _fabricApiDetailRecommendedId, _pendingFabricApiAfterInstall };
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'versionsLoadFailed', {
-  configurable: true,
-  get: () => versionsLoadFailed,
-  set: (v) => { versionsLoadFailed = v; },
-});
-Object.defineProperty(window, 'versionsRetryTimer', {
-  configurable: true,
-  get: () => versionsRetryTimer,
-  set: (v) => { versionsRetryTimer = v; },
-});
-Object.defineProperty(window, '_versionsLoadTime', {
-  configurable: true,
-  get: () => _versionsLoadTime,
-  set: (v) => { _versionsLoadTime = v; },
-});
-Object.defineProperty(window, 'currentLaunchVersionId', {
-  configurable: true,
-  get: () => currentLaunchVersionId,
-  set: (v) => { currentLaunchVersionId = v; },
-});
-Object.defineProperty(window, '_cachedLastLaunchVersion', {
-  configurable: true,
-  get: () => _cachedLastLaunchVersion,
-  set: (v) => { _cachedLastLaunchVersion = v; },
-});
-Object.defineProperty(window, '_versionBannerMap', {
-  configurable: true,
-  get: () => _versionBannerMap,
-  set: (v) => { _versionBannerMap = v; },
-});
-Object.defineProperty(window, '_versionBannerLoading', {
-  configurable: true,
-  get: () => _versionBannerLoading,
-  set: (v) => { _versionBannerLoading = v; },
-});
-Object.defineProperty(window, 'currentVersionDetail', {
-  configurable: true,
-  get: () => currentVersionDetail,
-  set: (v) => { currentVersionDetail = v; },
-});
-Object.defineProperty(window, 'selectedLoaderType', {
-  configurable: true,
-  get: () => selectedLoaderType,
-  set: (v) => { selectedLoaderType = v; },
-});
-Object.defineProperty(window, 'selectedLoaderVersion', {
-  configurable: true,
-  get: () => selectedLoaderVersion,
-  set: (v) => { selectedLoaderVersion = v; },
-});
-Object.defineProperty(window, '_pageTransitionLock', {
-  configurable: true,
-  get: () => _pageTransitionLock,
-  set: (v) => { _pageTransitionLock = v; },
-});
-Object.defineProperty(window, '_pendingPageTransition', {
-  configurable: true,
-  get: () => _pendingPageTransition,
-  set: (v) => { _pendingPageTransition = v; },
-});
-Object.defineProperty(window, '_shiftKeyDown', {
-  configurable: true,
-  get: () => _shiftKeyDown,
-  set: (v) => { _shiftKeyDown = v; },
-});
-Object.defineProperty(window, 'pendingExternalFolderPath', {
-  configurable: true,
-  get: () => pendingExternalFolderPath,
-  set: (v) => { pendingExternalFolderPath = v; },
-});
-Object.defineProperty(window, '_detectingFolders', {
-  configurable: true,
-  get: () => _detectingFolders,
-  set: (v) => { _detectingFolders = v; },
-});
-Object.defineProperty(window, '_selectedFolder', {
-  configurable: true,
-  get: () => _selectedFolder,
-  set: (v) => { _selectedFolder = v; },
-});
-Object.defineProperty(window, '_fabricApiVersionsCache', {
-  configurable: true,
-  get: () => _fabricApiVersionsCache,
-  set: (v) => { _fabricApiVersionsCache = v; },
-});
-Object.defineProperty(window, '_fabricApiSelectedId', {
-  configurable: true,
-  get: () => _fabricApiSelectedId,
-  set: (v) => { _fabricApiSelectedId = v; },
-});
-Object.defineProperty(window, '_fabricApiSelectedText', {
-  configurable: true,
-  get: () => _fabricApiSelectedText,
-  set: (v) => { _fabricApiSelectedText = v; },
-});
-Object.defineProperty(window, '_fabricApiSelectedFile', {
-  configurable: true,
-  get: () => _fabricApiSelectedFile,
-  set: (v) => { _fabricApiSelectedFile = v; },
-});
-Object.defineProperty(window, '_fabricApiPickerLoadedFor', {
-  configurable: true,
-  get: () => _fabricApiPickerLoadedFor,
-  set: (v) => { _fabricApiPickerLoadedFor = v; },
-});
-Object.defineProperty(window, '_fabricApiRecommendedId', {
-  configurable: true,
-  get: () => _fabricApiRecommendedId,
-  set: (v) => { _fabricApiRecommendedId = v; },
-});
-Object.defineProperty(window, '_fabricApiDetailVersions', {
-  configurable: true,
-  get: () => _fabricApiDetailVersions,
-  set: (v) => { _fabricApiDetailVersions = v; },
-});
-Object.defineProperty(window, '_fabricApiDetailId', {
-  configurable: true,
-  get: () => _fabricApiDetailId,
-  set: (v) => { _fabricApiDetailId = v; },
-});
-Object.defineProperty(window, '_fabricApiDetailText', {
-  configurable: true,
-  get: () => _fabricApiDetailText,
-  set: (v) => { _fabricApiDetailText = v; },
-});
-Object.defineProperty(window, '_fabricApiDetailLoadedFor', {
-  configurable: true,
-  get: () => _fabricApiDetailLoadedFor,
-  set: (v) => { _fabricApiDetailLoadedFor = v; },
-});
-Object.defineProperty(window, '_fabricApiDetailRecommendedId', {
-  configurable: true,
-  get: () => _fabricApiDetailRecommendedId,
-  set: (v) => { _fabricApiDetailRecommendedId = v; },
-});
-Object.defineProperty(window, '_pendingFabricApiAfterInstall', {
-  configurable: true,
-  get: () => _pendingFabricApiAfterInstall,
-  set: (v) => { _pendingFabricApiAfterInstall = v; },
-});

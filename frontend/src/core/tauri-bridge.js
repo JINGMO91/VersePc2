@@ -2,7 +2,7 @@
  * js/tauri-bridge.js - Tauri 环境下的完整 electronAPI 等价适配层
  *
  * 职责：
- *   在 Tauri 环境下，提供与 Electron preload.cjs 中 window.electronAPI 等价的接口，
+ *   在 Tauri 环境下，提供与 Electron preload.cjs 中 bridge 等价的接口，
  *   内部通过 window.__TAURI__.core.invoke / event.listen 调用 Rust 后端。
  *
  *   包含以下模块（按原 Electron preload.cjs 结构排列）：
@@ -550,7 +550,7 @@ export const bridge = (function () {
     }
   };
 
-  // ============== 注入到 window.electronAPI ==============
+  // ============== 注入到 bridge ==============
 
   var electronAPI = {
     // 窗口控制
@@ -664,7 +664,7 @@ export const bridge = (function () {
     });
   }
 
-  // 统一通信面以 bridge 为准；window.bridge / window.electronAPI 兼容别名
+  // 统一通信面以 bridge 为准；bridge / bridge 兼容别名
   // 由 legacy/globals.js 在入口统一挂载。
   console.log('[tauri-bridge] Tauri 环境已检测到，统一桥接层已加载');
   return _withFallback(bridgeObj);

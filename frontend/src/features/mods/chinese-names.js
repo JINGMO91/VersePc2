@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
+import { API } from '../../core/api.js';
 /**
  * mod-chinese-names.js - 模组中文名称映射表
  * ============================================================================
@@ -37,7 +38,9 @@
  * - 工具 (WorldEdit, Litematica, Malilib...)
  */
 
-const MOD_CHINESE_NAMES = {
+import { MOD_SLUG_MAP } from './mod-slug-map.js';
+
+export const MOD_CHINESE_NAMES = {
     "fabric-api": "Fabric API",
     "fabric": "Fabric",
     "forge": "Forge",
@@ -696,7 +699,6 @@ const MOD_CHINESE_NAMES = {
     "lettuce": "生菜",
     "spinach": "菠菜",
     "broccoli": "西兰花",
-    "cucumber": "黄瓜",
     "pumpkin": "南瓜",
     "melon": "西瓜",
     "berry": "浆果",
@@ -855,7 +857,7 @@ const MOD_CHINESE_NAMES = {
     "violet-carpenter-bee": "紫木蜂"
 };
 
-const MODPACK_CHINESE_NAMES = {
+export const MODPACK_CHINESE_NAMES = {
     "rlcraft": "RLCraft（艰难生存）",
     "rl-craft": "RLCraft（艰难生存）",
     "better-minecraft": "更好的我的世界",
@@ -995,23 +997,19 @@ const MODPACK_CHINESE_NAMES = {
  * @param {string} englishName - 模组英文显示名
  * @returns {string} 找到的中文名，未找到返回空字符串
  */
-function getModChineseName(modId, englishName) {
+export function getModChineseName(modId, englishName) {
     if (!modId && !englishName) return '';
 
     const id = (modId || '').toLowerCase().replace(/[\s_]/g, '-');
     const name = (englishName || '').toLowerCase().replace(/[\s_]/g, '-');
 
     // 第1级：翻译数据库（8000+ 条，最权威）
-    if (typeof MOD_SLUG_MAP !== 'undefined') {
-        if (MOD_SLUG_MAP[id]) return MOD_SLUG_MAP[id];
-        if (MOD_SLUG_MAP[name]) return MOD_SLUG_MAP[name];
-    }
+    if (MOD_SLUG_MAP[id]) return MOD_SLUG_MAP[id];
+    if (MOD_SLUG_MAP[name]) return MOD_SLUG_MAP[name];
 
     // 第2级：整合包翻译字典
-    if (typeof MODPACK_CHINESE_NAMES !== 'undefined') {
-        if (MODPACK_CHINESE_NAMES[id]) return MODPACK_CHINESE_NAMES[id];
-        if (MODPACK_CHINESE_NAMES[name]) return MODPACK_CHINESE_NAMES[name];
-    }
+    if (MODPACK_CHINESE_NAMES[id]) return MODPACK_CHINESE_NAMES[id];
+    if (MODPACK_CHINESE_NAMES[name]) return MODPACK_CHINESE_NAMES[name];
 
     // 第3级：本地字典精确匹配
     if (MOD_CHINESE_NAMES[id]) return MOD_CHINESE_NAMES[id];
@@ -1042,7 +1040,7 @@ function getModChineseName(modId, englishName) {
  * @param {string} englishName - 模组英文显示名
  * @returns {string} 格式化后的名称
  */
-function formatModNameWithChinese(modId, englishName) {
+export function formatModNameWithChinese(modId, englishName) {
     const chineseName = getModChineseName(modId, englishName);
     if (chineseName) {
         return `${englishName}（${chineseName}）`;
@@ -1050,7 +1048,7 @@ function formatModNameWithChinese(modId, englishName) {
     return englishName;
 }
 
-const CHINESE_SEARCH_KEYWORDS = {
+export const CHINESE_SEARCH_KEYWORDS = {
     "光影": ["iris", "optifine", "shader", "complementary", "bsl", "seus"],
     "高清修复": ["optifine"],
     "优化": ["sodium", "lithium", "ferritecore", "modernfix", "entityculling", "starlight", "phosphor"],
@@ -1176,7 +1174,6 @@ const CHINESE_SEARCH_KEYWORDS = {
     "更好的下界": ["better-nether", "incendium"],
     "虚无世界": ["advent-of-ascension"],
     "匠人": ["tinkers-construct"],
-    "植物魔法": ["botania"],
     "血魔法": ["blood-magic"],
     "新生魔艺": ["ars-nouveau"],
     "神秘时代": ["thaumcraft"],
@@ -1184,7 +1181,6 @@ const CHINESE_SEARCH_KEYWORDS = {
     "星辉魔法": ["astral-sorcery"],
     "灵气魔法": ["aura"],
     "热力系列": ["thermal"],
-    "沉浸工程": ["immersive-engineering"],
     "工业时代": ["industrial-craft", "ic2"],
     "格雷科技": ["gregtech"],
     "GT": ["gregtech"],
@@ -1195,11 +1191,9 @@ const CHINESE_SEARCH_KEYWORDS = {
     "史诗战斗": ["epic-fight"],
     "更多武器": ["spartan-weaponry"],
     "更多盔甲": ["spartan-armor"],
-    "背包": ["sophisticated-backpacks", "travellers-backpack"],
     "更好的背包": ["sophisticated-backpacks"],
     "更多箱子": ["iron-chests", "storage-drawers"],
     "更多漏斗": ["hopper"],
-    "管道": ["pipez", "thermal-dynamics"],
     "物流": ["logistics", "pipez"],
     "更好的HUD": ["journeymap", "appleskin", "wthit"],
     "血量显示": ["wthit", "hwyla"],
@@ -1215,7 +1209,7 @@ const CHINESE_SEARCH_KEYWORDS = {
     "Quilt": ["quilt"]
 };
 
-const CHINESE_SEARCH_KEYWORDS_MODPACK = {
+export const CHINESE_SEARCH_KEYWORDS_MODPACK = {
     "整合包": ["modpack"],
     "生存": ["survival", "hardcore"],
     "科技": ["tech", "technology", "create", "mekanism"],
@@ -1260,7 +1254,7 @@ const CHINESE_SEARCH_KEYWORDS_MODPACK = {
     "1.21": ["1.21"]
 };
 
-function translateChineseSearch(query, type) {
+export function translateChineseSearch(query, type) {
     if (!query) return '';
     const keywords = type === 'modpack' ? CHINESE_SEARCH_KEYWORDS_MODPACK : CHINESE_SEARCH_KEYWORDS;
     const q = query.trim();
@@ -1272,11 +1266,7 @@ function translateChineseSearch(query, type) {
     return '';
 }
 
-function isChineseQuery(query) {
+export function isChineseQuery(query) {
     if (!query) return false;
     return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(query);
-}
-
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MOD_CHINESE_NAMES, MODPACK_CHINESE_NAMES, CHINESE_SEARCH_KEYWORDS, CHINESE_SEARCH_KEYWORDS_MODPACK, translateChineseSearch, isChineseQuery, getModChineseName, formatModNameWithChinese };
 }

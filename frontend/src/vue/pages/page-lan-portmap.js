@@ -6,7 +6,19 @@
  *   4. 加入流程：输入联机地址 → 下一步 → 连接中(转圈) → 连接成功 + 退出
  * 后端对接 redstoneOnline（frp 内网穿透）。
  */
+import { featureBridge } from '../../core/feature-bridge.js';
+
+import { gameStore } from '../../core/game-store.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { redstoneHostStep1 } from '../../features/misc/lan.js';
+
+import { redstoneStartOnboarding, redstoneHostNext, redstoneCopyAddr, redstoneDisconnect } from '../../features/misc/lan.js';
+
 const PageLanPortmap = {
+  setup() {
+    return { redstoneStartOnboarding, redstoneHostNext, redstoneCopyAddr, redstoneDisconnect };
+  },
   name: 'PageLanPortmap',
   data() {
     return {
@@ -18,7 +30,7 @@ const PageLanPortmap = {
   computed: {
     // 运行中的游戏实例（与首页共用共享响应式 store）
     gameInstances() {
-      return window.VersePCGameStore ? window.VersePCGameStore.instances : [];
+      return gameStore ? gameStore.instances : [];
     }
   },
   mounted() {
@@ -26,20 +38,20 @@ const PageLanPortmap = {
   },
   methods: {
     formatElapsed(inst) {
-      const elapsed = Math.floor(((window.VersePCGameStore.now || Date.now()) - inst.startTime) / 1000);
+      const elapsed = Math.floor(((gameStore.now || Date.now()) - inst.startTime) / 1000);
       const mins = Math.floor(elapsed / 60);
       const secs = elapsed % 60;
       return mins > 0 ? `${mins}分${secs}秒` : `${secs}秒`;
     },
     async loadRedstoneNodes() {
       try {
-        const r = await window.electronAPI.redstoneOnline.getServers();
+        const r = await bridge.redstoneOnline.getServers();
         const nodes = (r && r.ok && r.servers) ? r.servers : [];
         this.redstoneNodes = nodes;
-        window.VersePC.redstoneNodes = nodes;
+        featureBridge.redstoneNodes = nodes;
       } catch (e) {
         this.redstoneNodes = [];
-        window.VersePC.redstoneNodes = [];
+        featureBridge.redstoneNodes = [];
       } finally {
         this.redstoneLoading = false;
       }
@@ -47,7 +59,7 @@ const PageLanPortmap = {
     redstoneSelectNode(i) {
       if (i < 0 || i >= this.redstoneNodes.length) return;
       this.redstoneSelectedIdx = i;
-      window.VersePC.redstoneSelectedNode = this.redstoneNodes[i];
+      featureBridge.redstoneSelectedNode = this.redstoneNodes[i];
     },
     host() {
       if (typeof redstoneHostStep1 === 'function') redstoneHostStep1();
@@ -61,7 +73,7 @@ const PageLanPortmap = {
             </div>
             <h2 class="terracotta-ob-title" id="redstone-ob-title">你好！欢迎使用红石联机</h2>
             <p class="terracotta-ob-desc" id="redstone-ob-desc">基于 frp 的内网穿透，一键开启外网联机</p>
-            <button class="terracotta-ob-dl" id="redstone-ob-dl" onclick="redstoneStartOnboarding()" title="开始使用红石联机">
+            <button class="terracotta-ob-dl" id="redstone-ob-dl" @click="redstoneStartOnboarding()" title="开始使用红石联机">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
             <div class="terracotta-ob-spinner" id="redstone-ob-spinner" style="display:none">
@@ -128,7 +140,7 @@ const PageLanPortmap = {
                   </div>
                   <div v-else class="terracotta-node-empty">{{ redstoneLoading ? '正在加载节点列表...' : '暂无可用节点' }}</div>
                 </div>
-                <button class="terracotta-next-btn" id="redstone-host-next" onclick="redstoneHostNext()" disabled title="请先启动游戏并开放局域网">
+                <button class="terracotta-next-btn" id="redstone-host-next" @click="redstoneHostNext()" disabled title="请先启动游戏并开放局域网">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
               </div>
@@ -144,10 +156,10 @@ const PageLanPortmap = {
                 <div class="terracotta-info-row">
                   <span class="terracotta-info-label">联机地址</span>
                   <span class="terracotta-info-value" id="redstone-room-addr">--</span>
-                  <button class="terracotta-copy-btn" onclick="redstoneCopyAddr()" title="复制联机地址">复制</button>
+                  <button class="terracotta-copy-btn" @click="redstoneCopyAddr()" title="复制联机地址">复制</button>
                 </div>
                 <p class="terracotta-step-desc">将联机地址发送给朋友，朋友在 Minecraft 多人游戏中添加该地址即可加入</p>
-                <button class="terracotta-close-btn" onclick="redstoneDisconnect()" title="关闭隧道">
+                <button class="terracotta-close-btn" @click="redstoneDisconnect()" title="关闭隧道">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
@@ -158,7 +170,5 @@ const PageLanPortmap = {
           </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageLanPortmap;

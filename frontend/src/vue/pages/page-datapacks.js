@@ -35,6 +35,4 @@ const PageDatapacks = {
   `
 };
 
-window.VersePC = window.VersePC || {};
-
 export default PageDatapacks;

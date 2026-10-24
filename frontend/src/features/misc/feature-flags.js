@@ -5,7 +5,7 @@
  * 关闭的功能代码全部保留，把对应值改回 true 即可恢复。
  * 注意：后端 src-tauri/src/api/mod.rs 与 download.rs 中的同名开关需同步修改。
  */
-window.VERSE_FEATURES = {
+export const VERSE_FEATURES = {
     // Minecraft 版本下载/安装（关闭后：进入下载页展示合规提示，后端同时拒绝安装请求；
     // 已安装版本正常启动，模组/整合包等资源下载不受影响）
     versionDownload: true,
@@ -15,7 +15,7 @@ window.VERSE_FEATURES = {
 };
 
 // 进入被关闭功能页面时，显示统一的合规提示页
-window.showLegalNotice = function (pageName) {
+export function showLegalNotice(pageName) {
     var target = document.getElementById('page-legal-notice');
     if (!target) return;
 
@@ -38,5 +38,5 @@ window.showLegalNotice = function (pageName) {
 
     target.classList.add('active');
     target.scrollTop = 0;
-};
+}
 

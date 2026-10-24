@@ -1,18 +1,25 @@
 /* page-cloud - Verse云盘页 Vue 组件
  * 模板只负责结构，交互与数据全部在 js/app/cloud.js 中实现
  */
+import { cloudUpdateLoginState } from '../../features/misc/cloud.js';
+
+import { cloudBuy, cloudRedeemOpen, cloudRefresh, cloudLogout, cloudOpenSkin, cloudLogin, cloudUploadFlow, cloudDialogClose } from '../../features/misc/cloud.js';
+
 const PageCloud = {
+  setup() {
+    return { cloudBuy, cloudRedeemOpen, cloudRefresh, cloudLogout, cloudOpenSkin, cloudLogin, cloudUploadFlow, cloudDialogClose };
+  },
   template: `
           <div class="page-header">
             <h2>Verse云盘</h2>
             <div class="page-actions">
-              <button class="btn btn-secondary btn-sm" onclick="cloudBuy()" id="cloud-buy-btn" hidden>
+              <button class="btn btn-secondary btn-sm" @click="cloudBuy()" id="cloud-buy-btn" hidden>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="fb-inline-icon"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 购买套餐
               </button>
-              <button class="btn btn-secondary btn-sm" onclick="cloudRedeemOpen()" id="cloud-redeem-btn" hidden>兑换</button>
-              <button class="btn btn-secondary btn-sm" onclick="cloudRefresh()" id="cloud-refresh-btn" hidden>刷新</button>
-              <button class="btn btn-secondary btn-sm" onclick="cloudLogout()" id="cloud-logout-btn" hidden>退出</button>
+              <button class="btn btn-secondary btn-sm" @click="cloudRedeemOpen()" id="cloud-redeem-btn" hidden>兑换</button>
+              <button class="btn btn-secondary btn-sm" @click="cloudRefresh()" id="cloud-refresh-btn" hidden>刷新</button>
+              <button class="btn btn-secondary btn-sm" @click="cloudLogout()" id="cloud-logout-btn" hidden>退出</button>
             </div>
           </div>
 
@@ -23,7 +30,7 @@ const PageCloud = {
               <h3>登录云盘</h3>
               <div class="cloud-login-tip">
                 使用统一的 Verse 账号登录：UID 为爱发电数字 UID，密码为皮肤站密码（即在启动器里外置登录用的那套账号密码）。
-                还没有账号？先到 <a href="javascript:void(0)" onclick="cloudOpenSkin()">皮肤站</a> 用爱发电登录一次即可自动注册。
+                还没有账号？先到 <a href="javascript:void(0)" @click="cloudOpenSkin()">皮肤站</a> 用爱发电登录一次即可自动注册。
               </div>
               <div class="form-group">
                 <label>UID <span class="fb-required">*</span></label>
@@ -35,7 +42,7 @@ const PageCloud = {
               </div>
               <div class="fb-submit-bar">
                 <span class="fb-submit-hint" id="cloud-login-hint"></span>
-                <button class="btn btn-primary" id="cloud-login-btn" onclick="cloudLogin()" disabled>登录</button>
+                <button class="btn btn-primary" id="cloud-login-btn" @click="cloudLogin()" disabled>登录</button>
               </div>
             </div>
 
@@ -58,7 +65,7 @@ const PageCloud = {
               <!-- 操作区 -->
               <div class="card">
                 <div class="cloud-toolbar">
-                  <button class="btn btn-primary" onclick="cloudUploadFlow()" id="cloud-upload-btn">上传存档</button>
+                  <button class="btn btn-primary" @click="cloudUploadFlow()" id="cloud-upload-btn">上传存档</button>
                   <span class="form-hint">从已安装版本打包存档 zip 上传（仅支持 zip）</span>
                 </div>
                 <div class="cloud-progress" id="cloud-progress" hidden>
@@ -82,13 +89,11 @@ const PageCloud = {
               <div class="cloud-dialog-title" id="cloud-dialog-title">选择</div>
               <div class="cloud-dialog-body" id="cloud-dialog-body"></div>
               <div class="cloud-dialog-foot">
-                <button class="btn btn-secondary btn-sm" onclick="cloudDialogClose()">取消</button>
+                <button class="btn btn-secondary btn-sm" @click="cloudDialogClose()">取消</button>
               </div>
             </div>
           </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageCloud;

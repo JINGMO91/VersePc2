@@ -1,3 +1,11 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { escapeHtml, formatDuration } from '../../core/utils.js';
+import { showToast, showConfirmDialog } from '../misc/ui-components.js';
+
+import { actionAttrs, registerActions } from '../../core/actions.js';
+
 function setupJavaPage() {
     // 确保 Vue 已挂载 Java 页面模板，否则等下一帧再试
     const refreshBtn = document.getElementById('refresh-java-btn');
@@ -79,13 +87,13 @@ async function loadInstalledJava() {
 
 /* 手动添加 Java：弹出文件选择器，选 java（Windows 为 java.exe） */
 async function browseManualJava() {
-    if (!window.electronAPI || !window.electronAPI.showOpenDialog) {
+    if (!bridge || !bridge.showOpenDialog) {
         showToast('当前环境不支持文件选择器', 'error');
         return;
     }
     try {
         const isWin = navigator.platform.toLowerCase().includes('win');
-        const result = await window.electronAPI.showOpenDialog({
+        const result = await bridge.showOpenDialog({
             title: '选择 Java 可执行文件',
             properties: ['openFile'],
             filters: isWin
@@ -110,14 +118,14 @@ async function browseManualJava() {
 
 /* 导入 Java：type='archive' 选压缩包，type='directory' 选文件夹 */
 async function browseImportJava(type) {
-    if (!window.electronAPI || !window.electronAPI.showOpenDialog) {
+    if (!bridge || !bridge.showOpenDialog) {
         showToast('当前环境不支持文件选择器', 'error');
         return;
     }
 
     let result;
     if (type === 'archive') {
-        result = await window.electronAPI.showOpenDialog({
+        result = await bridge.showOpenDialog({
             title: '选择 Java 压缩包（.zip / .tar.gz / .tgz）',
             properties: ['openFile'],
             filters: [
@@ -126,7 +134,7 @@ async function browseImportJava(type) {
             ]
         });
     } else {
-        result = await window.electronAPI.showOpenDialog({
+        result = await bridge.showOpenDialog({
             title: '选择 Java 安装目录（包含 bin 文件夹的根目录）',
             properties: ['openDirectory']
         });
@@ -278,7 +286,7 @@ async function loadJavaDownloadList() {
         const result = await API.getJavaList();
         
         if (!result.versions || result.versions.length === 0) {
-            listEl.innerHTML = '<div class="hint">无法获取Java版本列表，请检查网络后重试<button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="loadJavaDownloadList()">重试</button></div>';
+            listEl.innerHTML = '<div class="hint">无法获取Java版本列表，请检查网络后重试<button class="btn btn-secondary btn-sm" style="margin-left:8px"' + actionAttrs('loadJavaDownloadList') + '>重试</button></div>';
             return;
         }
         
@@ -286,11 +294,11 @@ async function loadJavaDownloadList() {
             <div class="java-download-item">
                 <div class="java-download-version">Java ${j.majorVersion}</div>
                 <div class="java-download-info">版本: ${j.version}</div>
-                <button class="btn btn-primary" onclick="downloadJava(${j.majorVersion})">下载</button>
+                <button class="btn btn-primary"${actionAttrs('downloadJava', j.majorVersion)}>下载</button>
             </div>
         `).join('');
     } catch (e) {
-        listEl.innerHTML = '<div class="hint">获取Java版本列表失败: ' + escapeHtml(e.message || '网络错误') + ' <button class="btn btn-secondary btn-sm" style="margin-left:8px" onclick="loadJavaDownloadList()">重试</button></div>';
+        listEl.innerHTML = '<div class="hint">获取Java版本列表失败: ' + escapeHtml(e.message || '网络错误') + ' <button class="btn btn-secondary btn-sm" style="margin-left:8px"' + actionAttrs('loadJavaDownloadList') + '>重试</button></div>';
     }
 }
 
@@ -406,30 +414,11 @@ async function pollJavaDownloadStatus() {
     }
 }
 
+registerActions({
+  loadJavaDownloadList,
+  downloadJava: (event, el, majorVersion) => downloadJava(majorVersion),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { setupJavaPage, loadInstalledJava, browseManualJava, browseImportJava, startImportPolling, setCurrentJava, removeCustomJava, deleteJava, loadJavaDownloadList, downloadJava, cancelJavaDownload, pollJavaDownloadStatus, javaImportPollTimer, javaDownloadSessionId, javaDownloadPollTimer, javaDownloadProgressHistory };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ setupJavaPage, loadInstalledJava, browseManualJava, browseImportJava, startImportPolling, setCurrentJava, removeCustomJava, deleteJava, loadJavaDownloadList, downloadJava, cancelJavaDownload, pollJavaDownloadStatus })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'javaImportPollTimer', {
-  configurable: true,
-  get: () => javaImportPollTimer,
-  set: (v) => { javaImportPollTimer = v; },
-});
-Object.defineProperty(window, 'javaDownloadSessionId', {
-  configurable: true,
-  get: () => javaDownloadSessionId,
-  set: (v) => { javaDownloadSessionId = v; },
-});
-Object.defineProperty(window, 'javaDownloadPollTimer', {
-  configurable: true,
-  get: () => javaDownloadPollTimer,
-  set: (v) => { javaDownloadPollTimer = v; },
-});
-Object.defineProperty(window, 'javaDownloadProgressHistory', {
-  configurable: true,
-  get: () => javaDownloadProgressHistory,
-  set: (v) => { javaDownloadProgressHistory = v; },
-});

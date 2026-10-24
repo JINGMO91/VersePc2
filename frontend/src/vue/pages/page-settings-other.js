@@ -1,5 +1,39 @@
 /* page-settings-other - 其他设置页 Vue 组件 */
+import { filterSponsors } from '../../features/misc/sponsors.js';
+import { updateSpeedLimitLabel } from '../../features/settings/other-settings.js';
+
+import { openSponsorDino } from '../../features/misc/dino-game.js';
+import { toggleShowMoreSponsors } from '../../features/misc/sponsors.js';
+import { copyFeedbackEmail, saveOtherSettings, resetOtherSettings } from '../../features/settings/other-settings.js';
+import { browseFolder } from '../../features/settings/window-theme.js';
+import { doMemoryOptimize, createDesktopShortcut } from '../../features/settings/settings-misc.js';
+import { openFolder, cleanupScan, cleanupRun } from '../../features/launch/java.js';
+import { handleCheckUpdate, handleSkipVersion, handleDownloadUpdate, handleInstallUpdate } from '../../features/settings/updater-ui.js';
+import { showUpdateAnnouncement } from '../../features/misc/announcement.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
+function openExternalUrl(url) {
+  if (bridge.openExternal) {
+    bridge.openExternal(url).catch(() => {});
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+function openUrl(url) {
+  window.open(url, '_blank');
+}
+
+function openReleasePage() {
+  if (bridge.updater && bridge.updater.openReleasePage) {
+    bridge.updater.openReleasePage();
+  }
+}
+
 const PageSettingsOther = {
+  setup() {
+    return { openSponsorDino, toggleShowMoreSponsors, copyFeedbackEmail, browseFolder, doMemoryOptimize, openFolder, cleanupScan, cleanupRun, handleCheckUpdate, handleSkipVersion, handleDownloadUpdate, handleInstallUpdate, showUpdateAnnouncement, createDesktopShortcut, saveOtherSettings, resetOtherSettings, openExternalUrl, openUrl, openReleasePage };
+  },
   template: `
           <div class="page-header">
             <h2>其他设置</h2>
@@ -35,7 +69,7 @@ const PageSettingsOther = {
                 </div>
                 <div class="sponsor-dino-row">
                   <input type="text" id="sponsor-order-input" class="text-input sponsor-dino-input" placeholder="输入赞助订单号..." onkeydown="if(event.key==='Enter')openSponsorDino()">
-                  <button class="btn btn-primary btn-sm sponsor-dino-btn" onclick="openSponsorDino()">进入小游戏</button>
+                  <button class="btn btn-primary btn-sm sponsor-dino-btn" @click="openSponsorDino()">进入小游戏</button>
                 </div>
               </div>
               <div class="sponsor-divider"></div>
@@ -45,7 +79,7 @@ const PageSettingsOther = {
               </div>
               <div class="sponsor-grid" id="sponsor-list">
               </div>
-              <button class="btn btn-ghost btn-sm sponsor-more-btn" id="sponsor-more-btn" onclick="toggleShowMoreSponsors()">
+              <button class="btn btn-ghost btn-sm sponsor-more-btn" id="sponsor-more-btn" @click="toggleShowMoreSponsors()">
                 展开更多
                 <svg class="chevron-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:12px;height:12px;margin-left:4px"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
@@ -57,7 +91,7 @@ const PageSettingsOther = {
                 <label>反馈邮箱</label>
                 <div class="input-with-btn">
                   <input type="text" class="text-input" value="verselauncher@verselauncher.cn" readonly>
-                  <button class="btn btn-primary btn-sm" onclick="copyFeedbackEmail(this)">复制</button>
+                  <button class="btn btn-primary btn-sm" @click="copyFeedbackEmail($event.currentTarget)">复制</button>
                 </div>
               </div>
             </div>
@@ -106,7 +140,7 @@ const PageSettingsOther = {
                 <label>目标文件夹</label>
                 <div class="input-with-btn">
                   <input type="text" id="setting-target-dir" class="text-input" placeholder="默认目录">
-                  <button class="btn btn-secondary btn-sm" onclick="browseFolder('target')">浏览...</button>
+                  <button class="btn btn-secondary btn-sm" @click="browseFolder('target')">浏览...</button>
                 </div>
                 <span class="form-hint">请在「启动 → 版本选择 → 文件夹列表」中更改下载目标文件夹。</span>
               </div>
@@ -183,7 +217,7 @@ const PageSettingsOther = {
                     </div>
                     <div id="memory-detail-text" style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">正在获取...</div>
                   </div>
-                  <button class="btn btn-primary win-only" id="memory-optimize-btn" onclick="doMemoryOptimize()">内存优化</button>
+                  <button class="btn btn-primary win-only" id="memory-optimize-btn" @click="doMemoryOptimize()">内存优化</button>
                 </div>
               </div>
               <div class="form-group" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
@@ -198,10 +232,10 @@ const PageSettingsOther = {
             <div class="card">
               <h3>数据管理</h3>
               <div class="btn-group">
-                <button class="btn btn-secondary" onclick="openFolder('data')">打开数据目录</button>
-                <button class="btn btn-secondary" onclick="openFolder('versions')">打开版本目录</button>
-                <button class="btn btn-secondary" onclick="openFolder('assets')">打开资源目录</button>
-                <button class="btn btn-secondary" onclick="openFolder('mods')">打开模组目录</button>
+                <button class="btn btn-secondary" @click="openFolder('data')">打开数据目录</button>
+                <button class="btn btn-secondary" @click="openFolder('versions')">打开版本目录</button>
+                <button class="btn btn-secondary" @click="openFolder('assets')">打开资源目录</button>
+                <button class="btn btn-secondary" @click="openFolder('mods')">打开模组目录</button>
               </div>
               <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -213,8 +247,8 @@ const PageSettingsOther = {
                 </div>
                 <div id="cleanup-details" style="display: none; margin-bottom: 10px; font-size: 12px; color: var(--text-secondary);"></div>
                 <div class="btn-group">
-                  <button class="btn btn-secondary" id="cleanup-scan-btn" onclick="cleanupScan()">扫描</button>
-                  <button class="btn btn-danger" id="cleanup-run-btn" onclick="cleanupRun()" disabled>一键清理</button>
+                  <button class="btn btn-secondary" id="cleanup-scan-btn" @click="cleanupScan()">扫描</button>
+                  <button class="btn btn-danger" id="cleanup-run-btn" @click="cleanupRun()" disabled>一键清理</button>
                 </div>
               </div>
             </div>
@@ -247,37 +281,37 @@ const PageSettingsOther = {
                 </details>
               </div>
               <div class="btn-group" id="updater-btn-group">
-                <button class="btn btn-primary" id="updater-check-btn" onclick="handleCheckUpdate()">
+                <button class="btn btn-primary" id="updater-check-btn" @click="handleCheckUpdate()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
                     <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
                   </svg>
                   检查更新
                 </button>
-                <button class="btn btn-secondary" id="updater-skip-btn" style="display:none" onclick="handleSkipVersion()">
+                <button class="btn btn-secondary" id="updater-skip-btn" style="display:none" @click="handleSkipVersion()">
                   跳过此版本
                 </button>
-                <button class="btn btn-outline" id="updater-release-btn" style="display:none" onclick="api.updater.openReleasePage()">
+                <button class="btn btn-outline" id="updater-release-btn" style="display:none" @click="openReleasePage()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                   查看详情
                 </button>
-                <button class="btn btn-accent" id="updater-download-btn" style="display:none" onclick="handleDownloadUpdate()">
+                <button class="btn btn-accent" id="updater-download-btn" style="display:none" @click="handleDownloadUpdate()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
                   下载更新
                 </button>
-                <button class="btn btn-success" id="updater-install-btn" style="display:none" onclick="handleInstallUpdate()">
+                <button class="btn btn-success" id="updater-install-btn" style="display:none" @click="handleInstallUpdate()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;margin-right:6px;">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
                   安装并重启
                 </button>
-                <button class="btn btn-secondary" onclick="showUpdateAnnouncement()">查看更新公告</button>
-                <button class="btn btn-secondary" onclick="createDesktopShortcut()">创建桌面快捷方式</button>
+                <button class="btn btn-secondary" @click="showUpdateAnnouncement()">查看更新公告</button>
+                <button class="btn btn-secondary" @click="createDesktopShortcut()">创建桌面快捷方式</button>
               </div>
             </div>
 
-            <div class="card" style="cursor:pointer;" onclick="openExternalUrl('https://github.com/doujie081231/VersePc2')">
+            <div class="card" style="cursor:pointer;" @click="openExternalUrl('https://github.com/doujie081231/VersePc2')">
               <div style="display:flex;align-items:center;gap:14px;">
                 <svg viewBox="0 0 24 24" fill="currentColor" style="width:40px;height:40px;flex-shrink:0;color:#8b949e;">
                   <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
@@ -303,7 +337,7 @@ const PageSettingsOther = {
                     你可以自由使用、修改和分发本软件，但必须保留原版权声明，并以相同协议发布修改后的版本。
                   </div>
                   <div style="margin-top:8px;">
-                    <button class="btn btn-ghost btn-sm" onclick="openExternalUrl('https://github.com/doujie081231/VersePc2/blob/main/LICENSE')">
+                    <button class="btn btn-ghost btn-sm" @click="openExternalUrl('https://github.com/doujie081231/VersePc2/blob/main/LICENSE')">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;margin-right:4px;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                       查看完整协议
                     </button>
@@ -318,7 +352,7 @@ const PageSettingsOther = {
                 VersePC 的开发离不开以下开源项目的启发与技术支持，在此表示衷心感谢！
               </p>
               <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-                <div class="mod-item" style="flex: 1; min-width: 280px; padding: 16px; cursor: pointer;" onclick="window.open('https://github.com/Meloong-Git/PCL', '_blank')">
+                <div class="mod-item" style="flex: 1; min-width: 280px; padding: 16px; cursor: pointer;" @click="openUrl('https://github.com/Meloong-Git/PCL')">
                   <img src="img/pcl.png" alt="PCL" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">
                   <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Plain Craft Launcher 2</div>
@@ -326,7 +360,7 @@ const PageSettingsOther = {
                   </div>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 </div>
-                <div class="mod-item" style="flex: 1; min-width: 280px; padding: 16px; cursor: pointer;" onclick="window.open('https://github.com/HMCL-dev/HMCL', '_blank')">
+                <div class="mod-item" style="flex: 1; min-width: 280px; padding: 16px; cursor: pointer;" @click="openUrl('https://github.com/HMCL-dev/HMCL')">
                   <img src="img/hmcl.png" alt="HMCL" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">
                   <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Hello Minecraft! Launcher</div>
@@ -334,7 +368,7 @@ const PageSettingsOther = {
                   </div>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 </div>
-                <div class="mod-item" style="flex: 1; min-width: 280px; padding: 16px; cursor: pointer;" onclick="window.open('https://www.ifdian.net/a/RedstoneOnline?utm_source=copylink&utm_medium=link', '_blank')">
+                <div class="mod-item" style="flex: 1; min-width: 280px; padding: 16px; cursor: pointer;" @click="openUrl('https://www.ifdian.net/a/RedstoneOnline?utm_source=copylink&utm_medium=link')">
                   <img src="img/chrono-avatar.jpg" alt="Chrono" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">
                   <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Chrono · 红石联机</div>
@@ -342,7 +376,7 @@ const PageSettingsOther = {
                   </div>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0;"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 </div>
-                <div class="mod-item" style="flex: 1; min-width: 280px; padding: 16px; cursor: pointer;" onclick="window.open('https://github.com/modrinth/theseus', '_blank')">
+                <div class="mod-item" style="flex: 1; min-width: 280px; padding: 16px; cursor: pointer;" @click="openUrl('https://github.com/modrinth/theseus')">
                   <img src="img/theseus.png" alt="Theseus" style="width: 48px; height: 48px; border-radius: 12px; object-fit: cover; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">
                   <div style="flex: 1; min-width: 0;">
                     <div style="font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">Theseus · modrinth/theseus</div>
@@ -354,21 +388,11 @@ const PageSettingsOther = {
             </div>
 
             <div class="form-actions">
-              <button class="btn btn-primary" onclick="saveOtherSettings()">保存设置</button>
-              <button class="btn btn-secondary" onclick="resetOtherSettings()">重置默认</button>
+              <button class="btn btn-primary" @click="saveOtherSettings()">保存设置</button>
+              <button class="btn btn-secondary" @click="resetOtherSettings()">重置默认</button>
             </div>
           </div>
   `
-};
-
-window.VersePC = window.VersePC || {};
-/* 打开外部链接：Tauri 用 electronAPI.openExternal，非 Tauri 用 window.open */
-window.openExternalUrl = function (url) {
-  if (window.electronAPI && window.electronAPI.openExternal) {
-    window.electronAPI.openExternal(url).catch(() => {});
-  } else {
-    window.open(url, '_blank');
-  }
 };
 
 export default PageSettingsOther;

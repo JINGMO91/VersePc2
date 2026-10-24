@@ -7,16 +7,25 @@
  *   pet    : 宠物/挂件（个性化浮层组件）
  * 页面走现有 navigateToPage 路由；cards/pet/main 均依赖同一 webview 环境的全局对象。
  */
+import { API } from '../../core/api.js';
+import { navigateToPage } from '../versions/versions.js';
+import { bridge } from '../../core/tauri-bridge.js';
+import { createApp } from 'vue';
+import { isVueMountDone } from '../../core/vue-ready.js';
+
+const pluginComponents = {};
+export let reloadPluginUI = null;
+
 (function () {
-  if (!window.bridge || !window.bridge.invoke) return;
+  if (!bridge || !bridge.invoke) return;
 
   const COMP_PREFIX = 'Plugin_';
   const PAGE_PREFIX = 'plugin_';
 
   function waitForVue(cb) {
-    if (window.Vue && window._vueMountDone) { cb(); return; }
+    if (isVueMountDone()) { cb(); return; }
     const t = setInterval(() => {
-      if (window.Vue && window._vueMountDone) { clearInterval(t); cb(); }
+      if (isVueMountDone()) { clearInterval(t); cb(); }
     }, 200);
     setTimeout(() => clearInterval(t), 20000);
   }
@@ -35,8 +44,8 @@
 
   async function readText(dir, file) {
     if (!file) return '';
-    // 正确入口是顶层 window.bridge.readFileBuffer（system 子命名空间未实现）
-    const res = await window.bridge.readFileBuffer(dir + '\\' + file);
+    // 正确入口是顶层 bridge.readFileBuffer（system 子命名空间未实现）
+    const res = await bridge.readFileBuffer(dir + '\\' + file);
     return bytesToText(res);
   }
 
@@ -69,7 +78,7 @@
     var base = String(dir || '').toLowerCase().replace(/[\\/]+$/, '');
     var allowNetwork = _hasPerm(plugin, 'network');
     var hasExec = _hasNativeExec(plugin);
-    var native = window.bridge || {};
+    var native = bridge || {};
     var restricted = {
       invoke: function (cmd, args) {
         cmd = String(cmd || '');
@@ -165,7 +174,7 @@
     return new Proxy(window, guard);
   }
 
-  // 事件监听 helper（onExecLog/onExecExit 用；window.bridge 未直接暴露 listen）
+  // 事件监听 helper（onExecLog/onExecExit 用；bridge 未直接暴露 listen）
   function _listenTauri(eventName, cb) {
     var evt = (window.__TAURI__ && window.__TAURI__.event)
       || (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.event)
@@ -203,10 +212,22 @@
     }
   }
 
+  // 插件脚本按既有约定注册到 window.VersePC，执行后同步进内部组件表
+  function syncPluginComponents() {
+    var registry = window.VersePC;
+    if (!registry || typeof registry !== 'object') return;
+    Object.keys(registry).forEach(function (key) {
+      if (key.indexOf(COMP_PREFIX) === 0 && registry[key]) {
+        pluginComponents[key] = registry[key];
+      }
+    });
+  }
+
   // 读取插件内 JS 并在沙箱内执行（使插件能注册组件/做任意定制）
   async function loadPluginScriptFile(plugin, dir, file) {
     const code = await readText(dir, file);
     execPluginScript(code, plugin);
+    syncPluginComponents();
   }
 
   // 注入全局 CSS
@@ -237,11 +258,11 @@
   // 加载并挂载 Vue 组件到容器（组件注册名 Plugin_<id>_<key>）
   async function mountComponent(pid, key, container) {
     const compKey = COMP_PREFIX + pid + '_' + key;
-    if (!window.VersePC[compKey]) return false;
+    if (!pluginComponents[compKey]) return false;
     if (container.__plugin_mounted) return true;
     try {
       container.__plugin_mounted = true;
-      window.Vue.createApp(window.VersePC[compKey]).mount(container);
+      createApp(pluginComponents[compKey]).mount(container);
       return true;
     } catch (e) {
       console.error('[plugin-runtime] mount 失败 ' + compKey, e);
@@ -291,7 +312,7 @@
       }
 
       try {
-        if (!window.VersePC[compKey] && p.component) {
+        if (!pluginComponents[compKey] && p.component) {
           await loadPluginScriptFile(plugin, dir, p.component);
         }
         mountComponent(pid, p.id, pageEl);
@@ -371,10 +392,10 @@
   // 重扫前清理所有由插件运行时创建/注入的 UI 与组件，
   // 使卸载插件后按钮/页面/卡片/挂件/样式都能被移除（再按当前已装重建）。
   function cleanupAllRuntimeUI() {
-    if (window.VersePC) {
-      Object.keys(window.VersePC)
+    if (pluginComponents) {
+      Object.keys(pluginComponents)
         .filter(function (k) { return k.indexOf('Plugin_') === 0; })
-        .forEach(function (k) { delete window.VersePC[k]; });
+        .forEach(function (k) { delete pluginComponents[k]; });
     }
     document.querySelectorAll('.plugin-page-btn').forEach(function (e) { e.remove(); });
     document.querySelectorAll('[id^="page-plugin_"]').forEach(function (e) { e.remove(); });
@@ -387,7 +408,7 @@
   async function init() {
     cleanupAllRuntimeUI();
     let res;
-    try { res = await window.bridge.invoke('plugin_list'); }
+    try { res = await bridge.invoke('plugin_list'); }
     catch (e) { console.error('[plugin-runtime] 插件列表失败', e); return; }
     const plugins = (res && res.plugins) ? res.plugins : [];
     for (const pl of plugins) {
@@ -402,6 +423,5 @@
   });
 
   // 暴露重扫入口：插件安装/卸载后可调用，使侧边栏按钮/页面/卡片/挂件即时生效
-  window.VersePC = window.VersePC || {};
-  window.VersePC.reloadPluginUI = init;
+  reloadPluginUI = init;
 })();

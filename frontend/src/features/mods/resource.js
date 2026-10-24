@@ -1,7 +1,33 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
+let modpackImporting = false;
 /**
  * @file resource.js
  * @description 资源管理 - 整合包、数据包、材质包、光影包的浏览、详情与安装
  */
+import { escapeHtml } from '../../core/utils.js';
+import { getCustomSelectValue, customSelectInstances } from '../misc/custom-select.js';
+import { showToast, formatNumber } from '../misc/ui-components.js';
+import { setLocalImage, renderModDescription, renderModGallery, renderMdSidebar, resetMdDetailView, _versionToMajor, switchMdVersionTab, renderMdVersionList, _projectDataCache, _versionPreloadCache, _versionPreloadInFlight } from './mod-detail.js';
+import { showModpackInstallModal, resolveResourceSavePath, showModDownloadModal } from './mod-install.js';
+import { dlManager } from '../versions/custom-download.js';
+import { navigateToPage, goBackFromDetail, pushModDetailHistory } from '../versions/versions.js';
+
+import { modDetailState } from './detail-state.js';
+import { appState } from '../../core/app-state.js';
+import { formatModNameWithChinese } from './chinese-names.js';
+import { isPinned, PIN_ICONS, pinBtnToggle } from '../versions/pinned-store.js';
+import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
+import { DynamicIsland } from '../misc/dynamic-island.js';
+
+// 资源卡片悬停时预加载版本列表
+document.addEventListener('mouseover', (event) => {
+  const el = event.target instanceof Element ? event.target.closest('[data-preload-resource]') : null;
+  if (!el) return;
+  preloadResourceVersions(el.getAttribute('data-preload-resource'), el.getAttribute('data-preload-source') || 'modrinth');
+});
+
 const resourceState = {
   modpack: { offset: 0, total: 0, query: '' },
   datapack: { offset: 0, total: 0, query: '' },
@@ -159,7 +185,7 @@ document.addEventListener('drop', (e) => {
   e.preventDefault();
   e.stopPropagation();
   if (__resIsTauri) return; // Tauri 环境交给 modpack-import.js 处理
-  if (window._modpackImporting) return;
+  if (modpackImporting) return;
   const files = e.dataTransfer?.files;
   if (!files || files.length === 0) return;
   const file = files[0];
@@ -167,14 +193,14 @@ document.addEventListener('drop', (e) => {
   const isModpackFile = name.endsWith('.mrpack') || name.endsWith('.cursemodpack') || name.endsWith('.zip');
   if (isModpackFile) {
     let filePath = file.path;
-    if (!filePath && window.electronAPI?.getDroppedFilePath) {
-      filePath = window.electronAPI.getDroppedFilePath(file);
+    if (!filePath && bridge?.getDroppedFilePath) {
+      filePath = bridge.getDroppedFilePath(file);
     }
     if (filePath) {
       // 用文件名（去掉扩展名）作为默认版本名
       const fileBaseName = (file.name || '').replace(/\.(mrpack|zip|cursemodpack)$/i, '');
       showImportNameModal(fileBaseName, function(customName) {
-        window._modpackImporting = true;
+        modpackImporting = true;
         var _vi = typeof DynamicIsland !== 'undefined' && DynamicIsland.isEnabled();
         var sessionId = 'local-modpack-' + Date.now();
         var taskId = 'modpack-' + sessionId;
@@ -183,8 +209,8 @@ document.addEventListener('drop', (e) => {
         } else if (typeof dlManager !== 'undefined') {
           dlManager.add(taskId, name || '整合包导入', 'modpack', sessionId, '');
         }
-        if (window.electronAPI?.onImportProgress) {
-          if (window.electronAPI.removeImportProgressListener) window.electronAPI.removeImportProgressListener();
+        if (bridge?.onImportProgress) {
+          if (bridge.removeImportProgressListener) bridge.removeImportProgressListener();
           // 节流控制：避免高频进度回调打爆主线程
           var _progThrottleTimer = null;
           var _progLastData = null;
@@ -200,7 +226,7 @@ document.addEventListener('drop', (e) => {
               dlManager.update(taskId, { progress: pct, status: 'downloading', message: stageText, stageHistory: data.stageHistory || [], currentFile: data.currentFile || '' });
             }
           }
-          window.electronAPI.onImportProgress(function (data) {
+          bridge.onImportProgress(function (data) {
             var isTerminal = (data.status === 'completed' || data.status === 'failed' || (data.progress || 0) >= 100);
             if (isTerminal) {
               if (_progThrottleTimer) { clearTimeout(_progThrottleTimer); _progThrottleTimer = null; }
@@ -224,8 +250,8 @@ document.addEventListener('drop', (e) => {
           });
         }
         if (!_vi) showToast('正在导入整合包...', 'info');
-        window.electronAPI.importModpack(filePath, customName).then(result => {
-          window._modpackImporting = false;
+        bridge.importModpack(filePath, customName).then(result => {
+          modpackImporting = false;
           if (result && result.success) {
             if (_vi) { DynamicIsland.update({ progress: 100, status: 'completed', message: '导入完成' }); }
             else if (typeof dlManager !== 'undefined') { dlManager.update(taskId, { status: 'completed', progress: 100, message: '导入完成' }); }
@@ -237,7 +263,7 @@ document.addEventListener('drop', (e) => {
             if (!_vi) showToast(`导入失败: ${errMsg}`, 'error');
           }
         }).catch(err => {
-          window._modpackImporting = false;
+          modpackImporting = false;
           var catchMsg = err.message || '';
           if (_vi) { DynamicIsland.update({ status: 'failed', message: catchMsg }); }
           else if (typeof dlManager !== 'undefined') { dlManager.update(taskId, { status: 'error', message: catchMsg }); }
@@ -371,7 +397,7 @@ async function loadResourceList(type) {
       }
     } else {
       container.innerHTML = hits.map(item => `
-        <div class="mod-item mod-item-clickable" onclick="openResourceDetail('${item.id}', '${type}', '${item.source || 'modrinth'}')" onmouseenter="preloadResourceVersions('${item.id}', '${item.source || 'modrinth'}')">
+        <div class="mod-item mod-item-clickable"${actionAttrs('openResourceDetail', item.id, type, item.source || 'modrinth')} data-preload-resource="${escapeHtml(item.id)}" data-preload-source="${escapeHtml(item.source || 'modrinth')}">
           ${item.icon ? `<div class="mod-icon"><img src="${item.icon}" alt="" onerror="this.parentElement.remove()"></div>` : ''}
           <div class="mod-info">
             <div class="mod-name">${escapeHtml(formatModNameWithChinese(item.slug || item.id, item.title))}
@@ -384,9 +410,9 @@ async function loadResourceList(type) {
               <span>${(item.categories || []).slice(0, 3).join(', ')}</span>
             </div>
           </div>
-          <div class="mod-actions" onclick="event.stopPropagation()">
-            ${type === 'shader' ? `<button class="pin-btn${isPinned('shader', item.id) ? ' active' : ''}" title="${isPinned('shader', item.id) ? '取消置顶' : '置顶光影'}" onclick="event.stopPropagation();pinBtnToggle(this,'shader','${escapeOnclick(item.id)}','${escapeOnclick(formatModNameWithChinese(item.slug || item.id, item.title))}',{projectId:'${escapeOnclick(item.id)}',source:'${escapeOnclick(item.source || 'modrinth')}',icon:'${escapeOnclick(item.icon || '')}'},'取消置顶','置顶光影')">${window.VersePC.PIN_ICONS.pin}</button>` : ''}
-            <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openResourceDetail('${item.id}', '${type}')">安装</button>
+          <div class="mod-actions" data-stop="1">
+            ${type === 'shader' ? `<button class="pin-btn${isPinned('shader', item.id) ? ' active' : ''}" title="${isPinned('shader', item.id) ? '取消置顶' : '置顶光影'}"${actionAttrsStop('pinResource', item.id, formatModNameWithChinese(item.slug || item.id, item.title), item.source || 'modrinth', item.icon || '')}>${PIN_ICONS.pin}</button>` : ''}
+            <button class="btn btn-primary btn-sm"${actionAttrsStop('openResourceDetail', item.id, type)}>安装</button>
           </div>
         </div>
       `).join('');
@@ -399,7 +425,7 @@ async function loadResourceList(type) {
   } catch (e) {
     // 竞态校验：旧请求报错不覆盖新请求
     if (_resourceReqId[type] !== myReqId) return;
-    container.innerHTML = `<p class="empty-text">加载失败</p><button class="btn btn-secondary btn-sm" onclick="loadResourceList('${type}')" style="margin-top:8px">重试</button>`;
+    container.innerHTML = `<p class="empty-text">加载失败</p><button class="btn btn-secondary btn-sm"${actionAttrs('loadResourceList', type)} style="margin-top:8px">重试</button>`;
   }
 }
 
@@ -415,9 +441,9 @@ function preloadResourceVersions(projectId, source) {
 
 async function openResourceDetail(projectId, type, source) {
   pushModDetailHistory();
-  currentModDetailId = projectId;
-  currentModDetailSource = source || 'modrinth';
-  currentModDetailType = type;
+  appState.currentModDetailId = projectId;
+  appState.currentModDetailSource = source || 'modrinth';
+  modDetailState.type = type;
 
   // 资源详情（材质/光影/数据包/整合包）不展示加载器/版本兼容卡片
   const compatSection = document.getElementById('md-compat-section');
@@ -428,12 +454,12 @@ async function openResourceDetail(projectId, type, source) {
 
   const depsSection = document.getElementById('md-deps-section');
   if (depsSection) depsSection.style.display = 'none';
-  if (type !== 'mod' && modMultiSelectMode) {
-    modMultiSelectMode = false;
+  if (type !== 'mod' && appState.modMultiSelectMode) {
+    appState.modMultiSelectMode = false;
   }
-  mdCurrentDeps = [];
-  mdDepsResolved = {};
-  mdDepsVersionInfo = {};
+  modDetailState.deps = [];
+  modDetailState.depsResolved = {};
+  modDetailState.depsVersionInfo = {};
 
   const backBtn = document.querySelector('#page-mod-detail .moddetail-page-header .btn-icon');
   if (backBtn) backBtn.setAttribute('onclick', 'goBackFromDetail()');
@@ -460,7 +486,7 @@ async function openResourceDetail(projectId, type, source) {
   const cachedRaw = _projectDataCache.get(projectId);
   const cached = (cachedRaw && typeof cachedRaw.body === 'string') ? cachedRaw : null;
   if (cached) {
-    currentModDetailData = cached;
+    modDetailState.data = cached;
     mdName.textContent = formatModNameWithChinese(cached.slug || cached.id, cached.title || typeNames[type] || '未知');
     if (mdDesc) mdDesc.textContent = (cached.description || '').substring(0, 200);
     if (cached.icon && mdIconImg && mdIconFallback) { mdIconImg.style.display = ''; mdIconFallback.style.display = 'none'; setLocalImage(mdIconImg, cached.icon, source); }
@@ -498,7 +524,7 @@ async function openResourceDetail(projectId, type, source) {
     const [detail, data] = await Promise.all([detailPromise, versionsPromise]);
     if (_resLoadingTimer) { clearTimeout(_resLoadingTimer); _resLoadingTimer = null; }
     // 竞态保护：如果在等待 API 期间用户已经打开了另一个整合包，丢弃本次结果
-    if (currentModDetailId !== _reqId) { return; }
+    if (appState.currentModDetailId !== _reqId) { return; }
     if (!detail) {
       mdName.textContent = '加载失败';
       mdVersionList.innerHTML = `<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">无法加载详情: API请求失败，请检查网络连接</p>`;
@@ -506,7 +532,7 @@ async function openResourceDetail(projectId, type, source) {
     }
     if (!cached) {
       _projectDataCache.set(projectId, detail);
-      currentModDetailData = detail;
+      modDetailState.data = detail;
       mdName.textContent = formatModNameWithChinese(detail.slug || detail.id, detail.title || typeNames[type] || '未知');
       if (mdDesc) mdDesc.textContent = (detail.description || '').substring(0, 200);
       if (detail.icon && mdIconImg && mdIconFallback) { mdIconImg.style.display = ''; mdIconFallback.style.display = 'none'; setLocalImage(mdIconImg, detail.icon, source); }
@@ -521,25 +547,25 @@ async function openResourceDetail(projectId, type, source) {
       renderMdSidebar(detail);
     }
 
-    mdAllVersions = data ? (data.versions || []) : [];
-    if (!Array.isArray(mdAllVersions)) mdAllVersions = [];
-    console.error('[ResDetail][debug] projectId=', projectId, 'type=', type, 'source=', source, 'versions=', mdAllVersions.length, 'first=', JSON.stringify(mdAllVersions[0]));
+    modDetailState.allVersions = data ? (data.versions || []) : [];
+    if (!Array.isArray(modDetailState.allVersions)) modDetailState.allVersions = [];
+    console.error('[ResDetail][debug] projectId=', projectId, 'type=', type, 'source=', source, 'versions=', modDetailState.allVersions.length, 'first=', JSON.stringify(modDetailState.allVersions[0]));
 
     // 详情页优先展示该资源的全部版本，不被列表页筛选条件过滤
     const tabsContainer = document.getElementById('md-version-tabs');
     const gameVersions = new Set();
-    mdAllVersions.forEach(v => {
+    modDetailState.allVersions.forEach(v => {
       (v.gameVersions || []).forEach(gv => gameVersions.add(gv));
     });
 
-    let tabsHtml = '<button class="md-vtab active" data-ver="" onclick="switchMdVersionTab(\'\')">全部</button>';
+    let tabsHtml = '<button class="md-vtab active" data-ver=""' + actionAttrs('switchMdVersionTab', '') + '>全部</button>';
     [...gameVersions].sort().reverse().forEach(gv => {
       // 使用 exact 模式确保精确版本号匹配（如 1.20.1 不会被 _versionToMajor 转为 1.20）
-      tabsHtml += `<button class="md-vtab" data-ver="${escapeHtml(gv)}" onclick="switchMdVersionTab('${escapeOnclick(gv)}', 'exact')">${escapeHtml(gv)}</button>`;
+      tabsHtml += `<button class="md-vtab" data-ver="${escapeHtml(gv)}"${actionAttrs('switchMdVersionTab', gv, 'exact')}>${escapeHtml(gv)}</button>`;
     });
     if (tabsContainer) tabsContainer.innerHTML = tabsHtml;
 
-    renderMdVersionList(mdAllVersions);
+    renderMdVersionList(modDetailState.allVersions);
   } catch (e) {
     mdName.textContent = '加载失败';
     mdVersionList.innerHTML = `<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">无法加载详情: ${e.message || e}</p>`;
@@ -550,11 +576,11 @@ async function openResourceDetail(projectId, type, source) {
 async function quickInstallResource(projectId, type) {
   if (type === 'modpack') {
     // 整合包需要创建新版本，先弹窗让用户自定义版本名
-    const defaultName = (typeof currentModDetailData !== 'undefined' && (currentModDetailData?.title || currentModDetailData?.name)) || projectId;
+    const defaultName = (typeof modDetailState.data !== 'undefined' && (modDetailState.data?.title || modDetailState.data?.name)) || projectId;
     showImportNameModal(defaultName, async function(customName) {
       showToast('正在下载整合包，将创建为新版本...', 'info');
       try {
-        const result = await API.downloadResource('', projectId, type, '', '', customName, currentModDetailSource);
+        const result = await API.downloadResource('', projectId, type, '', '', customName, appState.currentModDetailSource);
         if (result.success) {
           showModpackInstallModal(result.fileName, result.sessionId);
         } else {
@@ -582,7 +608,7 @@ async function quickInstallResource(projectId, type) {
       }
       localStorage.setItem('lastResourceSavePath_' + type, savePath);
       showToast(`正在安装${typeNames[type]}...`, 'info');
-      const result = await API.downloadResource('', projectId, type, '', savePath, '', currentModDetailSource);
+      const result = await API.downloadResource('', projectId, type, '', savePath, '', appState.currentModDetailSource);
       if (result.success) {
         showModDownloadModal(result.fileName, result.sessionId);
       } else {
@@ -657,9 +683,13 @@ async function showVersionSelectDialog() {
   });
 }
 
+registerActions({
+  openResourceDetail: (event, el, id, type, source) => openResourceDetail(id, type, source),
+  loadResourceList: (event, el, type) => loadResourceList(type),
+  pinResource: (event, el, id, name, source, icon) => {
+    pinBtnToggle(el, 'shader', id, name, { projectId: id, source, icon }, '取消置顶', '置顶光影');
+  },
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { showImportNameModal, getImportStageText, loadResourcePage, setupResourceEvents, loadResourceList, preloadResourceVersions, openResourceDetail, quickInstallResource, showVersionSelectDialog, resourceState, _resourceReqId, typeNames, typeIcons, __resIsTauri };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ showImportNameModal, getImportStageText, loadResourcePage, setupResourceEvents, loadResourceList, preloadResourceVersions, openResourceDetail, quickInstallResource, showVersionSelectDialog, resourceState, _resourceReqId, typeNames, typeIcons, __resIsTauri })) {
-  window[name] = value;
-}

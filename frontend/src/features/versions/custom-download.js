@@ -1,3 +1,17 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { escapeHtml } from '../../core/utils.js';
+import { showToast } from '../misc/ui-components.js';
+
+const svgIcons = {
+    mod: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M20 16V7a2 2 0 00-2-2H6a2 2 0 00-2 2v9m16 0H4m16 0l1.28 2.55a1 1 0 01-.9 1.45H3.62a1 1 0 01-.9-1.45L4 16"/></svg>',
+    modpack: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>',
+    version: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01M14 12h4"/></svg>',
+    java: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M17 8h1a4 4 0 110 8h-1M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8zm0 0V6a2 2 0 012-2h2m4-2v2"/></svg>',
+    other: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8m8 4H8m2-8H8"/></svg>'
+};
+
 const dlManager = {
     tasks: new Map(),
     order: [],
@@ -162,8 +176,8 @@ const dlManager = {
                 }
             } else if (hasFileData) {
                 var hash = '';
-                for (var i = 0; i < t.files.length; i++) {
-                    var f = t.files[i];
+                for (var fi = 0; fi < t.files.length; fi++) {
+                    var f = t.files[fi];
                     hash += f.name + '_' + f.status + '_' + f.progress + ';';
                 }
                 if (hash !== t._lastFilesHash) {
@@ -283,13 +297,6 @@ const dlManager = {
             list.innerHTML = '<p class="empty-text" id="dl-empty-hint">' + (this.order.length === 0 ? '暂无下载任务' : '没有匹配的下载任务') + '</p>';
             return;
         }
-        const svgIcons = {
-            mod: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M20 16V7a2 2 0 00-2-2H6a2 2 0 00-2 2v9m16 0H4m16 0l1.28 2.55a1 1 0 01-.9 1.45H3.62a1 1 0 01-.9-1.45L4 16"/></svg>',
-            modpack: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg>',
-            version: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h.01M10 12h.01M14 12h4"/></svg>',
-            java: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M17 8h1a4 4 0 110 8h-1M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8zm0 0V6a2 2 0 012-2h2m4-2v2"/></svg>',
-            other: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8m8 4H8m2-8H8"/></svg>'
-        };
         list.innerHTML = visibleOrder.map(id => {
             const t = this.tasks.get(id);
             if (!t) return '';
@@ -366,7 +373,7 @@ let _customDlPollTimer = null;
 let _customDlSavePath = '';
 
 async function browseCustomDlPath() {
-    const result = await window.electronAPI.showOpenDialog({ properties: ['openDirectory'], title: '选择保存位置' });
+    const result = await bridge.showOpenDialog({ properties: ['openDirectory'], title: '选择保存位置' });
     if (result && result.filePaths && result.filePaths.length > 0) {
         document.getElementById('custom-dl-path').value = result.filePaths[0];
         _customDlSavePath = result.filePaths[0];
@@ -468,23 +475,4 @@ function resetCustomDlUI() {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { clearCompletedDownloads, browseCustomDlPath, openCustomDlFolder, startCustomDownload, pollCustomDlProgress, cancelCustomDownload, resetCustomDlUI, dlManager, _customDlSessionId, _customDlPollTimer, _customDlSavePath };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ clearCompletedDownloads, browseCustomDlPath, openCustomDlFolder, startCustomDownload, pollCustomDlProgress, cancelCustomDownload, resetCustomDlUI, dlManager })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, '_customDlSessionId', {
-  configurable: true,
-  get: () => _customDlSessionId,
-  set: (v) => { _customDlSessionId = v; },
-});
-Object.defineProperty(window, '_customDlPollTimer', {
-  configurable: true,
-  get: () => _customDlPollTimer,
-  set: (v) => { _customDlPollTimer = v; },
-});
-Object.defineProperty(window, '_customDlSavePath', {
-  configurable: true,
-  get: () => _customDlSavePath,
-  set: (v) => { _customDlSavePath = v; },
-});

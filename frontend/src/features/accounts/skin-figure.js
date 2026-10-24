@@ -9,10 +9,7 @@
  * 模型与纹理各自缓存，同一时刻只跑一个渲染任务；队列排空后释放
  * WebGL 上下文和缓存，避免长期占用显存。
  */
-(function () {
-  'use strict';
-
-  const CLASSIC_MODEL_URL = 'models/classic-player.gltf';
+const CLASSIC_MODEL_URL = 'models/classic-player.gltf';
   const SLIM_MODEL_URL = 'models/slim-player.gltf';
 
   // 输出画幅
@@ -453,5 +450,4 @@
     return task;
   }
 
-  window.VerseSkinFigure = { render: render };
-})();
+export const VerseSkinFigure = { render: render };

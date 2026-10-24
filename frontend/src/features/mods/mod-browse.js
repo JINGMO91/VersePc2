@@ -1,3 +1,25 @@
+import { API } from '../../core/api.js';
+import { escapeHtml } from '../../core/utils.js';
+import { toggleMod, deleteMod } from '../accounts/accounts.js';
+import { getCustomSelectValue, setCustomSelectValue, updateCustomSelectOptions } from '../misc/custom-select.js';
+import { formatNumber } from '../misc/ui-components.js';
+import { showFavSelectDropdown } from './favorites.js';
+import { openModDetail, _projectDataCache } from './mod-detail.js';
+import { toggleModSelect } from './mod-install.js';
+
+import { appState } from '../../core/app-state.js';
+import { formatModNameWithChinese } from './chinese-names.js';
+import { isPinned, PIN_ICONS, pinBtnToggle } from '../versions/pinned-store.js';
+import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
+import { preloadModVersions } from './mod-detail.js';
+
+// 搜索结果卡片悬停时预加载版本列表
+document.addEventListener('mouseover', (event) => {
+    const el = event.target instanceof Element ? event.target.closest('[data-preload-mod]') : null;
+    if (!el) return;
+    preloadModVersions(el.getAttribute('data-preload-mod'), el.getAttribute('data-preload-source') || 'modrinth');
+});
+
 async function loadInstalledMods() {
     try {
         const result = await API.getInstalledMods();
@@ -39,8 +61,8 @@ async function loadInstalledMods() {
                         '</div>' +
                     '</div>' +
                     '<div class="mod-actions">' +
-                        '<button class="btn btn-sm ' + (mod.enabled ? 'btn-secondary' : 'btn-primary') + '" onclick="toggleMod(\'' + escapeOnclick(mod.fileName || mod.id) + '\', ' + (!mod.enabled) + ')">' + (mod.enabled ? '禁用' : '启用') + '</button>' +
-                        '<button class="btn btn-danger btn-sm" onclick="deleteMod(\'' + escapeOnclick(mod.fileName || mod.id) + '\')">删除</button>' +
+                        '<button class="btn btn-sm ' + (mod.enabled ? 'btn-secondary' : 'btn-primary') + '"' + actionAttrs('toggleMod', mod.fileName || mod.id, !mod.enabled) + '>' + (mod.enabled ? '禁用' : '启用') + '</button>' +
+                        '<button class="btn btn-danger btn-sm"' + actionAttrs('deleteMod', mod.fileName || mod.id) + '>删除</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -96,7 +118,7 @@ async function loadModFilterOptions() {
 function populateModVersionFilter() {
     const versionOptions = [
         { value: '', text: '全部' },
-        ...allVersions.filter(v => v.type === 'release').slice(0, 30).map(v => ({
+        ...appState.allVersions.filter(v => v.type === 'release').slice(0, 30).map(v => ({
             value: v.id,
             text: v.id
         }))
@@ -118,7 +140,7 @@ async function loadMods() {
     container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>加载中...</p></div>';
 
     const title = document.getElementById('mod-browse-title');
-    title.textContent = modSearchQuery ? `搜索 "${modSearchQuery}" 的结果` : '热门模组';
+    title.textContent = appState.modSearchQuery ? `搜索 "${appState.modSearchQuery}" 的结果` : '热门模组';
 
     const loader = getCustomSelectValue('mod-filter-loader');
     const version = getCustomSelectValue('mod-filter-version');
@@ -126,25 +148,25 @@ async function loadMods() {
     const sort = getCustomSelectValue('mod-filter-sort');
     const sourceFilter = getCustomSelectValue('mod-filter-source') || 'any';
 
-    const translatedQuery = modSearchQuery;
+    const translatedQuery = appState.modSearchQuery;
 
     try {
-        const data = await API.searchMods(translatedQuery, sourceFilter, loader, version, category, sort, 15, modSearchOffset);
+        const data = await API.searchMods(translatedQuery, sourceFilter, loader, version, category, sort, 15, appState.modSearchOffset);
         const hits = data.hits || [];
-        modSearchTotal = data.total || 0;
-        modSearchResults = hits;
+        appState.modSearchTotal = data.total || 0;
+        appState.modSearchResults = hits;
         hits.forEach(function(h) { _projectDataCache.set(h.id, h); });
 
         if (hits.length === 0) {
             container.innerHTML = '<p class="empty-text">未找到模组</p>';
         } else {
             container.innerHTML = hits.map(function (mod) {
-                var isSelected = modSelectedIds.has(mod.id);
-                var isFav = _favorites.some(function(f) { return f.favs.includes(mod.id); });
-                var isPin = typeof isPinned === 'function' && isPinned('mod', mod.id);
-                var pinBtnHtml = '<button class="pin-btn' + (isPin ? ' active' : '') + '" title="' + (isPin ? '取消置顶' : '置顶模组') + '" onclick="event.stopPropagation();pinBtnToggle(this,\'mod\',\'' + escapeOnclick(mod.id) + '\',\'' + escapeOnclick(formatModNameWithChinese(mod.slug || mod.id, mod.title)) + '\',{projectId:\'' + escapeOnclick(mod.id) + '\',source:\'' + escapeOnclick(mod.source || 'modrinth') + '\',icon:\'' + escapeOnclick(mod.icon || '') + '\'},\'取消置顶\',\'置顶模组\')">' + window.VersePC.PIN_ICONS.pin + '</button>';
-                return '<div class="mod-item mod-item-clickable' + (modMultiSelectMode ? ' mod-multiselect-active' : '') + '" onclick="openModDetail(\'' + mod.id + '\', \'' + mod.source + '\')" onmouseenter="preloadModVersions(\'' + mod.id + '\', \'' + mod.source + '\')">' +
-                    (modMultiSelectMode ? '<div class="mod-checkbox' + (isSelected ? ' checked' : '') + '" data-mod-id="' + mod.id + '" onclick="event.stopPropagation();toggleModSelect(\'' + mod.id + '\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>' : '') +
+                var isSelected = appState.modSelectedIds.has(mod.id);
+                var isFav = appState._favorites.some(function(f) { return f.favs.includes(mod.id); });
+                var isPin = isPinned('mod', mod.id);
+                var pinBtnHtml = '<button class="pin-btn' + (isPin ? ' active' : '') + '" title="' + (isPin ? '取消置顶' : '置顶模组') + '"' + actionAttrsStop('pinMod', mod.id, formatModNameWithChinese(mod.slug || mod.id, mod.title), mod.source || 'modrinth', mod.icon || '') + '>' + PIN_ICONS.pin + '</button>';
+                return '<div class="mod-item mod-item-clickable' + (appState.modMultiSelectMode ? ' mod-multiselect-active' : '') + '"' + actionAttrs('openModDetail', mod.id, mod.source) + ' data-preload-mod="' + escapeHtml(mod.id) + '" data-preload-source="' + escapeHtml(mod.source) + '">' +
+                    (appState.modMultiSelectMode ? '<div class="mod-checkbox' + (isSelected ? ' checked' : '') + '" data-mod-id="' + mod.id + '"' + actionAttrsStop('toggleModSelect', mod.id) + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>' : '') +
                     '<div class="mod-icon"><img src="' + escapeHtml(mod.icon || '') + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.classList.add(\'mod-icon--fallback\')"></div>' +
                     '<div class="mod-info">' +
                         '<div class="mod-name">' + escapeHtml(formatModNameWithChinese(mod.slug || mod.id, mod.title)) +
@@ -157,10 +179,10 @@ async function loadMods() {
                             '<span>' + (mod.categories || []).slice(0, 3).join(', ') + '</span>' +
                         '</div>' +
                     '</div>' +
-                    '<div class="mod-actions" onclick="event.stopPropagation()">' +
+                    '<div class="mod-actions" data-stop="1">' +
                         pinBtnHtml +
-                        '<button class="fav-heart-btn' + (isFav ? ' active' : '') + '" data-project-id="' + escapeHtml(mod.id) + '" onclick="event.stopPropagation(); showFavSelectDropdown(\'' + escapeOnclick(mod.id) + '\', this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></button>' +
-                        '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openModDetail(\'' + mod.id + '\', \'' + mod.source + '\')">安装</button>' +
+                        '<button class="fav-heart-btn' + (isFav ? ' active' : '') + '" data-project-id="' + escapeHtml(mod.id) + '"' + actionAttrsStop('showFavSelectDropdown', mod.id) + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></button>' +
+                        '<button class="btn btn-primary btn-sm"' + actionAttrsStop('openModDetail', mod.id, mod.source) + '>安装</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -174,29 +196,31 @@ async function loadMods() {
 
 function updateModPagination() {
     const pagination = document.getElementById('mod-pagination');
-    const currentPage = Math.floor(modSearchOffset / 15) + 1;
-    const totalPages = Math.max(1, Math.ceil(modSearchTotal / 15));
+    const currentPage = Math.floor(appState.modSearchOffset / 15) + 1;
+    const totalPages = Math.max(1, Math.ceil(appState.modSearchTotal / 15));
 
     pagination.style.display = 'flex';
     document.getElementById('mod-page-info').textContent = `${currentPage}/${totalPages}`;
-    document.getElementById('mod-prev-btn').disabled = modSearchOffset <= 0;
-    document.getElementById('mod-next-btn').disabled = modSearchOffset + 15 >= modSearchTotal;
+    document.getElementById('mod-prev-btn').disabled = appState.modSearchOffset <= 0;
+    document.getElementById('mod-next-btn').disabled = appState.modSearchOffset + 15 >= appState.modSearchTotal;
 }
 
 async function loadFeaturedMods() {
-    modSearchQuery = '';
-    modSearchOffset = 0;
+    appState.modSearchQuery = '';
+    appState.modSearchOffset = 0;
     await loadMods();
 }
 
 async function searchMods() {
-    modSearchOffset = 0;
+    appState.modSearchOffset = 0;
     await loadMods();
 }
 
+registerActions({
+    pinMod: (event, el, id, name, source, icon) => {
+        pinBtnToggle(el, 'mod', id, name, { projectId: id, source, icon }, '取消置顶', '置顶模组');
+    },
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { loadInstalledMods, loadModFilterOptions, populateModVersionFilter, loadMods, updateModPagination, loadFeaturedMods, searchMods, MODRINTH_CATEGORY_ZH };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ loadInstalledMods, loadModFilterOptions, populateModVersionFilter, loadMods, updateModPagination, loadFeaturedMods, searchMods, MODRINTH_CATEGORY_ZH })) {
-  window[name] = value;
-}

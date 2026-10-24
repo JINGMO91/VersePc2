@@ -1,3 +1,7 @@
+import { bridge } from '../../core/tauri-bridge.js';
+import { LiquidGlass } from './liquid-glass.js';
+import { applyNavigationMode } from './window-theme.js';
+
 /* personalize.js - 个性化设置逻辑层
  * 结构：
  *   1. 值参数核心函数（applyXxxValue/applyXxxByName）：副作用 + 持久化，供 Vue 卡片组件直接调用
@@ -5,6 +9,12 @@
  *      供启动恢复（init-setup.js）与旧调用方使用
  *   3. 共享响应式状态读写辅助：由 personalize-state.js 提供
  */
+import { _lazyLoadScript } from '../../core/utils.js';
+import { applyThemeByName } from '../launch/launch-settings.js';
+import { showToast, showConfirmDialog } from '../misc/ui-components.js';
+import { clearCustomThemeVars, syncCustomThemeColorUI } from './custom-theme.js';
+import { wpfilePath, initWallpaper, switchWallpaperMode, setCustomWallpaperImage, setCustomWallpaperVideo, setWallpaperOpacity, setWallpaperBlur, setWallpaperFitMode, setPanoramaTheme, onWallpaperBrightnessChange, setPanoramaRotationSpeed, setPanoramaMouseFollow, wallpaperEngine } from './wallpaper-engine.js';
+
 import { personalizeState } from './personalize-state.js';
 
 // ============== 共享状态辅助 ==============
@@ -12,21 +22,6 @@ import { personalizeState } from './personalize-state.js';
 function getPersonalizeState() {
   return personalizeState;
 }
-
-/** 兼容 Tauri readFileBuffer 三种返回格式（Base64 字符串 / number[] / Uint8Array）→ Uint8Array */
-window.decodeFileBuffer = function (res) {
-  if (typeof res === 'string') {
-    try {
-      const bin = atob(res);
-      const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      return bytes;
-    } catch (e) {
-      return new Uint8Array(0);
-    }
-  }
-  return res instanceof Uint8Array ? res : new Uint8Array(res || []);
-};
 
 // ============== 壁纸：值参数核心函数 ==============
 
@@ -50,7 +45,7 @@ async function applyWallpaperByName(mode) {
     let sel = st && st.weWallpaper;
     if (!sel) {
       try {
-        const saved = await window.electronAPI?.store?.get('versepc_we_wallpaper');
+        const saved = await bridge?.store?.get('versepc_we_wallpaper');
         if (saved) sel = JSON.parse(saved);
       } catch (e) {}
     }
@@ -65,11 +60,6 @@ async function applyWallpaperByName(mode) {
   // 离开 WE 壁纸：清掉 WE 视频流/场景标记，避免自定义壁纸误用 wewp 本地协议
   if (typeof wallpaperEngine !== 'undefined' && wallpaperEngine) {
     wallpaperEngine.weVideo = null;
-  }
-
-  // 普通自定义视频保持静音（仅 WE 视频壁纸开启音频）
-  if (mode === 'customVideo' && typeof setWeVideoAudio === 'function') {
-    setWeVideoAudio(false);
   }
 
   if (typeof switchWallpaperMode === 'function') {
@@ -89,7 +79,7 @@ async function applyWallpaperByName(mode) {
     document.body.classList.add('aurora-theme');
     if (st) st.fit = 'cover';
     try {
-      await window.electronAPI.store.set('versepc_wallpaper_fit', 'cover');
+      await bridge.store.set('versepc_wallpaper_fit', 'cover');
     } catch (e) {}
   } else {
     document.body.classList.remove('aurora-theme');
@@ -98,9 +88,9 @@ async function applyWallpaperByName(mode) {
   if (isPanorama) {
     try {
       const [savedTheme, savedSpeed, savedFollow] = await Promise.all([
-        window.electronAPI?.store?.get('versepc_panorama_theme'),
-        window.electronAPI?.store?.get('versepc_panorama_speed'),
-        window.electronAPI?.store?.get('versepc_panorama_mouse_follow'),
+        bridge?.store?.get('versepc_panorama_theme'),
+        bridge?.store?.get('versepc_panorama_speed'),
+        bridge?.store?.get('versepc_panorama_mouse_follow'),
       ]);
       if (savedTheme && typeof setPanoramaTheme === 'function') setPanoramaTheme(savedTheme);
       if (savedSpeed != null && typeof setPanoramaRotationSpeed === 'function') setPanoramaRotationSpeed(savedSpeed * 0.001);
@@ -111,7 +101,7 @@ async function applyWallpaperByName(mode) {
   }
 
   try {
-    await window.electronAPI.store.set('versepc_wallpaper', mode);
+    await bridge.store.set('versepc_wallpaper', mode);
   } catch (e) {
     console.error('[Settings] Save wallpaper error:', e);
   }
@@ -126,7 +116,6 @@ async function _applyWeDispatch(sel) {
   // 只清视频流标记，不修改 wallpaperBlur/opacity/fit，避免切回自定义壁纸时丢失设置。
   wallpaperEngine.weVideo = null;
   if (type === 'video' && sel.filePath) {
-    if (typeof setWeVideoAudio === 'function') setWeVideoAudio(true);
     wallpaperEngine.weVideo = { id: sel.id, file: sel.file };
     wallpaperEngine.customVideoPath = sel.filePath;
     if (wallpaperEngine.currentMode === 'customVideo' && wallpaperEngine.renderer && wallpaperEngine.renderer.loadVideo) {
@@ -152,7 +141,7 @@ async function _applyWeDispatch(sel) {
 
     let preview = sel.previewPath;
     if (!preview && sel.preview && sel.dir) {
-      const sep = (window.bridge && window.bridge.isWindows === false) ? '/' : '\\';
+      const sep = (bridge && bridge.isWindows === false) ? '/' : '\\';
       preview = String(sel.dir).replace(/[\\/][^\\/]+$/, '') + sep + sel.preview;
     }
 
@@ -192,8 +181,8 @@ async function applyWeWallpaper(sel) {
     st.wallpaper = 'wallpaperEngine';
     st.weWallpaper = sel;
   }
-  try { await window.electronAPI.store.set('versepc_we_wallpaper', JSON.stringify(sel)); } catch (e) {}
-  try { await window.electronAPI.store.set('versepc_wallpaper', 'wallpaperEngine'); } catch (e) {}
+  try { await bridge.store.set('versepc_we_wallpaper', JSON.stringify(sel)); } catch (e) {}
+  try { await bridge.store.set('versepc_wallpaper', 'wallpaperEngine'); } catch (e) {}
   await _ensureWallpaperEngine();
   _applyWeDispatch(sel);
 }
@@ -201,7 +190,7 @@ async function applyWeWallpaper(sel) {
 /** 应用全景主题（引擎 + 持久化） */
 function applyPanoramaThemeByName(theme) {
   if (typeof setPanoramaTheme === 'function') setPanoramaTheme(theme);
-  window.electronAPI?.store?.set('versepc_panorama_theme', theme).catch(() => {});
+  bridge?.store?.set('versepc_panorama_theme', theme).catch(() => {});
   const st = getPersonalizeState();
   if (st) st.panoramaTheme = theme;
 }
@@ -210,7 +199,7 @@ function applyPanoramaThemeByName(theme) {
 function applyWallpaperOpacityValue(value) {
   const opacity = value / 100;
   if (typeof setWallpaperOpacity === 'function') setWallpaperOpacity(opacity);
-  window.electronAPI?.store?.set('versepc_wallpaper_opacity', value).catch(() => {});
+  bridge?.store?.set('versepc_wallpaper_opacity', value).catch(() => {});
   const st = getPersonalizeState();
   if (st) st.opacity = Number(value);
 }
@@ -218,7 +207,7 @@ function applyWallpaperOpacityValue(value) {
 /** 应用壁纸模糊（引擎 + 持久化） */
 function applyWallpaperBlurValue(value) {
   if (typeof setWallpaperBlur === 'function') setWallpaperBlur(parseInt(value));
-  window.electronAPI?.store?.set('versepc_wallpaper_blur', value).catch(() => {});
+  bridge?.store?.set('versepc_wallpaper_blur', value).catch(() => {});
   const st = getPersonalizeState();
   if (st) st.blur = Number(value);
 }
@@ -226,7 +215,7 @@ function applyWallpaperBlurValue(value) {
 /** 应用壁纸适配方式（引擎 + 持久化） */
 function applyWallpaperFitValue(value) {
   if (typeof setWallpaperFitMode === 'function') setWallpaperFitMode(value);
-  window.electronAPI?.store?.set('versepc_wallpaper_fit', value).catch(() => {});
+  bridge?.store?.set('versepc_wallpaper_fit', value).catch(() => {});
   const st = getPersonalizeState();
   if (st) st.fit = value;
 }
@@ -235,7 +224,7 @@ function applyWallpaperFitValue(value) {
 function applyPanoramaSpeedValue(value) {
   const speed = value * 0.001;
   if (typeof setPanoramaRotationSpeed === 'function') setPanoramaRotationSpeed(speed);
-  window.electronAPI?.store?.set('versepc_panorama_speed', parseInt(value)).catch(() => {});
+  bridge?.store?.set('versepc_panorama_speed', parseInt(value)).catch(() => {});
   const st = getPersonalizeState();
   if (st) st.panoramaSpeed = Number(value);
 }
@@ -243,7 +232,7 @@ function applyPanoramaSpeedValue(value) {
 /** 应用全景跟随鼠标（引擎 + 持久化） */
 function applyPanoramaFollowValue(enabled) {
   if (typeof setPanoramaMouseFollow === 'function') setPanoramaMouseFollow(enabled);
-  window.electronAPI?.store?.set('versepc_panorama_mouse_follow', enabled);
+  bridge?.store?.set('versepc_panorama_mouse_follow', enabled);
   const st = getPersonalizeState();
   if (st) st.panoramaFollow = !!enabled;
 }
@@ -257,7 +246,7 @@ function applyGlassEffectValue(enabled) {
   } else {
     document.documentElement.setAttribute('data-no-glass', '');
   }
-  window.electronAPI.store.set('versepc_glass_effect', enabled ? '1' : '0').catch(() => {});
+  bridge.store.set('versepc_glass_effect', enabled ? '1' : '0').catch(() => {});
   const st = getPersonalizeState();
   if (st) st.glassEffect = !!enabled;
 }
@@ -270,15 +259,15 @@ function applyLiquidGlassEffectValue(enabled) {
     document.documentElement.removeAttribute('data-liquid-glass');
   }
   syncLiquidGlassSurfaces(enabled);
-  window.electronAPI.store.set('versepc_liquid_glass', enabled ? '1' : '0').catch(() => {});
+  bridge.store.set('versepc_liquid_glass', enabled ? '1' : '0').catch(() => {});
   const st = getPersonalizeState();
   if (st) st.liquidGlass = !!enabled;
 }
 
 /** 应用「简约导航栏」：经典侧栏（默认）↔ 悬浮胶囊 */
 function applyMinimalNavValue(enabled) {
-  window.electronAPI.store.set('versepc_nav_minimal', enabled ? '1' : '0').catch(() => {});
-  if (typeof window.applyNavigationMode === 'function') window.applyNavigationMode(!!enabled);
+  bridge.store.set('versepc_nav_minimal', enabled ? '1' : '0').catch(() => {});
+  if (typeof applyNavigationMode === 'function') applyNavigationMode(!!enabled);
   const st = getPersonalizeState();
   if (st) st.minimalNav = !!enabled;
   // 经典侧栏不挂胶囊折射；切回简约时按当前液态玻璃状态重新同步
@@ -295,7 +284,7 @@ function applyHideNavLabelsValue(enabled) {
   } else {
     document.body.classList.remove('show-nav-labels');
   }
-  window.electronAPI.store.set('versepc_nav_hide_labels', enabled ? '1' : '0').catch(() => {});
+  bridge.store.set('versepc_nav_hide_labels', enabled ? '1' : '0').catch(() => {});
   const st = getPersonalizeState();
   if (st) st.hideNavLabels = !!enabled;
 }
@@ -307,7 +296,7 @@ function applyAutoCollapseNavValue(enabled) {
   } else {
     document.body.classList.remove('sidebar-keep-open');
   }
-  window.electronAPI.store.set('versepc_nav_auto_collapse', enabled ? '1' : '0').catch(() => {});
+  bridge.store.set('versepc_nav_auto_collapse', enabled ? '1' : '0').catch(() => {});
   const st = getPersonalizeState();
   if (st) st.autoCollapseNav = !!enabled;
 }
@@ -318,7 +307,7 @@ function applyNavWidthValue(value) {
   if (!Number.isFinite(width)) width = 80;
   width = Math.max(64, Math.min(160, width));
   document.body.style.setProperty('--classic-sidebar-width', width + 'px');
-  window.electronAPI.store.set('versepc_nav_width', width).catch(() => {});
+  bridge.store.set('versepc_nav_width', width).catch(() => {});
   const st = getPersonalizeState();
   if (st) st.navWidth = width;
 }
@@ -335,10 +324,10 @@ function applySidebarPinValue(enabled) {
 
 /** 应用“记住启动器窗口大小”（仅持久化，下次关闭/启动时生效） */
 function applyRememberWindowSizeValue(enabled) {
-  window.electronAPI.store.set('versepc_window_remember_size', enabled ? '1' : '0').catch(() => {});
+  bridge.store.set('versepc_window_remember_size', enabled ? '1' : '0').catch(() => {});
   // 关闭记忆时清掉旧尺寸，避免以后重新开启时恢复更早之前的窗口大小
   if (!enabled) {
-    window.electronAPI.store.delete('versepc_window_state').catch(() => {});
+    bridge.store.delete('versepc_window_state').catch(() => {});
   }
   const st = getPersonalizeState();
   if (st) st.rememberWindowSize = !!enabled;
@@ -346,14 +335,14 @@ function applyRememberWindowSizeValue(enabled) {
 
 /** 应用“启动时全屏”（仅持久化，下次启动时生效） */
 function applyStartFullscreenValue(enabled) {
-  window.electronAPI.store.set('versepc_window_start_fullscreen', enabled ? '1' : '0').catch(() => {});
+  bridge.store.set('versepc_window_start_fullscreen', enabled ? '1' : '0').catch(() => {});
   const st = getPersonalizeState();
   if (st) st.startFullscreen = !!enabled;
 }
 
 /** 侧边栏胶囊与左上角圆形开关按钮：开启时挂上 SDF 折射，关闭时摘除 */
 function syncLiquidGlassSurfaces(enabled) {
-  const engine = window.LiquidGlass;
+  const engine = LiquidGlass;
   if (!engine || !engine.supported) return;
   const targets = [
     [document.getElementById('sidebar-toggle-btn'), { depth: 0.5, strength: 0.3, blur: 1.2 }]
@@ -392,7 +381,7 @@ async function pickCustomWallpaperFile() {
     : [{ name: '图片文件', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'] }];
 
   try {
-    const result = await window.electronAPI.selectFile({
+    const result = await bridge.selectFile({
       title: isVideo ? '选择视频壁纸' : '选择图片壁纸',
       filters
     });
@@ -424,12 +413,12 @@ async function _applyCustomWallpaperFile(filePath, isVideo) {
     if (typeof setCustomWallpaperVideo === 'function') {
       setCustomWallpaperVideo(filePath);
     }
-    try { await window.electronAPI.store.set('versepc_custom_video', filePath); } catch (e) {}
+    try { await bridge.store.set('versepc_custom_video', filePath); } catch (e) {}
   } else {
     if (typeof setCustomWallpaperImage === 'function') {
       setCustomWallpaperImage(filePath);
     }
-    try { await window.electronAPI.store.set('versepc_custom_image', filePath); } catch (e) {}
+    try { await bridge.store.set('versepc_custom_image', filePath); } catch (e) {}
     _updateCustomImagePreview(filePath);
   }
 }
@@ -450,8 +439,8 @@ function _updateCustomImagePreview(filePath) {
     }
     // Tauri 环境未注册 wpfile:// 协议，改用 readFileBuffer → blob 加载本地图片预览
     img.src = '';
-    if (window.electronAPI && window.electronAPI.readFileBuffer) {
-      window.electronAPI.readFileBuffer(filePath)
+    if (bridge && bridge.readFileBuffer) {
+      bridge.readFileBuffer(filePath)
         .then((buffer) => {
           const u8 = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer || []);
           if (!u8 || u8.byteLength === 0) throw new Error('empty');
@@ -603,14 +592,14 @@ async function loadWallpaperSubState() {
   if (!st) return;
   try {
     const [opacity, blur, fit, panoTheme, panoSpeed, panoFollow, customImage, customVideo] = await Promise.all([
-      window.electronAPI?.store?.get('versepc_wallpaper_opacity'),
-      window.electronAPI?.store?.get('versepc_wallpaper_blur'),
-      window.electronAPI?.store?.get('versepc_wallpaper_fit'),
-      window.electronAPI?.store?.get('versepc_panorama_theme'),
-      window.electronAPI?.store?.get('versepc_panorama_speed'),
-      window.electronAPI?.store?.get('versepc_panorama_mouse_follow'),
-      window.electronAPI?.store?.get('versepc_custom_image'),
-      window.electronAPI?.store?.get('versepc_custom_video'),
+      bridge?.store?.get('versepc_wallpaper_opacity'),
+      bridge?.store?.get('versepc_wallpaper_blur'),
+      bridge?.store?.get('versepc_wallpaper_fit'),
+      bridge?.store?.get('versepc_panorama_theme'),
+      bridge?.store?.get('versepc_panorama_speed'),
+      bridge?.store?.get('versepc_panorama_mouse_follow'),
+      bridge?.store?.get('versepc_custom_image'),
+      bridge?.store?.get('versepc_custom_video'),
     ]);
     if (opacity != null) st.opacity = Number(opacity);
     if (blur != null) st.blur = Number(blur);
@@ -632,24 +621,24 @@ async function loadPersonalizeStateIntoStore() {
 
   let legacy = null;
   try {
-    const saved = await window.electronAPI?.store?.get('versepc_personalize_settings');
+    const saved = await bridge?.store?.get('versepc_personalize_settings');
     if (saved) legacy = JSON.parse(saved);
   } catch (e) { /* 忽略旧数据解析错误 */ }
 
   const [savedTheme, savedWallpaper, glassSaved, liquidGlassSaved, customColor, customLight, weWallpaperSaved, navMinimalSaved, navHideLabelsSaved, navAutoCollapseSaved, navWidthSaved, rememberWindowSizeSaved, startFullscreenSaved] = await Promise.all([
-    window.electronAPI?.store?.get('versepc_theme'),
-    window.electronAPI?.store?.get('versepc_wallpaper'),
-    window.electronAPI?.store?.get('versepc_glass_effect'),
-    window.electronAPI?.store?.get('versepc_liquid_glass'),
-    window.electronAPI?.store?.get('versepc_custom_theme_color'),
-    window.electronAPI?.store?.get('versepc_custom_theme_light'),
-    window.electronAPI?.store?.get('versepc_we_wallpaper'),
-    window.electronAPI?.store?.get('versepc_nav_minimal'),
-    window.electronAPI?.store?.get('versepc_nav_hide_labels'),
-    window.electronAPI?.store?.get('versepc_nav_auto_collapse'),
-    window.electronAPI?.store?.get('versepc_nav_width'),
-    window.electronAPI?.store?.get('versepc_window_remember_size'),
-    window.electronAPI?.store?.get('versepc_window_start_fullscreen'),
+    bridge?.store?.get('versepc_theme'),
+    bridge?.store?.get('versepc_wallpaper'),
+    bridge?.store?.get('versepc_glass_effect'),
+    bridge?.store?.get('versepc_liquid_glass'),
+    bridge?.store?.get('versepc_custom_theme_color'),
+    bridge?.store?.get('versepc_custom_theme_light'),
+    bridge?.store?.get('versepc_we_wallpaper'),
+    bridge?.store?.get('versepc_nav_minimal'),
+    bridge?.store?.get('versepc_nav_hide_labels'),
+    bridge?.store?.get('versepc_nav_auto_collapse'),
+    bridge?.store?.get('versepc_nav_width'),
+    bridge?.store?.get('versepc_window_remember_size'),
+    bridge?.store?.get('versepc_window_start_fullscreen'),
   ]);
 
   // ── 主题：单项键优先，其次旧复合键，最后默认浅色 ──
@@ -756,18 +745,18 @@ async function savePersonalizeSettings() {
       };
 
   try {
-    await window.electronAPI.store.set('versepc_personalize_settings', JSON.stringify(settings));
+    await bridge.store.set('versepc_personalize_settings', JSON.stringify(settings));
     // 同步写入单项键，保证"保存设置"与实时修改的单项键一致，重启后以单项键为准
-    await window.electronAPI.store.set('versepc_theme', settings.theme);
-    await window.electronAPI.store.set('versepc_wallpaper', settings.wallpaper);
-    await window.electronAPI.store.set('versepc_glass_effect', settings.glassEffect ? '1' : '0');
-    await window.electronAPI.store.set('versepc_liquid_glass', settings.liquidGlass ? '1' : '0');
-    await window.electronAPI.store.set('versepc_nav_minimal', settings.minimalNav ? '1' : '0');
-    await window.electronAPI.store.set('versepc_nav_hide_labels', settings.hideNavLabels ? '1' : '0');
-    await window.electronAPI.store.set('versepc_nav_auto_collapse', settings.autoCollapseNav ? '1' : '0');
-    await window.electronAPI.store.set('versepc_nav_width', Number(settings.navWidth) || 80);
-    await window.electronAPI.store.set('versepc_window_remember_size', settings.rememberWindowSize ? '1' : '0');
-    await window.electronAPI.store.set('versepc_window_start_fullscreen', settings.startFullscreen ? '1' : '0');
+    await bridge.store.set('versepc_theme', settings.theme);
+    await bridge.store.set('versepc_wallpaper', settings.wallpaper);
+    await bridge.store.set('versepc_glass_effect', settings.glassEffect ? '1' : '0');
+    await bridge.store.set('versepc_liquid_glass', settings.liquidGlass ? '1' : '0');
+    await bridge.store.set('versepc_nav_minimal', settings.minimalNav ? '1' : '0');
+    await bridge.store.set('versepc_nav_hide_labels', settings.hideNavLabels ? '1' : '0');
+    await bridge.store.set('versepc_nav_auto_collapse', settings.autoCollapseNav ? '1' : '0');
+    await bridge.store.set('versepc_nav_width', Number(settings.navWidth) || 80);
+    await bridge.store.set('versepc_window_remember_size', settings.rememberWindowSize ? '1' : '0');
+    await bridge.store.set('versepc_window_start_fullscreen', settings.startFullscreen ? '1' : '0');
     showToast('个性化设置已保存', 'success');
   } catch (e) {
     showToast('保存失败: ' + e.message, 'error');
@@ -817,7 +806,7 @@ async function resetPersonalizeSettings() {
   if (typeof syncCustomThemeColorUI === 'function') syncCustomThemeColorUI('#4c8dff');
 
   try {
-    await window.electronAPI.store.set('versepc_personalize_settings', JSON.stringify({
+    await bridge.store.set('versepc_personalize_settings', JSON.stringify({
       theme: 'light',
       wallpaper: 'none',
       glassEffect: false,
@@ -831,26 +820,26 @@ async function resetPersonalizeSettings() {
       rememberWindowSize: true,
       startFullscreen: false
     }));
-    await window.electronAPI.store.set('versepc_theme', 'light');
-    await window.electronAPI.store.set('versepc_wallpaper', 'none');
-    await window.electronAPI.store.delete('versepc_solid_color');
-    await window.electronAPI.store.delete('versepc_custom_theme_color');
-    await window.electronAPI.store.delete('versepc_custom_theme_light');
-    await window.electronAPI.store.set('versepc_wallpaper_opacity', 100);
-    await window.electronAPI.store.set('versepc_wallpaper_blur', 0);
-    await window.electronAPI.store.set('versepc_wallpaper_fit', 'cover');
-    await window.electronAPI.store.delete('versepc_custom_image');
-    await window.electronAPI.store.delete('versepc_custom_video');
-    await window.electronAPI.store.set('versepc_panorama_theme', 'overworld');
-    await window.electronAPI.store.set('versepc_glass_effect', '0');
-    await window.electronAPI.store.set('versepc_liquid_glass', '0');
-    await window.electronAPI.store.set('versepc_nav_minimal', '0');
-    await window.electronAPI.store.set('versepc_nav_hide_labels', '0');
-    await window.electronAPI.store.set('versepc_nav_auto_collapse', '0');
-    await window.electronAPI.store.set('versepc_nav_width', 80);
-    await window.electronAPI.store.set('versepc_window_remember_size', '1');
-    await window.electronAPI.store.set('versepc_window_start_fullscreen', '0');
-    await window.electronAPI.store.delete('versepc_window_state');
+    await bridge.store.set('versepc_theme', 'light');
+    await bridge.store.set('versepc_wallpaper', 'none');
+    await bridge.store.delete('versepc_solid_color');
+    await bridge.store.delete('versepc_custom_theme_color');
+    await bridge.store.delete('versepc_custom_theme_light');
+    await bridge.store.set('versepc_wallpaper_opacity', 100);
+    await bridge.store.set('versepc_wallpaper_blur', 0);
+    await bridge.store.set('versepc_wallpaper_fit', 'cover');
+    await bridge.store.delete('versepc_custom_image');
+    await bridge.store.delete('versepc_custom_video');
+    await bridge.store.set('versepc_panorama_theme', 'overworld');
+    await bridge.store.set('versepc_glass_effect', '0');
+    await bridge.store.set('versepc_liquid_glass', '0');
+    await bridge.store.set('versepc_nav_minimal', '0');
+    await bridge.store.set('versepc_nav_hide_labels', '0');
+    await bridge.store.set('versepc_nav_auto_collapse', '0');
+    await bridge.store.set('versepc_nav_width', 80);
+    await bridge.store.set('versepc_window_remember_size', '1');
+    await bridge.store.set('versepc_window_start_fullscreen', '0');
+    await bridge.store.delete('versepc_window_state');
     _updateCustomImagePreview(null);
     const nameEl = document.getElementById('custom-wallpaper-file-name');
     if (nameEl) nameEl.textContent = '未选择';
@@ -879,7 +868,3 @@ async function loadPersonalizeSettings() {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { getPersonalizeState, _ensureWallpaperEngine, applyWallpaperByName, _applyWeDispatch, applyWeWallpaper, applyPanoramaThemeByName, applyWallpaperOpacityValue, applyWallpaperBlurValue, applyWallpaperFitValue, applyPanoramaSpeedValue, applyPanoramaFollowValue, applyGlassEffectValue, applyLiquidGlassEffectValue, applyMinimalNavValue, applyHideNavLabelsValue, applyAutoCollapseNavValue, applyNavWidthValue, applySidebarLabelsValue, applySidebarPinValue, applyRememberWindowSizeValue, applyStartFullscreenValue, syncLiquidGlassSurfaces, selectWallpaper, pickCustomWallpaperFile, _applyCustomWallpaperFile, _updateCustomImagePreview, initWallpaperAutoAdapt, onWallpaperOpacityChange, onWallpaperBlurChange, onWallpaperFitChange, selectPanoramaTheme, onPanoramaSpeedChange, onPanoramaMouseFollowChange, aiToggleApiKeyVisibility, applyThemeColors, updateCustomAccentColor, toggleGlassEffect, toggleLiquidGlassEffect, loadWallpaperSubState, loadPersonalizeStateIntoStore, savePersonalizeSettings, resetPersonalizeSettings, loadPersonalizeSettings };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ getPersonalizeState, _ensureWallpaperEngine, applyWallpaperByName, _applyWeDispatch, applyWeWallpaper, applyPanoramaThemeByName, applyWallpaperOpacityValue, applyWallpaperBlurValue, applyWallpaperFitValue, applyPanoramaSpeedValue, applyPanoramaFollowValue, applyGlassEffectValue, applyLiquidGlassEffectValue, applyMinimalNavValue, applyHideNavLabelsValue, applyAutoCollapseNavValue, applyNavWidthValue, applySidebarLabelsValue, applySidebarPinValue, applyRememberWindowSizeValue, applyStartFullscreenValue, syncLiquidGlassSurfaces, selectWallpaper, pickCustomWallpaperFile, _applyCustomWallpaperFile, _updateCustomImagePreview, initWallpaperAutoAdapt, onWallpaperOpacityChange, onWallpaperBlurChange, onWallpaperFitChange, selectPanoramaTheme, onPanoramaSpeedChange, onPanoramaMouseFollowChange, aiToggleApiKeyVisibility, applyThemeColors, updateCustomAccentColor, toggleGlassEffect, toggleLiquidGlassEffect, loadWallpaperSubState, loadPersonalizeStateIntoStore, savePersonalizeSettings, resetPersonalizeSettings, loadPersonalizeSettings })) {
-  window[name] = value;
-}

@@ -1,7 +1,24 @@
+import { API } from '../../core/api.js';
 /**
  * @file mod-install.js
  * @description 模组安装 - 模组文件安装、整合包安装、资源快速安装、依赖处理、批量下载
  */
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { escapeHtml, formatDate, formatSize, formatBytes } from '../../core/utils.js';
+import { getCustomSelectValue } from '../misc/custom-select.js';
+import { showToast } from '../misc/ui-components.js';
+import { loadInstalledMods, loadMods } from './mod-browse.js';
+import { pickDependencyRootVersion, mdDepsCache } from './mod-detail.js';
+import { dlManager } from '../versions/custom-download.js';
+import { loadInstalledModsForSettings } from '../versions/version-settings.js';
+import { loadVersions } from '../versions/versions.js';
+
+import { modDetailState } from './detail-state.js';
+import { appState } from '../../core/app-state.js';
+import { createApp } from 'vue';
+import { formatModNameWithChinese } from './chinese-names.js';
+
 // 当前模组的目标游戏版本/加载器（在 installModFile 中按所选版本捕获）
 let _mdSaveGame = '';
 let _mdSaveLoader = '';
@@ -22,24 +39,24 @@ function resolveModTarget(gameVersions, loaders) {
 /// 从已加载的版本列表里解析某个版本的目标游戏版本/加载器
 function resolveModVersionTarget(versionId) {
   try {
-    const versions = (typeof mdAllVersions !== 'undefined' ? mdAllVersions : []);
+    const versions = (typeof modDetailState.allVersions !== 'undefined' ? modDetailState.allVersions : []);
     const v = versions.find(x => x && x.id === versionId);
     if (v) return resolveModTarget(v.gameVersions, v.loaders);
   } catch (e) {}
   return { game: '', loader: '' };
 }
 
-/// 确保已安装版本列表已加载（installedVersions 仅在访问版本页时填充，
+/// 确保已安装版本列表已加载（appState.installedVersions 仅在访问版本页时填充，
 /// 直接从模组页进入时为空会导致路径匹配失败，需主动拉取）
 async function ensureInstalledVersions() {
-  if (Array.isArray(installedVersions) && installedVersions.length > 0) return true;
+  if (Array.isArray(appState.installedVersions) && appState.installedVersions.length > 0) return true;
   try {
     const data = await API.getVersions(false);
-    installedVersions = (data && data.installed) || [];
-    if (!Array.isArray(installedVersions)) installedVersions = [];
-    allVersions = (data && data.versions) || [];
-    if (!Array.isArray(allVersions)) allVersions = [];
-    return installedVersions.length > 0;
+    appState.installedVersions = (data && data.installed) || [];
+    if (!Array.isArray(appState.installedVersions)) appState.installedVersions = [];
+    appState.allVersions = (data && data.versions) || [];
+    if (!Array.isArray(appState.allVersions)) appState.allVersions = [];
+    return appState.installedVersions.length > 0;
   } catch (e) {
     console.warn('[matchInstalledVersion] 拉取已安装版本失败:', e);
     return false;
@@ -50,7 +67,7 @@ async function ensureInstalledVersions() {
 function matchInstalledVersion(game, loader) {
   const gl = String(game || '').toLowerCase();
   const lc = String(loader || '').toLowerCase();
-  if (!Array.isArray(installedVersions) || installedVersions.length === 0) return '';
+  if (!Array.isArray(appState.installedVersions) || appState.installedVersions.length === 0) return '';
   const isL = v => {
     if (lc === 'forge') return !!v.isForge;
     if (lc === 'neoforge') return !!v.isNeoForge;
@@ -58,7 +75,7 @@ function matchInstalledVersion(game, loader) {
     if (lc === 'quilt') return !!v.isFabric;
     return true;
   };
-  const arr = installedVersions.filter(v => v && isL(v));
+  const arr = appState.installedVersions.filter(v => v && isL(v));
   if (!arr.length) return '';
   // 优先精确匹配游戏版本；游戏版本未知时退化为仅按加载器匹配
   const glArr = gl ? arr.filter(v => (
@@ -76,7 +93,7 @@ function installModFileSafe(el) {
   if (!el) return;
   const vid = decodeURIComponent(atob(el.dataset.vid || ''));
   const fid = decodeURIComponent(atob(el.dataset.fid || ''));
-  installModFile(currentModDetailId, currentModDetailSource, vid, fid);
+  installModFile(appState.currentModDetailId, appState.currentModDetailSource, vid, fid);
 }
 
 function addModFromDetail(projectId, source, safeVid, safeFid) {
@@ -85,14 +102,14 @@ function addModFromDetail(projectId, source, safeVid, safeFid) {
 
   const t = resolveModVersionTarget(vid);
 
-  if (modSelectedIds.has(projectId)) {
-    const existing = modSelectedVersions.get(projectId);
+  if (appState.modSelectedIds.has(projectId)) {
+    const existing = appState.modSelectedVersions.get(projectId);
     if (existing && existing.versionId === vid && existing.fileId === fid) {
-      modSelectedIds.delete(projectId);
-      modSelectedVersions.delete(projectId);
+      appState.modSelectedIds.delete(projectId);
+      appState.modSelectedVersions.delete(projectId);
       showToast('已从选择中移除', 'info');
     } else {
-      modSelectedVersions.set(projectId, {
+      appState.modSelectedVersions.set(projectId, {
         versionId: vid,
         fileId: fid,
         source: source,
@@ -102,8 +119,8 @@ function addModFromDetail(projectId, source, safeVid, safeFid) {
       showToast('已更新选择的版本', 'success');
     }
   } else {
-    modSelectedIds.add(projectId);
-    modSelectedVersions.set(projectId, {
+    appState.modSelectedIds.add(projectId);
+    appState.modSelectedVersions.set(projectId, {
       versionId: vid,
       fileId: fid,
       source: source,
@@ -121,16 +138,16 @@ function addModFromDetail(projectId, source, safeVid, safeFid) {
       if (!btn) return;
       const itemVid = decodeURIComponent(atob(item.dataset.vid || ''));
       const itemFid = decodeURIComponent(atob(item.dataset.fid || ''));
-      const isSelected = modSelectedIds.has(projectId);
-      const isCurrentVersion = isSelected && modSelectedVersions.get(projectId)?.versionId === itemVid;
+      const isSelected = appState.modSelectedIds.has(projectId);
+      const isCurrentVersion = isSelected && appState.modSelectedVersions.get(projectId)?.versionId === itemVid;
       btn.textContent = isCurrentVersion ? '已添加' : '添加';
       btn.classList.toggle('btn-secondary', isCurrentVersion);
       btn.classList.toggle('btn-primary', !isCurrentVersion);
     });
     container.querySelectorAll('.mdv-header-btn.mdv-install-btn').forEach(btn => {
       const itemVid = decodeURIComponent(atob(btn.dataset.vid || ''));
-      const isSelected = modSelectedIds.has(projectId);
-      const isCurrentVersion = isSelected && modSelectedVersions.get(projectId)?.versionId === itemVid;
+      const isSelected = appState.modSelectedIds.has(projectId);
+      const isCurrentVersion = isSelected && appState.modSelectedVersions.get(projectId)?.versionId === itemVid;
       btn.textContent = isCurrentVersion ? '已添加' : '添加';
       btn.classList.toggle('btn-secondary', isCurrentVersion);
       btn.classList.toggle('btn-primary', !isCurrentVersion);
@@ -141,13 +158,13 @@ function addModFromDetail(projectId, source, safeVid, safeFid) {
 function installModpackVersionSafe(el) {
   if (!el) return;
   const vid = decodeURIComponent(atob(el.dataset.vid || ''));
-  installModpackVersion(currentModDetailId, vid);
+  installModpackVersion(appState.currentModDetailId, vid);
 }
 
 function installResourceVersionSafe(el) {
   if (!el) return;
   const vid = decodeURIComponent(atob(el.dataset.vid || ''));
-  quickInstallResourceVersion(currentModDetailId, currentModDetailType, vid);
+  quickInstallResourceVersion(appState.currentModDetailId, modDetailState.type, vid);
 }
 
 async function quickInstallResourceVersion(projectId, type, versionId) {
@@ -170,7 +187,7 @@ async function quickInstallResourceVersion(projectId, type, versionId) {
     }
     localStorage.setItem('lastResourceSavePath_' + type, savePath);
     showToast(`正在安装${typeName}...`, 'info');
-    const result = await API.downloadResource(versionId, projectId, type, '', savePath, '', currentModDetailSource);
+    const result = await API.downloadResource(versionId, projectId, type, '', savePath, '', appState.currentModDetailSource);
     if (result.success) {
       showModDownloadModal(result.fileName, result.sessionId);
     } else {
@@ -198,7 +215,7 @@ function getLoaderFileIcon(filename) {
 function installModFile(projectId, source, versionId, fileId) {
   // 捕获当前模组目标游戏版本/加载器，用于保存路径定位（Forge/Fabric 同版本号不混淆）
   try {
-    const versions = (typeof mdAllVersions !== 'undefined') ? mdAllVersions : [];
+    const versions = (typeof modDetailState.allVersions !== 'undefined') ? modDetailState.allVersions : [];
     const v = versions.find(x => x && x.id === versionId);
     if (v) {
       const t = resolveModTarget(v.gameVersions, v.loaders);
@@ -206,14 +223,14 @@ function installModFile(projectId, source, versionId, fileId) {
       _mdSaveLoader = t.loader || _mdSaveLoader;
       console.warn('[mod-folder] 安装文件=', v.versionNumber || v.name, 'gvs=', JSON.stringify(v.gameVersions), 'loaders=', JSON.stringify(v.loaders), '目标=', t, '=>', _mdSaveGame, _mdSaveLoader, 'source=', source);
     } else {
-      console.warn('[mod-folder] 未在 mdAllVersions 找到版本 versionId=', versionId);
+      console.warn('[mod-folder] 未在 modDetailState.allVersions 找到版本 versionId=', versionId);
     }
   } catch (e) { console.warn('[mod-folder] 捕获异常', e); }
   showModInstallConfirm(projectId, source, versionId, fileId);
 }
 
 async function installModpackVersion(projectId, versionId) {
-  const modpackTitle = currentModDetailData?.title || currentModDetailData?.name || projectId;
+  const modpackTitle = modDetailState.data?.title || modDetailState.data?.name || projectId;
   showModpackNameModal(modpackTitle, projectId, versionId);
 }
 
@@ -313,7 +330,7 @@ function showModpackNameModal(defaultName, projectId, versionId) {
 async function _doInstallModpack(projectId, versionId, customName) {
   showToast('正在下载整合包，将创建新版本...', 'info');
   try {
-    const result = await API.downloadResource(versionId, projectId, 'modpack', '', '', customName, currentModDetailSource);
+    const result = await API.downloadResource(versionId, projectId, 'modpack', '', '', customName, appState.currentModDetailSource);
     if (result.success) {
       showModpackInstallModal(result.fileName, result.sessionId);
     } else {
@@ -327,14 +344,14 @@ async function _doInstallModpack(projectId, versionId, customName) {
 }
 
 async function quickInstallModpack(projectId, versionId) {
-  const modpackTitle = currentModDetailData?.title || currentModDetailData?.name || projectId;
+  const modpackTitle = modDetailState.data?.title || modDetailState.data?.name || projectId;
   showModpackNameModal(modpackTitle, projectId, versionId);
 }
 
 function showModpackInstallModal(fileName, sessionId) {
-  currentInstallSessionId = sessionId;
+  appState.currentInstallSessionId = sessionId;
   const taskId = 'modpack-' + sessionId;
-  const iconUrl = currentModDetailData?.icon || '';
+  const iconUrl = modDetailState.data?.icon || '';
   dlManager.add(taskId, fileName || '整合包安装', 'modpack', sessionId, iconUrl);
 
   // 监听后端的 import-progress 事件，实时累积各阶段进度（stageHistory）与模组文件进度（files）
@@ -386,8 +403,8 @@ function showModpackInstallModal(fileName, sessionId) {
   let unknownRetries = 0;
   const cleanup = () => {
     if (unlisten) { try { unlisten(); } catch (e) {} unlisten = null; }
-    modDownloadPollTimers.forEach(t => clearTimeout(t));
-    modDownloadPollTimers = [];
+    appState.modDownloadPollTimers.forEach(t => clearTimeout(t));
+    appState.modDownloadPollTimers = [];
   };
   const poll = async () => {
     try {
@@ -428,14 +445,14 @@ function showModpackInstallModal(fileName, sessionId) {
       }
       if (data.phase === 'importing') {
         const timer = setTimeout(poll, 500);
-        modDownloadPollTimers.push(timer);
+        appState.modDownloadPollTimers.push(timer);
         return;
       }
       if (data.status === 'unknown' || !data.status) {
         unknownRetries++;
         if (unknownRetries <= 1) {
           const timer = setTimeout(poll, 3000);
-          modDownloadPollTimers.push(timer);
+          appState.modDownloadPollTimers.push(timer);
           return;
         }
         cleanup();
@@ -443,10 +460,10 @@ function showModpackInstallModal(fileName, sessionId) {
         return;
       }
       const timer = setTimeout(poll, 500);
-      modDownloadPollTimers.push(timer);
+      appState.modDownloadPollTimers.push(timer);
     } catch (e) {
       const timer = setTimeout(poll, 800);
-      modDownloadPollTimers.push(timer);
+      appState.modDownloadPollTimers.push(timer);
     }
   };
   setTimeout(poll, 300);
@@ -485,14 +502,14 @@ async function resolveModSavePath(versionId) {
     const targetLoader = _mdSaveLoader || filterLoader || '';
     await ensureInstalledVersions();
     const matched = matchInstalledVersion(targetGame, targetLoader);
-    const vid = matched || versionId || _modDownloadVersionId || filterVersion || '';
+    const vid = matched || versionId || appState._modDownloadVersionId || filterVersion || '';
     console.warn('[resolveModSavePath] targetGame=', targetGame, 'targetLoader=', targetLoader,
-      'installedCount=', (installedVersions || []).length, 'matched=', matched, 'vid=', vid);
+      'installedCount=', (appState.installedVersions || []).length, 'matched=', matched, 'vid=', vid);
     // 版本感知解析：优先调用支持 versionId 的后端命令，目录以传入版本为准，
     // 避免 HTTP 路由回退到 selectedVersion 导致 Forge 模组落到其它目录
     let path = '';
-    if (vid && window.electronAPI && typeof window.electronAPI.getDefaultModPath === 'function') {
-      const r = await window.electronAPI.getDefaultModPath(vid).catch(() => null);
+    if (vid && bridge && typeof bridge.getDefaultModPath === 'function') {
+      const r = await bridge.getDefaultModPath(vid).catch(() => null);
       if (typeof r === 'string' && r) path = r;
     }
     if (!path) {
@@ -537,10 +554,6 @@ async function resolveResourceSavePath(type) {
 let _noFolderApp = null;
 function showNoFolderConfirmCard(message) {
   return new Promise((resolve) => {
-    if (!window.Vue) {
-      resolve(window.confirm(message || '该版本没有对应的版本文件夹，将会打开已选择版本的 mod 文件夹'));
-      return;
-    }
     if (_noFolderApp) {
       try { _noFolderApp.unmount(); } catch (e) {}
       _noFolderApp = null;
@@ -595,7 +608,7 @@ function showNoFolderConfirmCard(message) {
           </div>
         </transition>`
     };
-    _noFolderApp = window.Vue.createApp(App).mount(host);
+    _noFolderApp = createApp(App).mount(host);
   });
 }
 
@@ -603,8 +616,8 @@ function showNoFolderConfirmCard(message) {
 async function getSelectedVersionModsPath() {
   try {
     let selVid = '';
-    if (typeof homeVersionCustomSelect !== 'undefined' && homeVersionCustomSelect) {
-      selVid = homeVersionCustomSelect.getValue() || '';
+    if (typeof appState.homeVersionCustomSelect !== 'undefined' && appState.homeVersionCustomSelect) {
+      selVid = appState.homeVersionCustomSelect.getValue() || '';
     }
     if (!selVid) {
       const settings = await API.getSettings().catch(() => ({}));
@@ -612,8 +625,8 @@ async function getSelectedVersionModsPath() {
     }
     if (selVid) {
       let p = '';
-      if (window.electronAPI && typeof window.electronAPI.getDefaultModPath === 'function') {
-        const r = await window.electronAPI.getDefaultModPath(selVid).catch(() => null);
+      if (bridge && typeof bridge.getDefaultModPath === 'function') {
+        const r = await bridge.getDefaultModPath(selVid).catch(() => null);
         if (typeof r === 'string' && r) p = r;
       }
       if (!p) {
@@ -643,8 +656,8 @@ async function resolveModSavePathWithConfirm() {
   // 优先使用按常规逻辑解析的默认保存文件夹（选中版本兼容则用之，否则择优）
   let resolved = null;
   try {
-    if (window.electronAPI && typeof window.electronAPI.getDefaultModSaveFolder === 'function') {
-      resolved = await window.electronAPI.getDefaultModSaveFolder(targetGame, targetLoader);
+    if (bridge && typeof bridge.getDefaultModSaveFolder === 'function') {
+      resolved = await bridge.getDefaultModSaveFolder(targetGame, targetLoader);
       console.warn('[mod-folder] backend 入参=', targetGame, targetLoader, '返回=', JSON.stringify(resolved));
     }
   } catch (e) {
@@ -675,7 +688,7 @@ async function showModInstallConfirm(projectId, source, versionId, fileId) {
   // 未记录目标加载器/版本时，从当前模组版本数据中推导（避免误用页面筛选加载器）
   if (!_mdSaveLoader && versionId) {
     try {
-      const v = (typeof mdAllVersions !== 'undefined' ? mdAllVersions : []).find(x => x && x.id === versionId);
+      const v = (typeof modDetailState.allVersions !== 'undefined' ? modDetailState.allVersions : []).find(x => x && x.id === versionId);
       if (v) {
         const t = resolveModTarget(v.gameVersions, v.loaders);
         if (t.game) _mdSaveGame = t.game;
@@ -857,7 +870,7 @@ async function downloadDepWithNestedDeps(projectId, source, versionId, savePath,
       dlManager.add(mainDlId, mainResult.fileName || '前置模组', 'mod', '', '');
       dlManager.update(mainDlId, { progress: 0, status: 'downloading', message: '下载中...' });
       dlManager.update(taskId, { progress: 10, message: '主模组下载中...' });
-      showModDownloadModal(mainResult.fileName, mainResult.sessionId, savePath, currentModDetailData?.icon || '');
+      showModDownloadModal(mainResult.fileName, mainResult.sessionId, savePath, modDetailState.data?.icon || '');
     } else {
       dlManager.update(taskId, { status: 'failed', message: mainResult.error || '主模组下载失败' });
       return;
@@ -958,7 +971,7 @@ function showDependencyDialog(projectId, source, versionId, fileId, savePath, de
 
 async function proceedModInstall(projectId, source, versionId, fileId, savePath, includeDeps, deps, gameVersion, loader) {
   const pendingTaskId = 'mod-' + Date.now();
-  const iconUrl = currentModDetailData?.icon || '';
+  const iconUrl = modDetailState.data?.icon || '';
   dlManager.add(pendingTaskId, '准备下载...', 'mod', '', iconUrl);
   dlManager.update(pendingTaskId, { progress: 0, status: 'downloading', message: '正在获取下载信息...' });
   try {
@@ -984,30 +997,30 @@ async function proceedModInstall(projectId, source, versionId, fileId, savePath,
 }
 
 function quickInstallCurrentMod() {
-  if (!currentModDetailData) return;
-  const versionId = currentModDetailData.selectedVersionId || currentModDetailData.versionId || '';
-  showModInstallConfirm(currentModDetailData.id || currentModDetailId, currentModDetailSource, versionId);
+  if (!modDetailState.data) return;
+  const versionId = modDetailState.data.selectedVersionId || modDetailState.data.versionId || '';
+  showModInstallConfirm(modDetailState.data.id || appState.currentModDetailId, appState.currentModDetailSource, versionId);
 }
 
 function copyModName() {
-  if (!currentModDetailData) return;
-  window.electronAPI.clipboard.writeText(currentModDetailData.title).then(() => showToast('已复制名称', 'success'));
+  if (!modDetailState.data) return;
+  bridge.clipboard.writeText(modDetailState.data.title).then(() => showToast('已复制名称', 'success'));
 }
 
 function openModSourceUrl() {
-  if (!currentModDetailData) return;
+  if (!modDetailState.data) return;
   let url = '';
-  if (currentModDetailSource === 'curseforge') {
-    url = `https://www.curseforge.com/minecraft-mc-mods/${currentModDetailId}`;
+  if (appState.currentModDetailSource === 'curseforge') {
+    url = `https://www.curseforge.com/minecraft-mc-mods/${appState.currentModDetailId}`;
   } else {
-    url = `https://modrinth.com/mod/${currentModDetailId}`;
+    url = `https://modrinth.com/mod/${appState.currentModDetailId}`;
   }
-  window.electronAPI.openExternal(url);
+  bridge.openExternal(url);
 }
 
 async function quickInstallMod(projectId, source, versionId, fileId) {
   const pendingTaskId = 'mod-' + Date.now();
-  const iconUrl = currentModDetailData?.icon || '';
+  const iconUrl = modDetailState.data?.icon || '';
   dlManager.add(pendingTaskId, '准备下载...', 'mod', '', iconUrl);
   dlManager.update(pendingTaskId, { progress: 0, status: 'downloading', message: '正在获取下载信息...' });
   try {
@@ -1042,7 +1055,7 @@ async function maybeShowPostInstallDeps(projectId, source, versionId, savePath, 
 
     const targetGame = gameVersion || getCustomSelectValue('mod-filter-version') || _mdSaveGame || '';
     const targetLoader = loader || getCustomSelectValue('mod-filter-loader') || _mdSaveLoader || '';
-    const versions = (typeof mdAllVersions !== 'undefined' && Array.isArray(mdAllVersions)) ? mdAllVersions : [];
+    const versions = (typeof modDetailState.allVersions !== 'undefined' && Array.isArray(modDetailState.allVersions)) ? modDetailState.allVersions : [];
     const versionData = versions.find(v => v && v.id === versionId);
     const optionalRefs = ((versionData && versionData.dependencies) || [])
       .filter(d => d && d.projectId && (d.dependencyType === 'optional' || d.dependencyType === '2'));
@@ -1269,11 +1282,11 @@ async function maybeShowPostInstallDeps(projectId, source, versionId, savePath, 
 
 function showModDownloadModal(fileName, sessionId, savePath, iconUrl) {
   const taskId = 'mod-' + sessionId;
-  const resolvedIcon = iconUrl || currentModDetailData?.icon || '';
+  const resolvedIcon = iconUrl || modDetailState.data?.icon || '';
   dlManager.add(taskId, fileName || '模组下载', 'mod', sessionId, resolvedIcon);
 
-  modDownloadPollTimers.forEach(t => clearTimeout(t));
-  modDownloadPollTimers = [];
+  appState.modDownloadPollTimers.forEach(t => clearTimeout(t));
+  appState.modDownloadPollTimers = [];
 
   let unknownRetries = 0;
   const poll = async () => {
@@ -1297,35 +1310,35 @@ function showModDownloadModal(fileName, sessionId, savePath, iconUrl) {
         unknownRetries++;
         if (unknownRetries <= 1) {
           const timer = setTimeout(poll, 3000);
-          modDownloadPollTimers.push(timer);
+          appState.modDownloadPollTimers.push(timer);
           return;
         }
         dlManager.update(taskId, { status: 'failed', message: '会话已失效' });
         return;
       }
       const timer = setTimeout(poll, 500);
-      modDownloadPollTimers.push(timer);
+      appState.modDownloadPollTimers.push(timer);
     } catch (e) {
       const timer = setTimeout(poll, 1000);
-      modDownloadPollTimers.push(timer);
+      appState.modDownloadPollTimers.push(timer);
     }
   };
   const timer = setTimeout(poll, 500);
-  modDownloadPollTimers.push(timer);
+  appState.modDownloadPollTimers.push(timer);
 }
 
 function toggleModMultiSelect() {
-  modMultiSelectMode = !modMultiSelectMode;
+  appState.modMultiSelectMode = !appState.modMultiSelectMode;
   const toggleBtn = document.getElementById('mod-multiselect-toggle');
   const bar = document.getElementById('mod-multiselect-bar');
   const hintEl = document.getElementById('mod-filter-hint');
   
-  if (modMultiSelectMode) {
+  if (appState.modMultiSelectMode) {
     toggleBtn.classList.add('btn-primary');
     toggleBtn.classList.remove('btn-secondary');
     bar.style.display = 'flex';
-    modSelectedIds.clear();
-    modSelectedVersions.clear();
+    appState.modSelectedIds.clear();
+    appState.modSelectedVersions.clear();
     
     const gv = getCustomSelectValue('mod-filter-version') || '';
     const ld = getCustomSelectValue('mod-filter-loader') || '';
@@ -1339,24 +1352,24 @@ function toggleModMultiSelect() {
     toggleBtn.classList.remove('btn-primary');
     toggleBtn.classList.add('btn-secondary');
     bar.style.display = 'none';
-    modSelectedIds.clear();
-    modSelectedVersions.clear();
+    appState.modSelectedIds.clear();
+    appState.modSelectedVersions.clear();
   }
   loadMods();
 }
 
 function toggleModSelect(modId) {
-  if (modSelectedIds.has(modId)) {
-    modSelectedIds.delete(modId);
+  if (appState.modSelectedIds.has(modId)) {
+    appState.modSelectedIds.delete(modId);
   } else {
-    modSelectedIds.add(modId);
+    appState.modSelectedIds.add(modId);
   }
   updateModSelectUI();
   
   const safeId = CSS.escape(modId);
   const checkbox = document.querySelector(`.mod-checkbox[data-mod-id="${safeId}"]`);
   if (checkbox) {
-    checkbox.classList.toggle('checked', modSelectedIds.has(modId));
+    checkbox.classList.toggle('checked', appState.modSelectedIds.has(modId));
   }
 }
 
@@ -1369,12 +1382,12 @@ function toggleSelectAllMods(checked) {
       const checkbox = item.querySelector('.mod-checkbox');
       if (checkbox) {
         const modId = checkbox.dataset.modId;
-        modSelectedIds.add(modId);
+        appState.modSelectedIds.add(modId);
         checkbox.classList.add('checked');
       }
     });
   } else {
-    modSelectedIds.clear();
+    appState.modSelectedIds.clear();
     items.forEach(item => {
       const checkbox = item.querySelector('.mod-checkbox');
       if (checkbox) checkbox.classList.remove('checked');
@@ -1388,16 +1401,16 @@ function updateModSelectUI() {
   const batchBtn = document.getElementById('mod-batch-download-btn');
   const selectAll = document.getElementById('mod-select-all');
   
-  if (countEl) countEl.textContent = `已选 ${modSelectedIds.size} 个`;
-  if (batchBtn) batchBtn.disabled = modSelectedIds.size === 0;
+  if (countEl) countEl.textContent = `已选 ${appState.modSelectedIds.size} 个`;
+  if (batchBtn) batchBtn.disabled = appState.modSelectedIds.size === 0;
   
   const container = document.getElementById('mod-browse-list');
   const totalItems = container.querySelectorAll('.mod-checkbox').length;
-  if (selectAll) selectAll.checked = totalItems > 0 && modSelectedIds.size >= totalItems;
+  if (selectAll) selectAll.checked = totalItems > 0 && appState.modSelectedIds.size >= totalItems;
 }
 
 async function batchDownloadMods() {
-  if (modSelectedIds.size === 0) return;
+  if (appState.modSelectedIds.size === 0) return;
 
   const defaultPath = await resolveModSavePath();
   const folderResult = await API.selectSaveFolder(defaultPath);
@@ -1412,11 +1425,11 @@ async function batchDownloadMods() {
   const currentGameVersion = getCustomSelectValue('mod-filter-version');
   const currentLoader = getCustomSelectValue('mod-filter-loader');
   
-  const modIds = Array.from(modSelectedIds);
+  const modIds = Array.from(appState.modSelectedIds);
   const total = modIds.length;
   
   const modInfoMap = {};
-  modSearchResults.forEach(m => { modInfoMap[m.id] = m; });
+  appState.modSearchResults.forEach(m => { modInfoMap[m.id] = m; });
 
   const batchTaskId = 'batch-' + Date.now();
   const files = modIds.map(id => {
@@ -1443,7 +1456,7 @@ async function batchDownloadMods() {
     });
     
     try {
-      const selectedVer = modSelectedVersions.get(modId);
+      const selectedVer = appState.modSelectedVersions.get(modId);
       const versionId = selectedVer?.versionId || '';
       const fileId = selectedVer?.fileId || '';
       const source = selectedVer?.source || 'modrinth';
@@ -1481,11 +1494,11 @@ async function batchDownloadMods() {
     });
   }
   
-  modSelectedIds.clear();
-  modSelectedVersions.clear();
+  appState.modSelectedIds.clear();
+  appState.modSelectedVersions.clear();
   updateModSelectUI();
   
-  if (currentSettingsVersionId) {
+  if (appState.currentSettingsVersionId) {
     loadInstalledModsForSettings();
   }
   loadInstalledMods();
@@ -1515,23 +1528,4 @@ function pollBatchModDownload(sessionId, modId) {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { resolveModTarget, resolveModVersionTarget, ensureInstalledVersions, matchInstalledVersion, installModFileSafe, addModFromDetail, installModpackVersionSafe, installResourceVersionSafe, quickInstallResourceVersion, toggleMdvGroup, getLoaderFileIcon, installModFile, installModpackVersion, showModpackNameModal, _doInstallModpack, quickInstallModpack, showModpackInstallModal, getDownloadStageText, resolveModSavePath, resolveResourceSavePath, showNoFolderConfirmCard, getSelectedVersionModsPath, resolveModSavePathWithConfirm, showModInstallConfirm, showDepVersionSelectModal, loadDepVersions, downloadDepWithNestedDeps, showDependencyDialog, proceedModInstall, quickInstallCurrentMod, copyModName, openModSourceUrl, quickInstallMod, maybeShowPostInstallDeps, showModDownloadModal, toggleModMultiSelect, toggleModSelect, toggleSelectAllMods, updateModSelectUI, batchDownloadMods, pollBatchModDownload, resourceFolderMap, _mdSaveGame, _mdSaveLoader, _noFolderApp };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ resolveModTarget, resolveModVersionTarget, ensureInstalledVersions, matchInstalledVersion, installModFileSafe, addModFromDetail, installModpackVersionSafe, installResourceVersionSafe, quickInstallResourceVersion, toggleMdvGroup, getLoaderFileIcon, installModFile, installModpackVersion, showModpackNameModal, _doInstallModpack, quickInstallModpack, showModpackInstallModal, getDownloadStageText, resolveModSavePath, resolveResourceSavePath, showNoFolderConfirmCard, getSelectedVersionModsPath, resolveModSavePathWithConfirm, showModInstallConfirm, showDepVersionSelectModal, loadDepVersions, downloadDepWithNestedDeps, showDependencyDialog, proceedModInstall, quickInstallCurrentMod, copyModName, openModSourceUrl, quickInstallMod, maybeShowPostInstallDeps, showModDownloadModal, toggleModMultiSelect, toggleModSelect, toggleSelectAllMods, updateModSelectUI, batchDownloadMods, pollBatchModDownload, resourceFolderMap })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, '_mdSaveGame', {
-  configurable: true,
-  get: () => _mdSaveGame,
-  set: (v) => { _mdSaveGame = v; },
-});
-Object.defineProperty(window, '_mdSaveLoader', {
-  configurable: true,
-  get: () => _mdSaveLoader,
-  set: (v) => { _mdSaveLoader = v; },
-});
-Object.defineProperty(window, '_noFolderApp', {
-  configurable: true,
-  get: () => _noFolderApp,
-  set: (v) => { _noFolderApp = v; },
-});

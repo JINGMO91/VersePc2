@@ -1,52 +1,54 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
 /**
  * @file version-settings.js
  * @description 版本设置 - 版本信息修改、Java选择、文件修复、诊断、模组管理、导出
  */
-let currentSettingsVersionId = null;
-let currentVersionSettings = null;
+import { escapeHtml } from '../../core/utils.js';
+import { CustomSelect, customSelectInstances } from '../misc/custom-select.js';
+import { showToast, showModal, hideModal, showConfirmDialog } from '../misc/ui-components.js';
+import { getDOMElement, throttle } from '../misc/utils.js';
+import { loadMods } from '../mods/mod-browse.js';
+import { openModDetail } from '../mods/mod-detail.js';
+import { loadVersions, updateVersionSelects, renderInstalledVersionsInto, navigateToPage } from './versions.js';
+
+import { appState } from '../../core/app-state.js';
+import { vmHolders } from '../../core/vm-holders.js';
+import { formatModNameWithChinese } from '../mods/chinese-names.js';
+import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';let currentVersionSettings = null;
 let _modMgrSettingsLoaded = false;
 let _exportTreeLoaded = false;
 
-async function openVersionSettings(versionId, versionName) {
-  currentSettingsVersionId = versionId;
+function openVersionSettings(versionId, versionName) {
+  appState.currentSettingsVersionId = versionId;
   _modMgrSettingsLoaded = false;
   _exportTreeLoaded = false;
-  const versionInfo = installedVersions.find(v => v.id === versionId);
-  const displayName = versionInfo?.customName || versionName || versionId;
-  document.getElementById('vset-title').textContent = '版本设置 - ' + displayName;
-  document.getElementById('export-name').value = displayName;
-
-  const externalInfoEl = document.getElementById('vset-external-info');
-  if (externalInfoEl) {
-    if (versionInfo && versionInfo.isExternal) {
-      externalInfoEl.style.display = 'block';
-      externalInfoEl.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;background:rgba(255,165,0,0.08);border:1px solid rgba(255,165,0,0.2)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#ffa500" stroke-width="2" style="width:18px;height:18px;flex-shrink:0"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-          <div>
-            <div style="font-size:13px;color:var(--text-primary);font-weight:500">外部文件夹版本</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;word-break:break-all">${escapeHtml(versionInfo.externalPath || '')}</div>
-          </div>
-        </div>`;
-    } else {
-      externalInfoEl.style.display = 'none';
-    }
+  const vm = vmHolders.versionSettings;
+  if (vm && typeof vm.openFor === 'function') {
+    return vm.openFor(versionId, versionName);
   }
-  
-  API.saveSetting('selectedVersion', versionId).catch(e => {
-    console.error('[VersionSettings] Failed to set selectedVersion:', e);
+  // 页面组件尚未挂载时等待挂载完成
+  return new Promise((resolve) => {
+    let tries = 0;
+    const timer = setInterval(() => {
+      const target = vmHolders.versionSettings;
+      if (target && typeof target.openFor === 'function') {
+        clearInterval(timer);
+        target.openFor(versionId, versionName);
+        resolve();
+      } else if (++tries > 100) {
+        clearInterval(timer);
+        resolve();
+      }
+    }, 50);
   });
-  
-  navigateToPage('version-settings');
-  document.querySelector('.content-area').classList.add('no-scroll');
-  switchVSetTab('overview');
-  loadVersionSettingsUI();
 }
 
 async function loadVersionSettingsUI() {
-  if (!currentSettingsVersionId) return;
+  if (!appState.currentSettingsVersionId) return;
   try {
-    const settings = await API.getVersionSettings(currentSettingsVersionId);
+    const settings = await API.getVersionSettings(appState.currentSettingsVersionId);
     currentVersionSettings = settings;
 
     const customNameInput = document.getElementById('vset-custom-name');
@@ -57,7 +59,7 @@ async function loadVersionSettingsUI() {
 
     const isolationSelect = document.getElementById('vset-isolation');
     if (isolationSelect) {
-      const versionInfo = installedVersions.find(v => v.id === currentSettingsVersionId);
+      const versionInfo = appState.installedVersions.find(v => v.id === appState.currentSettingsVersionId);
       const isExternal = versionInfo && versionInfo.isExternal;
       isolationSelect.value = settings.isolation || (isExternal ? 'on' : 'global');
     }
@@ -99,8 +101,8 @@ async function loadVersionSettingsUI() {
 }
 
 function saveCurrentVersionSetting(key, value) {
-  if (!currentSettingsVersionId) return;
-  const data = { versionId: currentSettingsVersionId, [key]: value };
+  if (!appState.currentSettingsVersionId) return;
+  const data = { versionId: appState.currentSettingsVersionId, [key]: value };
   API.saveVersionSettings(data).then(r => {
     if (r.success) {
       if (currentVersionSettings) currentVersionSettings[key] = value;
@@ -134,7 +136,7 @@ async function refreshVsetJavaOptions(selectValue) {
 }
 
 async function vsetDetectJava() {
-  if (!currentSettingsVersionId) return;
+  if (!appState.currentSettingsVersionId) return;
   showToast('正在搜索 Java...', 'info');
   try {
     const result = await API.detectJava();
@@ -152,10 +154,10 @@ async function vsetDetectJava() {
 }
 
 async function vsetBrowseJava() {
-  if (!currentSettingsVersionId) return;
-  if (window.electronAPI && window.electronAPI.showOpenDialog) {
+  if (!appState.currentSettingsVersionId) return;
+  if (bridge && bridge.showOpenDialog) {
     try {
-      const result = await window.electronAPI.showOpenDialog({
+      const result = await bridge.showOpenDialog({
         properties: ['openFile'],
         filters: [{ name: 'Java 可执行文件', extensions: ['exe', ''] }]
       });
@@ -174,23 +176,28 @@ async function vsetBrowseJava() {
 }
 
 function refreshVersionDisplayName() {
-  if (!currentSettingsVersionId) return;
+  if (!appState.currentSettingsVersionId) return;
   const customName = document.getElementById('vset-custom-name')?.value || '';
-  const versionInfo = installedVersions.find(v => v.id === currentSettingsVersionId);
+  const versionInfo = appState.installedVersions.find(v => v.id === appState.currentSettingsVersionId);
   if (versionInfo) versionInfo.customName = customName;
-  const displayName = customName || currentSettingsVersionId;
+  const displayName = customName || appState.currentSettingsVersionId;
   document.getElementById('vset-title').textContent = '版本设置 - ' + displayName;
-  const vItem = document.querySelector(`.version-item[data-version-id="${CSS.escape(currentSettingsVersionId)}"] .version-item-name`);
+  const vItem = document.querySelector(`.version-item[data-version-id="${CSS.escape(appState.currentSettingsVersionId)}"] .version-item-name`);
   if (vItem) vItem.textContent = displayName;
   updateVersionSelects();
 }
 
 function closeVersionSettings() {
-  currentSettingsVersionId = null;
+  appState.currentSettingsVersionId = null;
   currentVersionSettings = null;
-  _modDownloadVersionId = '';
-  document.querySelector('.content-area').classList.remove('no-scroll');
-  navigateToPage(previousPage || 'home');
+  const vm = vmHolders.versionSettings;
+  if (vm && typeof vm.close === 'function') {
+    vm.close();
+    return;
+  }
+  appState._modDownloadVersionId = '';
+  document.querySelector('.content-area')?.classList.remove('no-scroll');
+  navigateToPage(appState.previousPage || 'home');
 }
 
 function switchVSetTab(tabName) {
@@ -202,7 +209,7 @@ function switchVSetTab(tabName) {
   if (panel) panel.classList.add('active');
 
   if (tabName === 'modmgr') {
-    const versionInfo = installedVersions.find(v => v.id === currentSettingsVersionId);
+    const versionInfo = appState.installedVersions.find(v => v.id === appState.currentSettingsVersionId);
     const isVanilla = versionInfo && !versionInfo.isFabric && !versionInfo.isForge && !versionInfo.isNeoForge;
     const modList = document.getElementById('modmgr-mod-list');
     const modHeader = panel?.querySelector('.modmgr-header-row');
@@ -231,24 +238,24 @@ function switchVSetTab(tabName) {
 }
 
 function openVersionFolder() {
-  if (!currentSettingsVersionId) return;
-  API.openVersionFolder(currentSettingsVersionId, 'version');
+  if (!appState.currentSettingsVersionId) return;
+  API.openVersionFolder(appState.currentSettingsVersionId, 'version');
 }
 
 function openSavesFolder() {
-  if (!currentSettingsVersionId) return;
-  API.openVersionFolder(currentSettingsVersionId, 'saves');
+  if (!appState.currentSettingsVersionId) return;
+  API.openVersionFolder(appState.currentSettingsVersionId, 'saves');
 }
 
 function openModsFolder() {
-  if (!currentSettingsVersionId) return;
-  API.openVersionFolder(currentSettingsVersionId, 'mods');
+  if (!appState.currentSettingsVersionId) return;
+  API.openVersionFolder(appState.currentSettingsVersionId, 'mods');
 }
 
 let _checkingModUpdates = false;
 
 async function checkModUpdatesForVersion() {
-  if (!currentSettingsVersionId) {
+  if (!appState.currentSettingsVersionId) {
     showToast('请先选择一个版本', 'error');
     return;
   }
@@ -259,7 +266,7 @@ async function checkModUpdatesForVersion() {
   _checkingModUpdates = true;
   showToast('正在检查模组更新...', 'info');
   try {
-    const result = await API.checkModUpdates(currentSettingsVersionId);
+    const result = await API.checkModUpdates(appState.currentSettingsVersionId);
     if (result.error) {
       showToast('检查更新失败: ' + result.error, 'error');
       return;
@@ -300,7 +307,7 @@ function showModUpdateDialog(updates, checkedCount) {
     <p style="margin:0 0 16px 0;font-size:13px;color:var(--text-muted);">已检查 ${checkedCount} 个模组，发现 ${updates.length} 个可在 Modrinth 上找到</p>
     <div>${listHtml}</div>
     <div style="margin-top:16px;text-align:right;">
-      <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">关闭</button>
+      <button class="btn btn-secondary"${actionAttrs('closeOverlay')}>关闭</button>
     </div>
   `;
 
@@ -310,8 +317,8 @@ function showModUpdateDialog(updates, checkedCount) {
 }
 
 function exportLaunchScript() {
-  if (!currentSettingsVersionId) return;
-  API.exportLaunchScript(currentSettingsVersionId).then(r => {
+  if (!appState.currentSettingsVersionId) return;
+  API.exportLaunchScript(appState.currentSettingsVersionId).then(r => {
     if (r.success) showToast('启动脚本已导出', 'success');
     else showToast(r.error || '导出失败', 'error');
   });
@@ -425,12 +432,12 @@ function pollRepairProgress(sessionId) {
 }
 
 async function repairFiles() {
-  if (!currentSettingsVersionId) return;
+  if (!appState.currentSettingsVersionId) return;
 
-  showRepairModal(currentSettingsVersionId);
+  showRepairModal(appState.currentSettingsVersionId);
 
   try {
-    const result = await API.repairStart(currentSettingsVersionId);
+    const result = await API.repairStart(appState.currentSettingsVersionId);
     if (result.success && result.sessionId) {
       currentRepairSessionId = result.sessionId;
       pollRepairProgress(result.sessionId);
@@ -449,13 +456,13 @@ async function repairFiles() {
 }
 
 async function diagnoseVersion() {
-  if (!currentSettingsVersionId) {
+  if (!appState.currentSettingsVersionId) {
     showToast('请先选择一个游戏版本', 'error');
     return;
   }
 
   try {
-    const result = await API.diagnoseVersion(currentSettingsVersionId);
+    const result = await API.diagnoseVersion(appState.currentSettingsVersionId);
     showDiagnoseDialog(result);
   } catch (e) {
     showToast('诊断失败: ' + e.message, 'error');
@@ -514,27 +521,27 @@ function showDiagnoseDialog(result) {
 }
 
 async function deleteCurrentVersion() {
-  if (!currentSettingsVersionId) {
+  if (!appState.currentSettingsVersionId) {
     showToast('未找到版本信息', 'error');
     return;
   }
-  const isExternal = currentSettingsVersionId.includes(' [外部');
+  const isExternal = appState.currentSettingsVersionId.includes(' [外部');
   if (isExternal) {
     const confirmed = await showConfirmDialog('移除外部版本', '确定要从列表中移除此外部版本吗？（不会删除实际游戏文件）', '移除', '取消');
     if (!confirmed) return;
   } else {
-    const ver = installedVersions.find(v => v.id === currentSettingsVersionId);
+    const ver = appState.installedVersions.find(v => v.id === appState.currentSettingsVersionId);
     let warningParts = [];
     if (ver?.hasMods) warningParts.push('模组');
     if (ver?.hasSaves) warningParts.push('存档');
     if (ver?.hasResourcepacks) warningParts.push('资源包');
-    let confirmMsg = `确定要删除版本 ${currentSettingsVersionId} 吗？此操作不可撤销！`;
+    let confirmMsg = `确定要删除版本 ${appState.currentSettingsVersionId} 吗？此操作不可撤销！`;
 
     let chainInfo = '';
     try {
-      const chainResult = await API.getDeleteChain(currentSettingsVersionId);
+      const chainResult = await API.getDeleteChain(appState.currentSettingsVersionId);
       if (chainResult.success && chainResult.willDelete && chainResult.willDelete.length > 1) {
-        const otherVersions = chainResult.willDelete.filter(id => id !== currentSettingsVersionId);
+        const otherVersions = chainResult.willDelete.filter(id => id !== appState.currentSettingsVersionId);
         if (otherVersions.length > 0) {
           chainInfo = `\n\n同时将删除关联版本：\n${otherVersions.map(id => '• ' + id).join('\n')}`;
         }
@@ -549,7 +556,7 @@ async function deleteCurrentVersion() {
     const confirmed = await showConfirmDialog('版本删除确认', confirmMsg, '删除', '取消');
     if (!confirmed) return;
   }
-  const deletedVersionId = currentSettingsVersionId;
+  const deletedVersionId = appState.currentSettingsVersionId;
   try {
     const r = await API.deleteVersion(deletedVersionId);
     if (r.success) {
@@ -638,13 +645,13 @@ if (vsetGameArgs && !vsetGameArgs._vsBound) {
 }
 
 async function loadInstalledModsForSettings() {
-  if (!currentSettingsVersionId) return;
+  if (!appState.currentSettingsVersionId) return;
   const container = document.getElementById('modmgr-mod-list');
   if (container) {
     container.innerHTML = '<p class="empty-text" style="padding:30px 0;text-align:center;color:var(--text-muted)">加载中...</p>';
   }
   try {
-    const mods = await API.getVersionMods(currentSettingsVersionId);
+    const mods = await API.getVersionMods(appState.currentSettingsVersionId);
     _modMgrSettingsLoaded = true;
     renderModMgrList(mods || []);
   } catch (e) {
@@ -706,10 +713,10 @@ function renderModMgrList(mods) {
         <div class="modmgr-desc">${escapeHtml(desc)}</div>
       </div>
       <div class="modmgr-actions-row">
-        <button class="btn ${toggleClass} btn-sm" onclick="event.stopPropagation();toggleModInManager('${escapeOnclick(fileName)}',${!isDisabled})">${toggleLabel}</button>
-        ${projectId ? `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();previewMod('${escapeOnclick(projectId)}')">预览</button>` : ''}
-        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openModTranslateDialog('${escapeOnclick(fileName)}','${escapeOnclick(m.name || fileName)}')">汉化</button>
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();removeModFromManager('${escapeOnclick(fileName)}')">移除</button>
+        <button class="btn ${toggleClass} btn-sm"${actionAttrsStop('toggleModInManager', fileName, !isDisabled)}>${toggleLabel}</button>
+      ${projectId ? `<button class="btn btn-secondary btn-sm"${actionAttrsStop('previewMod', projectId)}>预览</button>` : ''}
+      <button class="btn btn-secondary btn-sm"${actionAttrsStop('openModTranslateDialog', fileName, m.name || fileName)}>汉化</button>
+      <button class="btn btn-danger btn-sm"${actionAttrsStop('removeModFromManager', fileName)}>移除</button>
       </div>`;
       fragment.appendChild(wrapper);
     }
@@ -768,11 +775,11 @@ function installModFromFile() {
 }
 
 function installModByFile(filePath) {
-  if (!currentSettingsVersionId) {
+  if (!appState.currentSettingsVersionId) {
     showToast('请先选择一个版本', 'error');
     return;
   }
-  API.installModFromFile(currentSettingsVersionId, filePath).then(r => {
+  API.installModFromFile(appState.currentSettingsVersionId, filePath).then(r => {
     if (r.success) {
       showToast('Mod 安装成功', 'success');
       loadInstalledModsForSettings();
@@ -783,19 +790,19 @@ function installModByFile(filePath) {
 }
 
 function openBrowseMods() {
-  _modDownloadVersionId = '';
+  appState._modDownloadVersionId = '';
   navigateToPage('mods');
 }
 
 function goDownloadMods() {
-  if (!currentSettingsVersionId) {
-    _modDownloadVersionId = '';
+  if (!appState.currentSettingsVersionId) {
+    appState._modDownloadVersionId = '';
     navigateToPage('mods');
     return;
   }
-  _modDownloadVersionId = currentSettingsVersionId;
+  appState._modDownloadVersionId = appState.currentSettingsVersionId;
   
-  const versionInfo = installedVersions.find(v => v.id === currentSettingsVersionId);
+  const versionInfo = appState.installedVersions.find(v => v.id === appState.currentSettingsVersionId);
   
   let gameVersion = '';
   if (versionInfo && versionInfo.baseVersion) {
@@ -803,7 +810,7 @@ function goDownloadMods() {
   } else if (versionInfo && versionInfo.inheritsFrom) {
     gameVersion = versionInfo.inheritsFrom;
   } else {
-    gameVersion = currentSettingsVersionId.split('-')[0];
+    gameVersion = appState.currentSettingsVersionId.split('-')[0];
   }
   
   let loaderType = '';
@@ -824,14 +831,14 @@ function goDownloadMods() {
       customSelectInstances['mod-filter-loader'].setValue(loaderType);
     }
     
-    modSearchOffset = 0;
+    appState.modSearchOffset = 0;
     loadMods();
   }, 100);
 }
 
 function toggleModInManager(fileName, disable) {
-  if (!currentSettingsVersionId) return;
-  API.toggleMod(fileName, !disable, currentSettingsVersionId).then(r => {
+  if (!appState.currentSettingsVersionId) return;
+  API.toggleMod(fileName, !disable, appState.currentSettingsVersionId).then(r => {
     if (r.success) {
       showToast(disable ? '已禁用' : '已启用', 'success');
       loadInstalledModsForSettings();
@@ -842,10 +849,10 @@ function toggleModInManager(fileName, disable) {
 }
 
 async function removeModFromManager(fileName) {
-  if (!currentSettingsVersionId) return;
+  if (!appState.currentSettingsVersionId) return;
   const confirmed = await showConfirmDialog('删除模组', `确定要删除 ${fileName} 吗？`, '删除', '取消');
   if (!confirmed) return;
-  API.removeMod(currentSettingsVersionId, fileName).then(r => {
+  API.removeMod(appState.currentSettingsVersionId, fileName).then(r => {
     if (r.success) {
       showToast('已删除', 'success');
       loadInstalledModsForSettings();
@@ -860,10 +867,10 @@ function toggleExportTree(el) {
 }
 
 async function loadExportTreeData() {
-  if (!currentSettingsVersionId) return;
+  if (!appState.currentSettingsVersionId) return;
 
   try {
-    const data = await API.getVersionExportInfo(currentSettingsVersionId);
+    const data = await API.getVersionExportInfo(appState.currentSettingsVersionId);
     _exportTreeLoaded = true;
 
     if (data.gameDesc) {
@@ -904,7 +911,7 @@ async function loadExportTreeData() {
 }
 
 function startExport() {
-  if (!currentSettingsVersionId) return;
+  if (!appState.currentSettingsVersionId) return;
   const name = document.getElementById('export-name')?.value || '';
   const version = document.getElementById('export-version')?.value || '1.0.0';
   const author = document.getElementById('export-author')?.value || '';
@@ -916,7 +923,7 @@ function startExport() {
   document.querySelectorAll('.export-cb:checked').forEach(cb => selectedKeys.push(cb.dataset.key));
 
   showToast('正在导出整合包...', 'info');
-  API.exportModpack(currentSettingsVersionId, name, version, author, description, selectedKeys).then(r => {
+  API.exportModpack(appState.currentSettingsVersionId, name, version, author, description, selectedKeys).then(r => {
     if (r.success) {
       showToast(`整合包已导出到 ${r.path}`, 'success');
     } else {
@@ -932,13 +939,13 @@ let _translateModName = '';
 let _translateLangInfo = null;
 
 async function openModTranslateDialog(fileName, modName) {
-  if (!currentSettingsVersionId) {
+  if (!appState.currentSettingsVersionId) {
     showToast('请先选择版本', 'error');
     return;
   }
   _translateModName = modName || fileName;
   const modsDir = await API.getVersionModsDir ? '' : '';
-  const versionsDir = window.electronAPI?.mods ? '' : '';
+  const versionsDir = bridge?.mods ? '' : '';
   const jarPath = await _resolveModJarPath(fileName);
   if (!jarPath) {
     showToast('找不到模组文件: ' + fileName, 'error');
@@ -951,7 +958,7 @@ async function openModTranslateDialog(fileName, modName) {
   document.getElementById('mod-translate-content').style.display = 'none';
 
   try {
-    const result = await window.electronAPI.mods.findLangFiles(jarPath);
+    const result = await bridge.mods.findLangFiles(jarPath);
     _translateLangInfo = result;
 
     document.getElementById('mod-translate-loading').style.display = 'none';
@@ -995,15 +1002,14 @@ async function openModTranslateDialog(fileName, modName) {
 
 async function _resolveModJarPath(fileName) {
   try {
-    const r = await fetch(`/api/mods/installed?versionId=${encodeURIComponent(currentSettingsVersionId)}`);
+    const r = await fetch(`/api/mods/installed?versionId=${encodeURIComponent(appState.currentSettingsVersionId)}`);
     const mods = await r.json();
     const mod = (mods || []).find(m => m.fileName === fileName);
     if (mod && mod.jarPath) return mod.jarPath;
   } catch (_) {}
   try {
-    const dir = await window.electronAPI.mods.getVersionModsDir(currentSettingsVersionId);
+    const dir = await bridge.mods.getVersionModsDir(appState.currentSettingsVersionId);
     if (dir) {
-      const path = await import('path');
       return dir + '/' + fileName;
     }
   } catch (_) {}
@@ -1060,7 +1066,7 @@ async function startQuickTranslate() {
   resultBox.style.display = 'none';
 
   try {
-    const readResult = await window.electronAPI.mods.readJarEntry(_translateModJarPath, enFile.name);
+    const readResult = await bridge.mods.readJarEntry(_translateModJarPath, enFile.name);
     if (!readResult || !readResult.success || !readResult.content) {
       throw new Error(readResult?.error || '读取语言文件失败');
     }
@@ -1091,7 +1097,7 @@ async function startQuickTranslate() {
 
     for (let i = 0; i < values.length; i += BATCH_SIZE) {
       const batch = values.slice(i, i + BATCH_SIZE);
-      const res = await window.electronAPI.ai.translateBatch({ texts: batch, source: 'en', target: 'zh-CN' });
+      const res = await bridge.ai.translateBatch({ texts: batch, source: 'en', target: 'zh-CN' });
       if (!res || !res.ok || !res.results) {
         throw new Error(res?.error || '翻译接口失败（批次 ' + (Math.floor(i / BATCH_SIZE) + 1) + '）');
       }
@@ -1114,7 +1120,7 @@ async function startQuickTranslate() {
     const isJson = zhFileName.endsWith('.json');
     const outputContent = isJson ? JSON.stringify(translatedEntries, null, 2) : keys.map(k => k + '=' + translatedEntries[k]).join('\n');
 
-    const writeResult = await window.electronAPI.mods.writeJarEntry(_translateModJarPath, zhFileName, outputContent);
+    const writeResult = await bridge.mods.writeJarEntry(_translateModJarPath, zhFileName, outputContent);
     if (!writeResult || !writeResult.success) {
       throw new Error(writeResult?.error || '写入翻译文件失败');
     }
@@ -1172,7 +1178,7 @@ async function startAutoTranslate() {
   progressText.textContent = '正在读取语言文件...';
 
   try {
-    const readResult = await window.electronAPI.mods.readJarEntry(_translateModJarPath, enFile.name);
+    const readResult = await bridge.mods.readJarEntry(_translateModJarPath, enFile.name);
     if (!readResult || !readResult.success || !readResult.content) {
       throw new Error(readResult?.error || '读取语言文件失败');
     }
@@ -1214,7 +1220,7 @@ async function startAutoTranslate() {
       outputContent = keys.map(k => `${k}=${translated[k] || entries[k]}`).join('\n');
     }
 
-    await window.electronAPI.mods.writeJarEntry(_translateModJarPath, zhName, outputContent);
+    await bridge.mods.writeJarEntry(_translateModJarPath, zhName, outputContent);
 
     progressBar.style.width = '100%';
     progressText.textContent = '完成！';
@@ -1294,7 +1300,7 @@ async function _translateWithAI(entries, aiConfig, isJson, onProgress) {
     for (let retry = 0; retry < 3; retry++) {
       attempts = retry + 1;
       try {
-        res = await window.electronAPI.ai.chat(reqConfig);
+        res = await bridge.ai.chat(reqConfig);
         if (res && res.ok && res.reply) {
           const reply = res.reply;
           const jsonStart = reply.indexOf('{');
@@ -1345,7 +1351,7 @@ async function exportModLangFile() {
   }
 
   try {
-    const readResult = await window.electronAPI.mods.readJarEntry(_translateModJarPath, enFile.name);
+    const readResult = await bridge.mods.readJarEntry(_translateModJarPath, enFile.name);
     if (!readResult || !readResult.success || !readResult.content) {
       showToast(readResult?.error || '读取语言文件失败', 'error');
       return;
@@ -1384,7 +1390,7 @@ async function importModLangFile() {
       const enFile = _translateLangInfo.langFiles.find(f => f.isEnglish) || _translateLangInfo.langFiles[0];
       const zhName = (enFile ? enFile.zhName : null) || 'zh_cn.json';
 
-      await window.electronAPI.mods.writeJarEntry(_translateModJarPath, zhName, content);
+      await bridge.mods.writeJarEntry(_translateModJarPath, zhName, content);
       showToast(`已导入 ${file.name} → ${zhName}`, 'success');
     } catch (e) {
       showToast('导入失败: ' + e.message, 'error');
@@ -1393,60 +1399,14 @@ async function importModLangFile() {
   fileInput.click();
 }
 
+registerActions({
+  closeOverlay: (event, el) => el.closest('.modal-overlay')?.remove(),
+  toggleModInManager: (event, el, fileName, disable) => toggleModInManager(fileName, disable),
+  previewMod: (event, el, projectId) => previewMod(projectId),
+  openModTranslateDialog: (event, el, fileName, modName) => openModTranslateDialog(fileName, modName),
+  removeModFromManager: (event, el, fileName) => removeModFromManager(fileName),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
-export { openVersionSettings, loadVersionSettingsUI, saveCurrentVersionSetting, refreshVsetJavaOptions, vsetDetectJava, vsetBrowseJava, refreshVersionDisplayName, closeVersionSettings, switchVSetTab, openVersionFolder, openSavesFolder, openModsFolder, checkModUpdatesForVersion, showModUpdateDialog, exportLaunchScript, showRepairModal, closeRepairModal, cancelRepair, getRepairStageText, pollRepairProgress, repairFiles, diagnoseVersion, showDiagnoseDialog, deleteCurrentVersion, loadInstalledModsForSettings, renderModMgrList, previewMod, filterInstalledMods, filterModMgrTab, selectAllMods, installModFromFile, installModByFile, openBrowseMods, goDownloadMods, toggleModInManager, removeModFromManager, toggleExportTree, loadExportTreeData, startExport, openModTranslateDialog, _resolveModJarPath, _getTranslateAIConfig, switchTranslateTab, startQuickTranslate, startAutoTranslate, _translateWithAI, exportModLangFile, importModLangFile, memSlider, vsetIsolation, vsetWindowTitle, vsetCustomInfo, vsetJvmArgs, vsetGameArgs, _AI_PROVIDERS, currentSettingsVersionId, currentVersionSettings, _modMgrSettingsLoaded, _exportTreeLoaded, _checkingModUpdates, currentRepairSessionId, repairPollTimer, _translateModJarPath, _translateModName, _translateLangInfo };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ openVersionSettings, loadVersionSettingsUI, saveCurrentVersionSetting, refreshVsetJavaOptions, vsetDetectJava, vsetBrowseJava, refreshVersionDisplayName, closeVersionSettings, switchVSetTab, openVersionFolder, openSavesFolder, openModsFolder, checkModUpdatesForVersion, showModUpdateDialog, exportLaunchScript, showRepairModal, closeRepairModal, cancelRepair, getRepairStageText, pollRepairProgress, repairFiles, diagnoseVersion, showDiagnoseDialog, deleteCurrentVersion, loadInstalledModsForSettings, renderModMgrList, previewMod, filterInstalledMods, filterModMgrTab, selectAllMods, installModFromFile, installModByFile, openBrowseMods, goDownloadMods, toggleModInManager, removeModFromManager, toggleExportTree, loadExportTreeData, startExport, openModTranslateDialog, _resolveModJarPath, _getTranslateAIConfig, switchTranslateTab, startQuickTranslate, startAutoTranslate, _translateWithAI, exportModLangFile, importModLangFile, memSlider, vsetIsolation, vsetWindowTitle, vsetCustomInfo, vsetJvmArgs, vsetGameArgs, _AI_PROVIDERS })) {
-  window[name] = value;
-}
+export { openVersionSettings, loadVersionSettingsUI, saveCurrentVersionSetting, refreshVsetJavaOptions, vsetDetectJava, vsetBrowseJava, refreshVersionDisplayName, closeVersionSettings, switchVSetTab, openVersionFolder, openSavesFolder, openModsFolder, checkModUpdatesForVersion, showModUpdateDialog, exportLaunchScript, showRepairModal, closeRepairModal, cancelRepair, getRepairStageText, pollRepairProgress, repairFiles, diagnoseVersion, showDiagnoseDialog, deleteCurrentVersion, loadInstalledModsForSettings, renderModMgrList, previewMod, filterInstalledMods, filterModMgrTab, selectAllMods, installModFromFile, installModByFile, openBrowseMods, goDownloadMods, toggleModInManager, removeModFromManager, toggleExportTree, loadExportTreeData, startExport, openModTranslateDialog, _resolveModJarPath, _getTranslateAIConfig, switchTranslateTab, startQuickTranslate, startAutoTranslate, _translateWithAI, exportModLangFile, importModLangFile, memSlider, vsetIsolation, vsetWindowTitle, vsetCustomInfo, vsetJvmArgs, vsetGameArgs, _AI_PROVIDERS, currentVersionSettings, _modMgrSettingsLoaded, _exportTreeLoaded, _checkingModUpdates, currentRepairSessionId, repairPollTimer, _translateModJarPath, _translateModName, _translateLangInfo };
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'currentSettingsVersionId', {
-  configurable: true,
-  get: () => currentSettingsVersionId,
-  set: (v) => { currentSettingsVersionId = v; },
-});
-Object.defineProperty(window, 'currentVersionSettings', {
-  configurable: true,
-  get: () => currentVersionSettings,
-  set: (v) => { currentVersionSettings = v; },
-});
-Object.defineProperty(window, '_modMgrSettingsLoaded', {
-  configurable: true,
-  get: () => _modMgrSettingsLoaded,
-  set: (v) => { _modMgrSettingsLoaded = v; },
-});
-Object.defineProperty(window, '_exportTreeLoaded', {
-  configurable: true,
-  get: () => _exportTreeLoaded,
-  set: (v) => { _exportTreeLoaded = v; },
-});
-Object.defineProperty(window, '_checkingModUpdates', {
-  configurable: true,
-  get: () => _checkingModUpdates,
-  set: (v) => { _checkingModUpdates = v; },
-});
-Object.defineProperty(window, 'currentRepairSessionId', {
-  configurable: true,
-  get: () => currentRepairSessionId,
-  set: (v) => { currentRepairSessionId = v; },
-});
-Object.defineProperty(window, 'repairPollTimer', {
-  configurable: true,
-  get: () => repairPollTimer,
-  set: (v) => { repairPollTimer = v; },
-});
-Object.defineProperty(window, '_translateModJarPath', {
-  configurable: true,
-  get: () => _translateModJarPath,
-  set: (v) => { _translateModJarPath = v; },
-});
-Object.defineProperty(window, '_translateModName', {
-  configurable: true,
-  get: () => _translateModName,
-  set: (v) => { _translateModName = v; },
-});
-Object.defineProperty(window, '_translateLangInfo', {
-  configurable: true,
-  get: () => _translateLangInfo,
-  set: (v) => { _translateLangInfo = v; },
-});

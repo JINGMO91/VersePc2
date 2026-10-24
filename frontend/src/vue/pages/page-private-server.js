@@ -1,4 +1,6 @@
 /* page-private-server - 私人服务器页 Vue 组件 */
+import { initPrivateServerPage } from '../../features/misc/private-server.js';
+
 const PagePrivateServer = {
   template: `
           <div class="page-header">
@@ -15,7 +17,5 @@ const PagePrivateServer = {
     }
   }
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PagePrivateServer;

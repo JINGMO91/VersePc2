@@ -1,3 +1,8 @@
+import { API } from '../../core/api.js';
+import { applyAccentColor } from '../launch/java.js';
+import { showToast } from '../misc/ui-components.js';
+import { applyCustomThemeColor, getSavedCustomThemeLight, getSavedCustomThemeColor, syncCustomThemeLightModeUI, toggleCustomThemeColorGroup } from './custom-theme.js';
+
 async function loadSettings() {
     try {
         const settings = await API.getSettings();
@@ -131,7 +136,3 @@ async function saveCurrentSettings() {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { loadSettings, updateSpeedLimitLabel, saveCurrentSettings };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ loadSettings, updateSpeedLimitLabel, saveCurrentSettings })) {
-  window[name] = value;
-}

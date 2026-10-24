@@ -1,3 +1,15 @@
+import { API } from '../../core/api.js';
+import { featureBridge } from '../../core/feature-bridge.js';
+
+import { bridge } from '../../core/tauri-bridge.js';
+
+let terracottaGamePoll = null;
+let redstoneGamePoll = null;
+let enderlinkGamePoll = null;
+import { showToast } from './ui-components.js';
+
+import { actionAttrs, registerActions } from '../../core/actions.js';
+
 function switchLanTab(page, tab, btnEl) {
     const tabsContainer = btnEl.closest('.lan-tabs');
     if (tabsContainer) tabsContainer.querySelectorAll('.lan-tab').forEach(t => t.classList.remove('active'));
@@ -39,7 +51,7 @@ async function detectLanPort() {
         if (gs && gs.running && gs.lanPort) return gs.lanPort;
     } catch (e) {}
     try {
-        const scanResult = await window.electronAPI.redstoneOnline.scanPort();
+        const scanResult = await bridge.redstoneOnline.scanPort();
         if (scanResult && scanResult.ok && scanResult.port) return scanResult.port;
     } catch (e) {}
     return null;
@@ -72,8 +84,8 @@ async function terracottaHostStep1() {
         } catch (e) {}
     };
     doCheck();
-    if (window._terracottaGamePoll) clearInterval(window._terracottaGamePoll);
-    window._terracottaGamePoll = setInterval(doCheck, 2000);
+    if (terracottaGamePoll) clearInterval(terracottaGamePoll);
+    terracottaGamePoll = setInterval(doCheck, 2000);
 }
 
 async function terracottaHostNext() {
@@ -84,7 +96,7 @@ async function terracottaHostNext() {
         showToast('请先启动游戏，然后在游戏内开放局域网联机', 'error');
         return;
     }
-    if (window._terracottaGamePoll) { clearInterval(window._terracottaGamePoll); window._terracottaGamePoll = null; }
+    if (terracottaGamePoll) { clearInterval(terracottaGamePoll); terracottaGamePoll = null; }
     const agreed = await terracottaShowAgreement();
     if (!agreed) return;
 
@@ -175,7 +187,7 @@ function showTerracottaStep(flow, step) {
 }
 
 function terracottaBackToHome() {
-    if (window._terracottaGamePoll) { clearInterval(window._terracottaGamePoll); window._terracottaGamePoll = null; }
+    if (terracottaGamePoll) { clearInterval(terracottaGamePoll); terracottaGamePoll = null; }
     if (terracottaPollTimer) { clearInterval(terracottaPollTimer); terracottaPollTimer = null; }
     if (_terracottaPollRefresher) { clearInterval(_terracottaPollRefresher); _terracottaPollRefresher = null; }
     document.getElementById('terracotta-host-panel').style.display = 'none';
@@ -205,7 +217,7 @@ async function terracottaDisconnect() {
 function terracottaCopyRoomCode() {
     const code = document.getElementById('terracotta-roomcode').textContent;
     if (!code || code === '--' || code === '等待分配房间码...') return;
-    window.electronAPI.clipboard.writeText(code).then(() => {
+    bridge.clipboard.writeText(code).then(() => {
         showToast('房间码已复制！发送给朋友即可加入', 'success');
     });
 }
@@ -213,7 +225,7 @@ function terracottaCopyRoomCode() {
 function terracottaCopyAddr() {
     const addr = document.getElementById('terracotta-connect-addr').textContent;
     if (!addr || addr === '等待分配...') return;
-    window.electronAPI.clipboard.writeText(addr).then(() => {
+    bridge.clipboard.writeText(addr).then(() => {
         showToast('连接地址已复制', 'success');
     });
 }
@@ -514,7 +526,7 @@ async function redstoneRefreshServers() {
     if (btn) btn.textContent = '服务器: 加载中...';
     if (info) info.textContent = '正在加载节点列表...';
     try {
-        const r = await window.electronAPI.redstoneOnline.getServers();
+        const r = await bridge.redstoneOnline.getServers();
         if (r && r.ok && r.servers && r.servers.length > 0) {
             _redstoneServers = r.servers;
             if (info) info.textContent = '共 ' + r.servers.length + ' 个节点';
@@ -569,7 +581,7 @@ async function redstoneStart() {
             // 游戏不在运行——但可能游戏是自己启动（非启动器），尝试扫端口
             addRedstoneLog('未检测到启动器追踪的游戏进程，正在扫描端口...');
             updateRedstoneStatus('扫描端口...', 'connecting');
-            const scanResult = await window.electronAPI.redstoneOnline.scanPort();
+            const scanResult = await bridge.redstoneOnline.scanPort();
             if (scanResult && scanResult.ok && scanResult.port) {
                 gamePort = scanResult.port;
                 addRedstoneLog('端口扫描成功: ' + gamePort);
@@ -583,7 +595,7 @@ async function redstoneStart() {
             // 游戏在运行但未开放局域网，尝试扫端口
             addRedstoneLog('未检测到局域网端口，正在扫描...');
             updateRedstoneStatus('扫描端口...', 'connecting');
-            const scanResult = await window.electronAPI.redstoneOnline.scanPort();
+            const scanResult = await bridge.redstoneOnline.scanPort();
             if (scanResult && scanResult.ok && scanResult.port) {
                 gamePort = scanResult.port;
                 addRedstoneLog('端口扫描成功: ' + gamePort);
@@ -645,7 +657,7 @@ async function redstoneStart() {
     if (maxPlayers) addRedstoneLog('最大人数: ' + maxPlayers);
 
     try {
-        const r = await window.electronAPI.redstoneOnline.start({
+        const r = await bridge.redstoneOnline.start({
             serverAddress: server.address, gamePort: gamePort,
             maxPlayers: maxPlayers,
         });
@@ -676,7 +688,7 @@ async function redstoneStart() {
 async function redstoneStop() {
     const btn = document.getElementById('redstone-action-btn');
     if (btn) { btn.disabled = true; btn.textContent = '正在关闭...'; }
-    try { await window.electronAPI.redstoneOnline.stop(); }
+    try { await bridge.redstoneOnline.stop(); }
     catch (e) { addRedstoneLog('关闭失败: ' + e.message); }
     _redstoneRunning = false;
     document.getElementById('redstone-connected-info').style.display = 'none';
@@ -750,7 +762,7 @@ async function redstoneInitPage() {
     if (_redstoneServers.length === 0) redstoneRefreshServers();
     // 同步主进程隧道状态：若已开启则直接恢复主界面
     try {
-        const status = await window.electronAPI.redstoneOnline.getStatus();
+        const status = await bridge.redstoneOnline.getStatus();
         if (status && status.running && status.address) {
             showRedstoneMain();
             const addrEl = document.getElementById('redstone-room-addr');
@@ -862,8 +874,8 @@ async function redstoneHostStep1() {
         } catch (e) {}
     };
     doCheck();
-    if (window._redstoneGamePoll) clearInterval(window._redstoneGamePoll);
-    window._redstoneGamePoll = setInterval(doCheck, 2000);
+    if (redstoneGamePoll) clearInterval(redstoneGamePoll);
+    redstoneGamePoll = setInterval(doCheck, 2000);
 }
 
 async function redstoneHostNext() {
@@ -873,11 +885,11 @@ async function redstoneHostNext() {
         showToast('请先启动游戏，然后在游戏内开放局域网联机', 'error');
         return;
     }
-    if (window._redstoneGamePoll) { clearInterval(window._redstoneGamePoll); window._redstoneGamePoll = null; }
+    if (redstoneGamePoll) { clearInterval(redstoneGamePoll); redstoneGamePoll = null; }
     showLanStep('redstone', 'host', 2);
     try {
         let server = null;
-        const vs = window.VersePC;
+        const vs = featureBridge;
         if (vs && vs.redstoneSelectedNode) {
           server = vs.redstoneSelectedNode;
         } else if (vs && vs.redstoneNodes && vs.redstoneNodes.length) {
@@ -889,10 +901,10 @@ async function redstoneHostNext() {
         if (!server) throw new Error('服务器节点不可用');
         let gamePort = gs.lanPort;
         if (!gamePort) {
-            const scanResult = await window.electronAPI.redstoneOnline.scanPort();
+            const scanResult = await bridge.redstoneOnline.scanPort();
             gamePort = scanResult && scanResult.ok && scanResult.port ? scanResult.port : 25565;
         }
-        const r = await window.electronAPI.redstoneOnline.start({
+        const r = await bridge.redstoneOnline.start({
             serverAddress: server.address, gamePort: gamePort, maxPlayers: ''
         });
         if (!r || !r.ok) throw new Error(r && r.error ? r.error : '开启失败');
@@ -913,7 +925,7 @@ async function redstoneHostNext() {
 }
 
 async function redstoneDisconnect() {
-    try { await window.electronAPI.redstoneOnline.stop(); } catch (e) {}
+    try { await bridge.redstoneOnline.stop(); } catch (e) {}
     redstoneBackToHome();
     showToast('已断开红石联机', 'info');
 }
@@ -965,7 +977,7 @@ async function enderlinkRefreshNodes() {
     if (btn) btn.textContent = '节点: 加载中...';
     if (info) info.textContent = '正在加载节点列表...';
     try {
-        const r = await window.electronAPI.enderlinkOnline.getNodes();
+        const r = await bridge.enderlinkOnline.getNodes();
         if (r && r.ok && r.nodes && r.nodes.length > 0) {
             _enderlinkNodes = r.nodes;
             if (info) info.textContent = '共 ' + r.nodes.length + ' 个节点';
@@ -995,7 +1007,7 @@ async function enderlinkRefreshRooms() {
     if (!list) return;
     list.textContent = '加载中...';
     try {
-        const r = await window.electronAPI.enderlinkOnline.getRooms();
+        const r = await bridge.enderlinkOnline.getRooms();
         if (r && r.ok && r.rooms && r.rooms.length > 0) {
             list.innerHTML = '';
             r.rooms.forEach((room, i) => {
@@ -1006,7 +1018,7 @@ async function enderlinkRefreshRooms() {
                     '<div style="min-width:0"><div style="font-size:14px;color:var(--text-primary);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' +
                     (room.room_name || ('房间' + (i + 1))) + '</div>' +
                     '<div style="font-size:12px;color:var(--text-muted);font-family:monospace">' + addr + '</div></div>' +
-                    '<button class="btn btn-secondary btn-sm" onclick="enderlinkCopyHall(\'' + addr + '\')">复制地址</button>';
+                    '<button class="btn btn-secondary btn-sm"' + actionAttrs('enderlinkCopyHall', addr) + '>复制地址</button>';
                 list.appendChild(row);
             });
         } else {
@@ -1067,7 +1079,7 @@ async function enderlinkStart() {
             addEnderlinkLog('检测到局域网端口: ' + gamePort);
         } else {
             addEnderlinkLog('正在扫描局域网端口...');
-            const scanResult = await window.electronAPI.redstoneOnline.scanPort();
+            const scanResult = await bridge.redstoneOnline.scanPort();
             if (scanResult && scanResult.ok && scanResult.port) {
                 gamePort = scanResult.port;
                 addEnderlinkLog('端口扫描成功: ' + gamePort);
@@ -1100,7 +1112,7 @@ async function enderlinkStart() {
     if (roomName) addEnderlinkLog('房间名: ' + roomName);
 
     try {
-        const r = await window.electronAPI.enderlinkOnline.start({
+        const r = await bridge.enderlinkOnline.start({
             node: node,
             localPort: gamePort,
             roomName: roomName,
@@ -1136,7 +1148,7 @@ async function enderlinkStart() {
 async function enderlinkStop() {
     const btn = document.getElementById('enderlink-action-btn');
     if (btn) { btn.disabled = true; btn.textContent = '正在关闭...'; }
-    try { await window.electronAPI.enderlinkOnline.stop(); }
+    try { await bridge.enderlinkOnline.stop(); }
     catch (e) { addEnderlinkLog('关闭失败: ' + e.message); }
     _enderlinkRunning = false;
     document.getElementById('enderlink-connected-info').style.display = 'none';
@@ -1166,7 +1178,7 @@ async function enderlinkInitPage() {
     if (_enderlinkNodes.length === 0) enderlinkRefreshNodes();
     // 同步主进程状态：若已开启则直接恢复主界面
     try {
-        const status = await window.electronAPI.enderlinkOnline.getStatus();
+        const status = await bridge.enderlinkOnline.getStatus();
         if (status && status.running && status.address) {
             showEnderlinkMain();
             const addrEl = document.getElementById('enderlink-room-addr');
@@ -1263,8 +1275,8 @@ async function enderlinkHostStep1() {
         } catch (e) {}
     };
     doCheck();
-    if (window._enderlinkGamePoll) clearInterval(window._enderlinkGamePoll);
-    window._enderlinkGamePoll = setInterval(doCheck, 2000);
+    if (enderlinkGamePoll) clearInterval(enderlinkGamePoll);
+    enderlinkGamePoll = setInterval(doCheck, 2000);
 }
 
 async function enderlinkHostNext() {
@@ -1274,11 +1286,11 @@ async function enderlinkHostNext() {
         showToast('请先启动游戏，然后在游戏内开放局域网联机', 'error');
         return;
     }
-    if (window._enderlinkGamePoll) { clearInterval(window._enderlinkGamePoll); window._enderlinkGamePoll = null; }
+    if (enderlinkGamePoll) { clearInterval(enderlinkGamePoll); enderlinkGamePoll = null; }
     showLanStep('enderlink', 'host', 2);
     try {
         let node = null;
-        const vs = window.VersePC;
+        const vs = featureBridge;
         if (vs && vs.enderlinkSelectedNode) {
           node = vs.enderlinkSelectedNode;
         } else if (vs && vs.enderlinkNodes && vs.enderlinkNodes.length) {
@@ -1290,10 +1302,10 @@ async function enderlinkHostNext() {
         if (!node) throw new Error('联机节点不可用');
         let gamePort = gs.lanPort;
         if (!gamePort) {
-            const scanResult = await window.electronAPI.redstoneOnline.scanPort();
+            const scanResult = await bridge.redstoneOnline.scanPort();
             gamePort = scanResult && scanResult.ok && scanResult.port ? scanResult.port : 25565;
         }
-        const r = await window.electronAPI.enderlinkOnline.start({
+        const r = await bridge.enderlinkOnline.start({
             node: node,
             localPort: gamePort,
             roomName: '',
@@ -1319,76 +1331,16 @@ async function enderlinkHostNext() {
 }
 
 async function enderlinkDisconnect() {
-    try { await window.electronAPI.enderlinkOnline.stop(); } catch (e) {}
+    try { await bridge.enderlinkOnline.stop(); } catch (e) {}
     _enderlinkRunning = false;
     enderlinkBackToHome();
     showToast('已断开 EnderLink 联机', 'info');
 }
 
+registerActions({
+  enderlinkCopyHall: (event, el, addr) => enderlinkCopyHall(addr),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { switchLanTab, updateTerracottaStatus, detectLanPort, terracottaHostStep1, terracottaHostNext, terracottaJoinStep1, terracottaJoinCodeInput, terracottaJoinNext, showTerracottaStep, terracottaBackToHome, terracottaHide, terracottaDisconnect, terracottaCopyRoomCode, terracottaCopyAddr, terracottaShowAgreement, terracottaExportLog, initTerracottaPage, showTerracottaOnboarding, showTerracottaMain, terracottaDownloadCore, completeTerracottaOnboarding, failTerracottaDownload, terracottaStartPolling, updateRedstoneStatus, redstoneSwitchTab, redstoneRefreshServers, updateServerBtn, redstoneCycleServer, redstoneToggle, redstoneStart, redstoneStop, redstoneCopyAddr, addRedstoneLog, redstoneRefreshCurrentVersion, redstoneInitPage, showRedstoneOnboarding, showRedstoneMain, redstoneStartOnboarding, redstoneHide, redstoneBackToHome, showLanStep, redstoneHostStep1, redstoneHostNext, redstoneDisconnect, updateEnderlinkStatus, enderlinkSwitchTab, addEnderlinkLog, enderlinkRefreshNodes, enderlinkRefreshRooms, enderlinkCopyHall, enderlinkUpdateNodeBtn, enderlinkCycleNode, enderlinkToggle, enderlinkStart, enderlinkStop, enderlinkCopyAddr, enderlinkInitPage, showEnderlinkOnboarding, showEnderlinkMain, enderlinkStartOnboarding, enderlinkHide, enderlinkBackToHome, enderlinkHostStep1, enderlinkHostNext, enderlinkDisconnect, terracottaPollTimer, _terracottaPollRefresher, terracottaState, _lastTerracottaStateIndex, _terracottaPollFailCount, _redstoneServers, _redstoneRunning, _redstoneServerIdx, _enderlinkNodes, _enderlinkRunning, _enderlinkOpening, _enderlinkNodeIdx };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ switchLanTab, updateTerracottaStatus, detectLanPort, terracottaHostStep1, terracottaHostNext, terracottaJoinStep1, terracottaJoinCodeInput, terracottaJoinNext, showTerracottaStep, terracottaBackToHome, terracottaHide, terracottaDisconnect, terracottaCopyRoomCode, terracottaCopyAddr, terracottaShowAgreement, terracottaExportLog, initTerracottaPage, showTerracottaOnboarding, showTerracottaMain, terracottaDownloadCore, completeTerracottaOnboarding, failTerracottaDownload, terracottaStartPolling, updateRedstoneStatus, redstoneSwitchTab, redstoneRefreshServers, updateServerBtn, redstoneCycleServer, redstoneToggle, redstoneStart, redstoneStop, redstoneCopyAddr, addRedstoneLog, redstoneRefreshCurrentVersion, redstoneInitPage, showRedstoneOnboarding, showRedstoneMain, redstoneStartOnboarding, redstoneHide, redstoneBackToHome, showLanStep, redstoneHostStep1, redstoneHostNext, redstoneDisconnect, updateEnderlinkStatus, enderlinkSwitchTab, addEnderlinkLog, enderlinkRefreshNodes, enderlinkRefreshRooms, enderlinkCopyHall, enderlinkUpdateNodeBtn, enderlinkCycleNode, enderlinkToggle, enderlinkStart, enderlinkStop, enderlinkCopyAddr, enderlinkInitPage, showEnderlinkOnboarding, showEnderlinkMain, enderlinkStartOnboarding, enderlinkHide, enderlinkBackToHome, enderlinkHostStep1, enderlinkHostNext, enderlinkDisconnect })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'terracottaPollTimer', {
-  configurable: true,
-  get: () => terracottaPollTimer,
-  set: (v) => { terracottaPollTimer = v; },
-});
-Object.defineProperty(window, '_terracottaPollRefresher', {
-  configurable: true,
-  get: () => _terracottaPollRefresher,
-  set: (v) => { _terracottaPollRefresher = v; },
-});
-Object.defineProperty(window, 'terracottaState', {
-  configurable: true,
-  get: () => terracottaState,
-  set: (v) => { terracottaState = v; },
-});
-Object.defineProperty(window, '_lastTerracottaStateIndex', {
-  configurable: true,
-  get: () => _lastTerracottaStateIndex,
-  set: (v) => { _lastTerracottaStateIndex = v; },
-});
-Object.defineProperty(window, '_terracottaPollFailCount', {
-  configurable: true,
-  get: () => _terracottaPollFailCount,
-  set: (v) => { _terracottaPollFailCount = v; },
-});
-Object.defineProperty(window, '_redstoneServers', {
-  configurable: true,
-  get: () => _redstoneServers,
-  set: (v) => { _redstoneServers = v; },
-});
-Object.defineProperty(window, '_redstoneRunning', {
-  configurable: true,
-  get: () => _redstoneRunning,
-  set: (v) => { _redstoneRunning = v; },
-});
-Object.defineProperty(window, '_redstoneServerIdx', {
-  configurable: true,
-  get: () => _redstoneServerIdx,
-  set: (v) => { _redstoneServerIdx = v; },
-});
-Object.defineProperty(window, '_enderlinkNodes', {
-  configurable: true,
-  get: () => _enderlinkNodes,
-  set: (v) => { _enderlinkNodes = v; },
-});
-Object.defineProperty(window, '_enderlinkRunning', {
-  configurable: true,
-  get: () => _enderlinkRunning,
-  set: (v) => { _enderlinkRunning = v; },
-});
-Object.defineProperty(window, '_enderlinkOpening', {
-  configurable: true,
-  get: () => _enderlinkOpening,
-  set: (v) => { _enderlinkOpening = v; },
-});
-Object.defineProperty(window, '_enderlinkNodeIdx', {
-  configurable: true,
-  get: () => _enderlinkNodeIdx,
-  set: (v) => { _enderlinkNodeIdx = v; },
-});

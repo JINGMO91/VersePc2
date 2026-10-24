@@ -13,14 +13,11 @@
  * 分通道取出后叠加，在玻璃边缘形成极细的红蓝彩边。
  *
  * 用法：
- *   window.LiquidGlass.apply(document.querySelector('.sidebar'), { strength: 0.35 });
- *   window.LiquidGlass.remove(element);
+ *   LiquidGlass.apply(document.querySelector('.sidebar'), { strength: 0.35 });
+ *   LiquidGlass.remove(element);
  */
 
-(function () {
-    'use strict';
-
-    const SVG_NS = 'http://www.w3.org/2000/svg';
+const SVG_NS = 'http://www.w3.org/2000/svg';
     const XLINK_NS = 'http://www.w3.org/1999/xlink';
     const STYLE_ID = 'liquid-glass-style';
     const MAX_MAP_EDGE = 256;   // 贴图最长边，降低分辨率以压低生成开销
@@ -269,7 +266,7 @@
         }
     })();
 
-    window.LiquidGlass = {
+    export const LiquidGlass = {
         get supported() {
             return supported;
         },
@@ -303,4 +300,3 @@
             syncStyles();
         }
     };
-})();

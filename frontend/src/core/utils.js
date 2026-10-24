@@ -63,6 +63,21 @@ export function _lazyLoadScript(src) {
     return _lazyScriptCache[src];
 }
 
+/** 兼容 Tauri readFileBuffer 三种返回格式（Base64 字符串 / number[] / Uint8Array）→ Uint8Array */
+export function decodeFileBuffer(res) {
+    if (typeof res === 'string') {
+        try {
+            const bin = atob(res);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes;
+        } catch (e) {
+            return new Uint8Array(0);
+        }
+    }
+    return res instanceof Uint8Array ? res : new Uint8Array(res || []);
+}
+
 export function _lazyLoadCSS(href) {
     if (document.querySelector(`link[href="${href}"]`)) return;
     const l = document.createElement('link');

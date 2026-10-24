@@ -4,8 +4,15 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-(function () {
-    'use strict';
+
+import { bridge } from '../../core/tauri-bridge.js';
+import { showToast } from '../misc/ui-components.js';
+import { loadVersions } from '../versions/versions.js';
+import { dlManager } from '../versions/custom-download.js';
+import { DynamicIsland } from '../misc/dynamic-island.js';
+import { featureBridge } from '../../core/feature-bridge.js';
+import { showImportNameModal } from './resource.js';
+import { formatSize } from '../../core/utils.js';
 
     function init() {
         setupGlobalDrop();
@@ -21,7 +28,7 @@
                     : (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.event);
                 if (tauriEvent && tauriEvent.listen) {
                     tauriEvent.listen('tauri://drag-drop', function (event) {
-                        if (window._modpackImporting) return;
+                        if (featureBridge.modpackImporting) return;
                         var paths = (event.payload && event.payload.paths) || [];
                         if (!paths.length) return;
                         var filePath = paths[0];
@@ -49,7 +56,7 @@
         });
 
         document.addEventListener('drop', function (e) {
-            if (window._modpackImporting) return;
+            if (featureBridge.modpackImporting) return;
             const files = e.dataTransfer && e.dataTransfer.files;
             if (!files || !files.length) return;
 
@@ -65,7 +72,7 @@
     }
 
     async function handleFileImport(file) {
-        if (window._modpackImporting) {
+        if (featureBridge.modpackImporting) {
             if (typeof showToast === 'function') showToast('整合包正在导入中，请等待完成', 'warning');
             return;
         }
@@ -89,7 +96,7 @@
             if (!customName) return; // 用户取消
         }
 
-        window._modpackImporting = true;
+        featureBridge.modpackImporting = true;
         var _useVIsland = typeof DynamicIsland !== 'undefined' && DynamicIsland.isEnabled();
 
         if (typeof showToast === 'function' && !_useVIsland) showToast('正在导入整合包: ' + file.name, 'info');
@@ -216,9 +223,9 @@
             } catch (e) {
                 console.warn('[modpack-import] Tauri event.listen 失败:', e);
             }
-        } else if (window.electronAPI && window.electronAPI.onImportProgress) {
-            if (window.electronAPI.removeImportProgressListener) window.electronAPI.removeImportProgressListener();
-            window.electronAPI.onImportProgress(handleProgressData);
+        } else if (bridge && bridge.onImportProgress) {
+            if (bridge.removeImportProgressListener) bridge.removeImportProgressListener();
+            bridge.onImportProgress(handleProgressData);
         }
 
         try {
@@ -233,8 +240,8 @@
                     path: '/api/modpack/import',
                     body: { filePath: filePath, customName: customName }
                 });
-            } else if (window.electronAPI && window.electronAPI.importModpack) {
-                result = await window.electronAPI.importModpack(filePath, customName);
+            } else if (bridge && bridge.importModpack) {
+                result = await bridge.importModpack(filePath, customName);
             } else {
                 const resp = await fetch('/api/modpack/import', {
                     method: 'POST',
@@ -248,8 +255,8 @@
             if (_tauriProgressUnlisten) {
                 try { _tauriProgressUnlisten(); } catch (e) {}
             }
-            if (window.electronAPI && window.electronAPI.removeImportProgressListener) {
-                window.electronAPI.removeImportProgressListener();
+            if (bridge && bridge.removeImportProgressListener) {
+                bridge.removeImportProgressListener();
             }
 
             // 兼容两种返回格式：
@@ -260,7 +267,7 @@
             }
 
             if (result && result.success) {
-                window._modpackImporting = false;
+                featureBridge.modpackImporting = false;
                 if (_useVIsland) {
                     DynamicIsland.update({ progress: 100, status: 'completed', message: '安装完成' });
                 } else if (typeof dlManager !== 'undefined') {
@@ -271,7 +278,7 @@
                 }
                 if (typeof loadVersions === 'function') loadVersions(true);
             } else {
-                window._modpackImporting = false;
+                featureBridge.modpackImporting = false;
                 var errMsg = (result && result.error) ? result.error : '导入失败';
                 if (_useVIsland) {
                     DynamicIsland.update({ status: 'failed', message: errMsg });
@@ -283,9 +290,9 @@
                 }
             }
         } catch (err) {
-            window._modpackImporting = false;
-            if (window.electronAPI && window.electronAPI.removeImportProgressListener) {
-                window.electronAPI.removeImportProgressListener();
+            featureBridge.modpackImporting = false;
+            if (bridge && bridge.removeImportProgressListener) {
+                bridge.removeImportProgressListener();
             }
             var catchMsg = '导入出错: ' + (err.message || err);
             if (_useVIsland) {
@@ -323,4 +330,3 @@
     } else {
         init();
     }
-})();

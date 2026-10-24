@@ -3,6 +3,15 @@
  * 供 ThemeAppearanceCard / BackgroundCard / VisualEffectsCard 三个卡片子组件
  * 与壳组件 PageSettingsPersonalize 使用。
  */
+import { bridge } from '../../core/tauri-bridge.js';
+import { decodeFileBuffer } from '../../core/utils.js';
+
+import { applyThemeByName } from '../../features/launch/launch-settings.js';
+import { showToast, showConfirmDialog } from '../../features/misc/ui-components.js';
+import { applyCustomThemeColor, setCustomThemeMode } from '../../features/settings/custom-theme.js';
+import { applyWallpaperByName, applyWeWallpaper, applyPanoramaThemeByName, applyWallpaperOpacityValue, applyWallpaperBlurValue, applyWallpaperFitValue, applyPanoramaSpeedValue, applyPanoramaFollowValue, applyGlassEffectValue, applyLiquidGlassEffectValue, applyMinimalNavValue, applyHideNavLabelsValue, applyAutoCollapseNavValue, applyNavWidthValue, applyRememberWindowSizeValue, applyStartFullscreenValue, pickCustomWallpaperFile, _applyCustomWallpaperFile, loadPersonalizeStateIntoStore, savePersonalizeSettings, resetPersonalizeSettings } from '../../features/settings/personalize.js';
+import { showGlobalDownloadProgress, hideGlobalDownloadProgress, WallpaperEngine, wallpaperEngine } from '../../features/settings/wallpaper-engine.js';
+
 import { personalizeState } from '../../features/settings/personalize-state.js';
 
 const PageSettingsPersonalize = (function () {
@@ -109,7 +118,7 @@ const PageSettingsPersonalize = (function () {
         return this.isCustomMode || this.state.wallpaper === 'auroraVideo';
       },
       isWindows() {
-        return !!(window.bridge && window.bridge.isWindows);
+        return !!(bridge && bridge.isWindows);
       }
     },
     methods: {
@@ -155,7 +164,7 @@ const PageSettingsPersonalize = (function () {
         const isVideo = this.state.wallpaper === 'customVideo';
         const file = e.dataTransfer.files && e.dataTransfer.files[0];
         if (!file) return;
-        const filePath = (window.electronAPI && window.electronAPI.getDroppedFilePath) ? window.electronAPI.getDroppedFilePath(file) : '';
+        const filePath = (bridge && bridge.getDroppedFilePath) ? bridge.getDroppedFilePath(file) : '';
         if (!filePath) return;
 
         const validImageExts = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
@@ -185,8 +194,8 @@ const PageSettingsPersonalize = (function () {
       async checkRendererStatus() {
         const st = this.state;
         try {
-          const res = window.bridge && window.bridge.sceneRenderer
-            ? await window.bridge.sceneRenderer.installed()
+          const res = bridge && bridge.sceneRenderer
+            ? await bridge.sceneRenderer.installed()
             : null;
           st.weRendererInstalled = !!(res && res.installed);
         } catch (e) {
@@ -202,8 +211,8 @@ const PageSettingsPersonalize = (function () {
         if (!confirmed) return;
         st.weRendererDownloading = true;
         let unsub = null;
-        if (window.bridge && window.bridge.sceneRenderer && window.bridge.sceneRenderer.onProgress) {
-          unsub = window.bridge.sceneRenderer.onProgress((p) => {
+        if (bridge && bridge.sceneRenderer && bridge.sceneRenderer.onProgress) {
+          unsub = bridge.sceneRenderer.onProgress((p) => {
             if (!p) return;
             if (p.stage === 'download' && typeof showGlobalDownloadProgress === 'function') {
               showGlobalDownloadProgress('正在下载场景渲染器组件', p.percent || 0);
@@ -213,8 +222,8 @@ const PageSettingsPersonalize = (function () {
           });
         }
         try {
-          const res = window.bridge && window.bridge.sceneRenderer
-            ? await window.bridge.sceneRenderer.download()
+          const res = bridge && bridge.sceneRenderer
+            ? await bridge.sceneRenderer.download()
             : null;
           if (typeof hideGlobalDownloadProgress === 'function') hideGlobalDownloadProgress();
           if (res && res.ok) {
@@ -236,8 +245,8 @@ const PageSettingsPersonalize = (function () {
         st.weLoading = true;
         try {
           let result = null;
-          if (window.bridge && window.bridge.invoke) {
-            result = await window.bridge.invoke('wallpaper_engine_list');
+          if (bridge && bridge.invoke) {
+            result = await bridge.invoke('wallpaper_engine_list');
           }
           st.weWallpapers = (result && result.wallpapers) || [];
         } catch (e) {
@@ -260,10 +269,10 @@ const PageSettingsPersonalize = (function () {
         if (this._previewLoading[wp.id]) return '';
         this._previewLoading[wp.id] = true;
         const self = this;
-        Promise.resolve(window.bridge && window.bridge.readFileBuffer(wp.previewPath)).then((buffer) => {
+        Promise.resolve(bridge && bridge.readFileBuffer(wp.previewPath)).then((buffer) => {
           try {
-            const u8 = typeof window.decodeFileBuffer === 'function'
-              ? window.decodeFileBuffer(buffer)
+            const u8 = typeof decodeFileBuffer === 'function'
+              ? decodeFileBuffer(buffer)
               : (buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer || []));
             if (!u8 || u8.byteLength === 0) return;
             const ext = String(wp.previewPath).toLowerCase().split('.').pop();

@@ -1,3 +1,4 @@
+import { API } from '../../core/api.js';
 /**
  * @file feedback.js
  * @description 问题反馈页 - 分类选择、日志自动收集、附件、环境信息与站点提交
@@ -7,6 +8,13 @@
  *   2. 选择后自动扫描 data/logs 收集对应日志（launch -> 启动日志；download -> 下载日志）
  *   3. 提交时加载站点验证码 -> HMAC 防伪签名 -> multipart POST 到 verselauncher.cn
  */
+
+import { bridge } from '../../core/tauri-bridge.js';
+import { decodeFileBuffer } from '../../core/utils.js';
+
+import { showToast } from './ui-components.js';
+
+import { actionAttrs, registerActions } from '../../core/actions.js';
 
 /** 站点地址 */
 var FEEDBACK_SITE_URL = 'https://verselauncher.cn';
@@ -201,10 +209,10 @@ async function collectAutoLogs() {
 
 /** 通过 IPC 读取本地文件为 Uint8Array */
 async function readFeedbackFileAsBytes(filePath) {
-  var api = window.electronAPI;
+  var api = bridge;
   if (!api || typeof api.readFileBuffer !== 'function') throw new Error('readFileBuffer unavailable');
   var buffer = await api.readFileBuffer(filePath);
-  if (typeof window.decodeFileBuffer === 'function') return window.decodeFileBuffer(buffer);
+  if (typeof decodeFileBuffer === 'function') return decodeFileBuffer(buffer);
   if (buffer instanceof Uint8Array) return buffer;
   if (buffer) return new Uint8Array(buffer);
   return null;
@@ -293,7 +301,7 @@ function renderFeedbackFiles() {
       '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
       '<span class="fb-file-name" title="' + escapeFeedbackText(item.name) + '">' + escapeFeedbackText(item.name) + '</span>' +
       '<span class="fb-file-size">' + formatFeedbackSize(item.size) + '</span>' +
-      '<button class="fb-file-remove" title="移除" onclick="removeFeedbackFile(' + index + ')">' +
+      '<button class="fb-file-remove" title="移除"' + actionAttrs('removeFeedbackFile', index) + '>' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
       '</button>' +
       '</div>';
@@ -336,7 +344,7 @@ async function loadFeedbackEnv() {
   };
 
   try {
-    var api = window.electronAPI;
+    var api = bridge;
     if (api && api.updater && typeof api.updater.getVersion === 'function') {
       var version = await api.updater.getVersion();
       if (version) env.launcher = 'VersePC2 ' + version;
@@ -675,7 +683,7 @@ function randomFeedbackNonce() {
 }
 
 function openFeedbackSite() {
-  var api = window.electronAPI;
+  var api = bridge;
   if (api && typeof api.openExternal === 'function') {
     api.openExternal(FEEDBACK_SITE_URL).catch(function () {});
     return;
@@ -683,35 +691,10 @@ function openFeedbackSite() {
   window.open(FEEDBACK_SITE_URL, '_blank');
 }
 
+registerActions({
+  removeFeedbackFile: (event, el, index) => removeFeedbackFile(index),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { setupFeedback, selectFeedbackType, getFeedbackTypeLabel, selectFeedbackCategory, getFeedbackCategoryLabel, collectAutoLogs, readFeedbackFileAsBytes, renderAutoLogFiles, pickFeedbackFiles, onFeedbackFilesPicked, addFeedbackFiles, removeFeedbackFile, renderFeedbackFiles, formatFeedbackSize, escapeFeedbackText, onFeedbackDetailInput, loadFeedbackEnv, renderFeedbackEnv, loadFeedbackCaptcha, refreshFeedbackCaptcha, fetchFeedbackJson, getFeedbackForm, validateFeedback, updateFeedbackSubmitState, setFeedbackSubmitting, resetFeedbackForm, submitFeedback, sendFeedbackToSite, hmacFeedbackSha256, hexToBytes, bytesToHex, randomFeedbackNonce, openFeedbackSite, FEEDBACK_SITE_URL, FEEDBACK_MAX_FILES, FEEDBACK_MAX_FILE_BYTES, FEEDBACK_AUTO_LOGS, feedbackState };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ setupFeedback, selectFeedbackType, getFeedbackTypeLabel, selectFeedbackCategory, getFeedbackCategoryLabel, collectAutoLogs, readFeedbackFileAsBytes, renderAutoLogFiles, pickFeedbackFiles, onFeedbackFilesPicked, addFeedbackFiles, removeFeedbackFile, renderFeedbackFiles, formatFeedbackSize, escapeFeedbackText, onFeedbackDetailInput, loadFeedbackEnv, renderFeedbackEnv, loadFeedbackCaptcha, refreshFeedbackCaptcha, fetchFeedbackJson, getFeedbackForm, validateFeedback, updateFeedbackSubmitState, setFeedbackSubmitting, resetFeedbackForm, submitFeedback, sendFeedbackToSite, hmacFeedbackSha256, hexToBytes, bytesToHex, randomFeedbackNonce, openFeedbackSite })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'FEEDBACK_SITE_URL', {
-  configurable: true,
-  get: () => FEEDBACK_SITE_URL,
-  set: (v) => { FEEDBACK_SITE_URL = v; },
-});
-Object.defineProperty(window, 'FEEDBACK_MAX_FILES', {
-  configurable: true,
-  get: () => FEEDBACK_MAX_FILES,
-  set: (v) => { FEEDBACK_MAX_FILES = v; },
-});
-Object.defineProperty(window, 'FEEDBACK_MAX_FILE_BYTES', {
-  configurable: true,
-  get: () => FEEDBACK_MAX_FILE_BYTES,
-  set: (v) => { FEEDBACK_MAX_FILE_BYTES = v; },
-});
-Object.defineProperty(window, 'FEEDBACK_AUTO_LOGS', {
-  configurable: true,
-  get: () => FEEDBACK_AUTO_LOGS,
-  set: (v) => { FEEDBACK_AUTO_LOGS = v; },
-});
-Object.defineProperty(window, 'feedbackState', {
-  configurable: true,
-  get: () => feedbackState,
-  set: (v) => { feedbackState = v; },
-});

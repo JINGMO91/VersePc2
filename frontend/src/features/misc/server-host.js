@@ -1,3 +1,5 @@
+import { API } from '../../core/api.js';
+import { initAllCustomSelects } from './custom-select.js';
 /**
  * js/app/server-host.js - 开服页业务逻辑（实验性）
  * - 稳定进度条（可见态 class，不被 list 刷新冲掉）
@@ -5,6 +7,12 @@
  * - 模组端创建 + 一键同步模组
  */
 
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { getCustomSelectValue, customSelectInstances } from './custom-select.js';
+import { showToast } from './ui-components.js';
+
+import { appState } from '../../core/app-state.js';
 let _shUnsubLog = null;
 let _shUnsubStatus = null;
 let _shActiveId = null;
@@ -31,7 +39,7 @@ function escapeHtmlAttr(s) {
 }
 
 function _shApi() {
-  return window.electronAPI && window.electronAPI.serverHost;
+  return bridge && bridge.serverHost;
 }
 
 function _shSetStatusText(text) {
@@ -102,7 +110,7 @@ function _shLoaderChip(loader, ver) {
 
 async function initServerHostPage() {
   // 确保自定义下拉框已初始化（Vue 挂载后 DOM 才存在）
-  if (typeof initCustomSelects === 'function') initCustomSelects();
+  initAllCustomSelects();
   _shBindEvents();
   await serverHostRefreshVersions();
   await serverHostRefreshList();
@@ -235,14 +243,14 @@ function _shUpdateActiveStatus(data) {
 
 async function serverHostRefreshVersions() {
   if (!customSelectInstances['server-host-version']) {
-    if (typeof initCustomSelects === 'function') initCustomSelects();
+    initAllCustomSelects();
   }
   const inst = customSelectInstances['server-host-version'];
   if (!inst) return;
   inst.setOptions([{ value: '', text: '加载中...' }]);
   try {
-    let installed = (typeof installedVersions !== 'undefined' && Array.isArray(installedVersions))
-      ? installedVersions
+    let installed = (typeof appState.installedVersions !== 'undefined' && Array.isArray(appState.installedVersions))
+      ? appState.installedVersions
       : [];
     if ((!installed || installed.length === 0) && typeof API !== 'undefined' && API.getVersions) {
       const data = await API.getVersions(false);
@@ -604,80 +612,7 @@ async function serverHostOpenFolder() {
   }
 }
 
-window.initServerHostPage = initServerHostPage;
-window.serverHostRefreshVersions = serverHostRefreshVersions;
-window.serverHostRefreshList = serverHostRefreshList;
-window.serverHostCreate = serverHostCreate;
-window.serverHostStart = serverHostStart;
-window.serverHostStop = serverHostStop;
-window.serverHostSendCommand = serverHostSendCommand;
-window.serverHostDelete = serverHostDelete;
-window.serverHostOpenFolder = serverHostOpenFolder;
-window.serverHostClearConsole = _shClearConsole;
-window.serverHostSyncMods = serverHostSyncMods;
-window.serverHostDetectLoader = serverHostDetectLoader;
-window._shDetach = _shDetach;
-window._shShowProgress = _shShowProgress;
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { escapeHtmlText, escapeHtmlAttr, _shApi, _shSetStatusText, _shShowProgress, _shStatusBadge, _shLoaderChip, initServerHostPage, _shBindEvents, _shAttachListeners, _shDetach, _shAppendConsole, _shClearConsole, _shUpdateActiveStatus, serverHostRefreshVersions, serverHostDetectLoader, serverHostRefreshList, serverHostSelectActive, _shGetCreateInputs, serverHostCreate, serverHostCancelCreate, serverHostStart, serverHostStop, serverHostSendCommand, serverHostSyncMods, serverHostDelete, serverHostOpenFolder, SH_CONSOLE_MAX, _shUnsubLog, _shUnsubStatus, _shActiveId, _shServers, _shVersions, _shProgressVisible, _shProgressValue, _shProgressText, _shProgressIndeterminate, _shListRefreshTimer, _shCreating };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ escapeHtmlText, escapeHtmlAttr, _shApi, _shSetStatusText, _shShowProgress, _shStatusBadge, _shLoaderChip, initServerHostPage, _shBindEvents, _shAttachListeners, _shDetach, _shAppendConsole, _shClearConsole, _shUpdateActiveStatus, serverHostRefreshVersions, serverHostDetectLoader, serverHostRefreshList, serverHostSelectActive, _shGetCreateInputs, serverHostCreate, serverHostCancelCreate, serverHostStart, serverHostStop, serverHostSendCommand, serverHostSyncMods, serverHostDelete, serverHostOpenFolder, SH_CONSOLE_MAX })) {
-  window[name] = value;
-}
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, '_shUnsubLog', {
-  configurable: true,
-  get: () => _shUnsubLog,
-  set: (v) => { _shUnsubLog = v; },
-});
-Object.defineProperty(window, '_shUnsubStatus', {
-  configurable: true,
-  get: () => _shUnsubStatus,
-  set: (v) => { _shUnsubStatus = v; },
-});
-Object.defineProperty(window, '_shActiveId', {
-  configurable: true,
-  get: () => _shActiveId,
-  set: (v) => { _shActiveId = v; },
-});
-Object.defineProperty(window, '_shServers', {
-  configurable: true,
-  get: () => _shServers,
-  set: (v) => { _shServers = v; },
-});
-Object.defineProperty(window, '_shVersions', {
-  configurable: true,
-  get: () => _shVersions,
-  set: (v) => { _shVersions = v; },
-});
-Object.defineProperty(window, '_shProgressVisible', {
-  configurable: true,
-  get: () => _shProgressVisible,
-  set: (v) => { _shProgressVisible = v; },
-});
-Object.defineProperty(window, '_shProgressValue', {
-  configurable: true,
-  get: () => _shProgressValue,
-  set: (v) => { _shProgressValue = v; },
-});
-Object.defineProperty(window, '_shProgressText', {
-  configurable: true,
-  get: () => _shProgressText,
-  set: (v) => { _shProgressText = v; },
-});
-Object.defineProperty(window, '_shProgressIndeterminate', {
-  configurable: true,
-  get: () => _shProgressIndeterminate,
-  set: (v) => { _shProgressIndeterminate = v; },
-});
-Object.defineProperty(window, '_shListRefreshTimer', {
-  configurable: true,
-  get: () => _shListRefreshTimer,
-  set: (v) => { _shListRefreshTimer = v; },
-});
-Object.defineProperty(window, '_shCreating', {
-  configurable: true,
-  get: () => _shCreating,
-  set: (v) => { _shCreating = v; },
-});

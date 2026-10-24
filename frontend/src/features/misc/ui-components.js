@@ -1,3 +1,6 @@
+import { escapeHtml } from '../../core/utils.js';
+import { getDOMElement, domCache } from './utils.js';
+
 function showToast(message, type = 'info') {
     const container = getDOMElement('toast-container');
     if (!container) return;
@@ -219,7 +222,3 @@ function saveRememberedFolder(key, folderPath) {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { showToast, showModal, hideModal, showConfirmDialog, formatNumber, escapeOnclick, generateColorAvatar, getVersionTypeLabel, getRememberedFolder, saveRememberedFolder, VERSION_TYPE_LABELS, DL_FOLDER_KEY };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ showToast, showModal, hideModal, showConfirmDialog, formatNumber, escapeOnclick, generateColorAvatar, getVersionTypeLabel, getRememberedFolder, saveRememberedFolder, VERSION_TYPE_LABELS, DL_FOLDER_KEY })) {
-  window[name] = value;
-}

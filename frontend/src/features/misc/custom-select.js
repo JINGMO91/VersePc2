@@ -1,3 +1,6 @@
+import { serverHostRefreshVersions, serverHostDetectLoader } from './server-host.js';
+import { loadMods } from '../mods/mod-browse.js';
+
 // ─── 自定义下拉菜单组件 ──────────────────────────────────
 class CustomSelect {
     constructor(wrapperId, options = {}) {
@@ -207,10 +210,7 @@ class CustomSelect {
     }
 }
 
-let homeVersionCustomSelect = null;
-let launchVersionCustomSelect = null;
-let modloaderGameVersionCustomSelect = null;
-let modloaderVersionCustomSelect = null;
+import { appState } from '../../core/app-state.js';
 
 const customSelectInstances = {};
 
@@ -363,29 +363,5 @@ function updateCustomSelectOptions(id, options) {
 }
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
-export { initAllCustomSelects, getCustomSelectValue, setCustomSelectValue, updateCustomSelectOptions, CustomSelect, customSelectInstances, homeVersionCustomSelect, launchVersionCustomSelect, modloaderGameVersionCustomSelect, modloaderVersionCustomSelect };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ initAllCustomSelects, getCustomSelectValue, setCustomSelectValue, updateCustomSelectOptions, CustomSelect, customSelectInstances })) {
-  window[name] = value;
-}
+export { initAllCustomSelects, getCustomSelectValue, setCustomSelectValue, updateCustomSelectOptions, CustomSelect, customSelectInstances };
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'homeVersionCustomSelect', {
-  configurable: true,
-  get: () => homeVersionCustomSelect,
-  set: (v) => { homeVersionCustomSelect = v; },
-});
-Object.defineProperty(window, 'launchVersionCustomSelect', {
-  configurable: true,
-  get: () => launchVersionCustomSelect,
-  set: (v) => { launchVersionCustomSelect = v; },
-});
-Object.defineProperty(window, 'modloaderGameVersionCustomSelect', {
-  configurable: true,
-  get: () => modloaderGameVersionCustomSelect,
-  set: (v) => { modloaderGameVersionCustomSelect = v; },
-});
-Object.defineProperty(window, 'modloaderVersionCustomSelect', {
-  configurable: true,
-  get: () => modloaderVersionCustomSelect,
-  set: (v) => { modloaderVersionCustomSelect = v; },
-});

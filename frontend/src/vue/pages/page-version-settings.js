@@ -1,8 +1,28 @@
+import { API } from '../../core/api.js';
 /* page-version-settings.js - 版本设置页 Vue 组件（完整数据驱动）
  * 交互逻辑全部迁入组件（data/methods/computed），卡片用 v-for/v-if 渲染。
  * class 与整体 DOM 结构保持不变，确保既有 CSS 零修改。
  * 弹窗类流程（文件修复/诊断/模组汉化/模组更新）仍复用全局函数。
  */
+import { bridge } from '../../core/tauri-bridge.js';
+import { decodeFileBuffer } from '../../core/utils.js';
+
+import { toggleMod } from '../../features/accounts/accounts.js';
+import { handleLaunch, detectJava } from '../../features/launch/launch.js';
+import { setCustomSelectValue, CustomSelect, customSelectInstances } from '../../features/misc/custom-select.js';
+import { showToast, showConfirmDialog } from '../../features/misc/ui-components.js';
+import { loadMods } from '../../features/mods/mod-browse.js';
+import { openModDetail } from '../../features/mods/mod-detail.js';
+import { loadSettings } from '../../features/settings/settings-load-save.js';
+import { isPinned } from '../../features/versions/pinned-store.js';
+import { openVersionFolder, openSavesFolder, openModsFolder, showModUpdateDialog, exportLaunchScript, showRepairModal, pollRepairProgress, repairFiles, diagnoseVersion, showDiagnoseDialog, deleteCurrentVersion, previewMod, installModFromFile, installModByFile, goDownloadMods, toggleExportTree, startExport, openModTranslateDialog } from '../../features/versions/version-settings.js';
+import { loadVersions, updateVersionSelects, renderInstalledVersionsInto, navigateToPage } from '../../features/versions/versions.js';
+
+import { appState } from '../../core/app-state.js';
+import { formatModNameWithChinese } from '../../features/mods/chinese-names.js';
+import { isPinned as isPinnedItem, PIN_ICONS, togglePinSave } from '../../features/versions/pinned-store.js';
+import { vmHolders } from '../../core/vm-holders.js';
+
 const PageVersionSettings = {
   name: 'PageVersionSettings',
   data() {
@@ -123,7 +143,7 @@ const PageVersionSettings = {
     }
   },
   mounted() {
-    window.VersepcSettingsVM = this;
+    vmHolders.versionSettings = this;
     this.initCustomSelects();
   },
   methods: {
@@ -133,7 +153,7 @@ const PageVersionSettings = {
       this.modsLoaded = false;
       this.exportLoaded = false;
       this.versionId = versionId;
-      const versionInfo = (typeof installedVersions !== 'undefined' && installedVersions || []).find(v => v.id === versionId);
+      const versionInfo = (typeof appState.installedVersions !== 'undefined' && appState.installedVersions || []).find(v => v.id === versionId);
       this.customName = (versionInfo && versionInfo.customName) || versionName || versionId;
       this.exportName = this.customName;
       this.isExternal = !!(versionInfo && versionInfo.isExternal);
@@ -150,10 +170,10 @@ const PageVersionSettings = {
       this.loadSettings();
     },
     close() {
-      if (typeof _modDownloadVersionId !== 'undefined') _modDownloadVersionId = '';
+      if (typeof appState._modDownloadVersionId !== 'undefined') appState._modDownloadVersionId = '';
       const ca = document.querySelector('.content-area');
       if (ca) ca.classList.remove('no-scroll');
-      navigateToPage((typeof previousPage !== 'undefined' && previousPage) || 'home');
+      navigateToPage((typeof appState.previousPage !== 'undefined' && appState.previousPage) || 'home');
       this.versionId = null;
     },
     // ===== 设置加载 / 保存 =====
@@ -192,8 +212,8 @@ const PageVersionSettings = {
     },
     onCustomNameInput() {
       this.title = '版本设置 - ' + (this.customName || this.versionId);
-      if (typeof installedVersions !== 'undefined' && installedVersions) {
-        const vInfo = installedVersions.find(v => v.id === this.versionId);
+      if (typeof appState.installedVersions !== 'undefined' && appState.installedVersions) {
+        const vInfo = appState.installedVersions.find(v => v.id === this.versionId);
         if (vInfo) vInfo.customName = this.customName;
         try { updateVersionSelects(); } catch (e) {}
       }
@@ -236,9 +256,9 @@ const PageVersionSettings = {
     },
     async browseJava() {
       if (!this.versionId) return;
-      if (window.electronAPI && window.electronAPI.showOpenDialog) {
+      if (bridge && bridge.showOpenDialog) {
         try {
-          const result = await window.electronAPI.showOpenDialog({
+          const result = await bridge.showOpenDialog({
             properties: ['openFile'],
             filters: [{ name: 'Java 可执行文件', extensions: ['exe', ''] }]
           });
@@ -387,8 +407,8 @@ const PageVersionSettings = {
       }).catch(e => showToast('安装失败: ' + e.message, 'error'));
     },
     goDownloadMods() {
-      if (typeof _modDownloadVersionId !== 'undefined') _modDownloadVersionId = this.versionId || '';
-      const versionInfo = this.versionId && (typeof installedVersions !== 'undefined' && installedVersions || []).find(v => v.id === this.versionId);
+      if (typeof appState._modDownloadVersionId !== 'undefined') appState._modDownloadVersionId = this.versionId || '';
+      const versionInfo = this.versionId && (typeof appState.installedVersions !== 'undefined' && appState.installedVersions || []).find(v => v.id === this.versionId);
       let gameVersion = '';
       if (versionInfo && versionInfo.baseVersion) gameVersion = versionInfo.baseVersion;
       else if (versionInfo && versionInfo.inheritsFrom) gameVersion = versionInfo.inheritsFrom;
@@ -407,7 +427,7 @@ const PageVersionSettings = {
         if (loaderType && typeof customSelectInstances !== 'undefined' && customSelectInstances['mod-filter-loader']) {
           customSelectInstances['mod-filter-loader'].setValue(loaderType);
         }
-        if (typeof modSearchOffset !== 'undefined') modSearchOffset = 0;
+        if (typeof appState.modSearchOffset !== 'undefined') appState.modSearchOffset = 0;
         try { if (typeof loadMods === 'function') loadMods(); } catch (e) {}
       }, 100);
     },
@@ -467,7 +487,7 @@ const PageVersionSettings = {
         const confirmed = await showConfirmDialog('移除外部版本', '确定要从列表中移除此外部版本吗？（不会删除实际游戏文件）', '移除', '取消');
         if (!confirmed) return;
       } else {
-        const ver = (typeof installedVersions !== 'undefined' && installedVersions || []).find(v => v.id === this.versionId);
+        const ver = (typeof appState.installedVersions !== 'undefined' && appState.installedVersions || []).find(v => v.id === this.versionId);
         let warningParts = [];
         if (ver && ver.hasMods) warningParts.push('模组');
         if (ver && ver.hasSaves) warningParts.push('存档');
@@ -593,7 +613,7 @@ const PageVersionSettings = {
       if (!this.versionId) return;
       this.savesLoading = true;
       try {
-        const res = await window.bridge.invoke('version_list_saves', { versionId: this.versionId });
+        const res = await bridge.invoke('version_list_saves', { versionId: this.versionId });
         this.saves = (res && res.saves) || [];
         this.savesLoaded = true;
       } catch (e) {
@@ -609,10 +629,10 @@ const PageVersionSettings = {
       if (this._saveIconLoading[s.folder]) return '';
       this._saveIconLoading[s.folder] = true;
       const self = this;
-      Promise.resolve(window.bridge && window.bridge.readFileBuffer(s.icon)).then((buffer) => {
+      Promise.resolve(bridge && bridge.readFileBuffer(s.icon)).then((buffer) => {
         try {
-          const u8 = typeof window.decodeFileBuffer === 'function'
-            ? window.decodeFileBuffer(buffer)
+          const u8 = typeof decodeFileBuffer === 'function'
+            ? decodeFileBuffer(buffer)
             : (buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer || []));
           if (!u8 || u8.byteLength === 0) return;
           const blob = new Blob([u8], { type: 'image/png' });
@@ -650,7 +670,7 @@ const PageVersionSettings = {
         if (ed.rules[k] !== undefined) changed[k] = ed.rules[k];
       });
       try {
-        const res = await window.bridge.invoke('version_save_update', {
+        const res = await bridge.invoke('version_save_update', {
           versionId: this.versionId,
           folder: ed.folder,
           displayName: ed.name,
@@ -671,12 +691,12 @@ const PageVersionSettings = {
     launchSave(s) {
       if (!this.versionId) return;
       // 让启动流程以当前配置的版本为准，并带上世界名直接进存档
-      if (typeof currentLaunchVersionId !== 'undefined') currentLaunchVersionId = this.versionId;
-      if (typeof quickPlayWorld === 'undefined') {
+      if (typeof appState.currentLaunchVersionId !== 'undefined') appState.currentLaunchVersionId = this.versionId;
+      if (typeof appState.quickPlayWorld === 'undefined') {
         showToast('启动入口未就绪', 'error');
         return;
       }
-      quickPlayWorld = s.folder;
+      appState.quickPlayWorld = s.folder;
       if (typeof handleLaunch === 'function') {
         handleLaunch();
       } else {
@@ -684,15 +704,13 @@ const PageVersionSettings = {
       }
     },
     isPinned(type, id) {
-      return typeof window.isPinned === 'function' && window.isPinned(type, id);
+      return isPinnedItem(type, id);
     },
     ic(name) {
-      return (window.VersePC.PIN_ICONS && window.VersePC.PIN_ICONS[name]) || '';
+      return PIN_ICONS[name] || '';
     },
     pinSave(s) {
-      if (typeof window.togglePinSave === 'function') {
-        window.togglePinSave(s.folder, s.name, this.versionId, s.icon || '', s.difficulty);
-      }
+      togglePinSave(s.folder, s.name, this.versionId, s.icon || '', s.difficulty);
     },
     difficultyLabel(d) {
       return { 0: '和平', 1: '简单', 2: '普通', 3: '困难' }[d] || '未知';
@@ -1114,27 +1132,6 @@ const PageVersionSettings = {
   `
 };
 
-window.VersePC = window.VersePC || {};
-// 外部入口桥接：版本列表等仍通过 openVersionSettings / closeVersionSettings 触发
-async function openVersionSettings(versionId, versionName) {
-  if (window.VersepcSettingsVM) {
-    await window.VersepcSettingsVM.openFor(versionId, versionName);
-    return;
-  }
-  let tries = 0;
-  const waitFor = setInterval(() => {
-    if (window.VersepcSettingsVM) {
-      clearInterval(waitFor);
-      window.VersepcSettingsVM.openFor(versionId, versionName);
-    } else if (++tries > 60) {
-      clearInterval(waitFor);
-    }
-  }, 50);
-}
-function closeVersionSettings() {
-  if (window.VersepcSettingsVM) {
-    window.VersepcSettingsVM.close();
-  }
-}
+// 外部入口由 features/versions/version-settings.js 通过 vmHolders.versionSettings 调用本组件
 
 export default PageVersionSettings;

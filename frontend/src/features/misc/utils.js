@@ -77,7 +77,3 @@ function clearAllManagedIntervals() {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { getDOMElement, clearDOMCache, cacheCommonElements, refreshElementCache, debounce, throttle, setManagedInterval, clearManagedInterval, clearAllManagedIntervals, domCache, commonElements, managedTimers };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ getDOMElement, clearDOMCache, cacheCommonElements, refreshElementCache, debounce, throttle, setManagedInterval, clearManagedInterval, clearAllManagedIntervals, domCache, commonElements, managedTimers })) {
-  window[name] = value;
-}

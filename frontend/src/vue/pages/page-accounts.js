@@ -1,5 +1,21 @@
 /* page-accounts.js - 账户页 Vue 组件（新版堆叠布局） */
+import { API } from '../../core/api.js';
+import { handleSkinUpload, handleCapeUpload } from '../../features/accounts/accounts.js';
+
+import { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount } from '../../features/accounts/accounts.js';
+
+function pickSkinFile() {
+  document.getElementById('skin-file-input')?.click();
+}
+
+function pickCapeFile() {
+  document.getElementById('cape-file-input')?.click();
+}
+
 const PageAccounts = {
+  setup() {
+    return { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount, pickSkinFile, pickCapeFile };
+  },
   template: `
           <div class="accounts-redesign">
             <!-- 顶部标题（原顶部简单一行） -->
@@ -73,7 +89,7 @@ const PageAccounts = {
               <div class="modal-content">
                 <div class="modal-header">
                   <h3>微软登录</h3>
-                  <button class="modal-close" onclick="closeMsAuthModal()">&times;</button>
+                  <button class="modal-close" @click="closeMsAuthModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                   <div class="msauth-steps">
@@ -83,7 +99,7 @@ const PageAccounts = {
                     <p>授权码：</p>
                     <div class="msauth-code">
                       <span id="msauth-code-text"></span>
-                      <button class="btn btn-sm btn-secondary" onclick="copyMsCode()">复制</button>
+                      <button class="btn btn-sm btn-secondary" @click="copyMsCode()">复制</button>
                     </div>
                   </div>
                   <div class="msauth-status">
@@ -92,8 +108,8 @@ const PageAccounts = {
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button class="btn btn-secondary" onclick="reopenMsAuthPage()">重新打开网页</button>
-                  <button class="btn btn-secondary" onclick="closeMsAuthModal()">取消</button>
+                  <button class="btn btn-secondary" @click="reopenMsAuthPage()">重新打开网页</button>
+                  <button class="btn btn-secondary" @click="closeMsAuthModal()">取消</button>
                 </div>
               </div>
             </div>
@@ -101,7 +117,7 @@ const PageAccounts = {
               <div class="modal-content">
                 <div class="modal-header">
                   <h3>添加离线账户</h3>
-                  <button class="modal-close" onclick="closeOfflineModal()">&times;</button>
+                  <button class="modal-close" @click="closeOfflineModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                   <div class="form-group">
@@ -111,7 +127,7 @@ const PageAccounts = {
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button class="btn btn-secondary" onclick="closeOfflineModal()">取消</button>
+                  <button class="btn btn-secondary" @click="closeOfflineModal()">取消</button>
                   <button id="create-offline-btn" class="btn btn-primary">创建</button>
                 </div>
               </div>
@@ -120,7 +136,7 @@ const PageAccounts = {
               <div class="modal-content">
                 <div class="modal-header">
                   <h3>外置登录（authlib-injector）</h3>
-                  <button class="modal-close" onclick="closeThirdPartyModal()">&times;</button>
+                  <button class="modal-close" @click="closeThirdPartyModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                   <div class="form-group">
@@ -155,7 +171,7 @@ const PageAccounts = {
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button class="btn btn-secondary" onclick="closeThirdPartyModal()">取消</button>
+                  <button class="btn btn-secondary" @click="closeThirdPartyModal()">取消</button>
                   <button id="tp-login-btn" class="btn btn-primary">登录</button>
                 </div>
               </div>
@@ -164,7 +180,7 @@ const PageAccounts = {
               <div class="modal-content">
                 <div class="modal-header">
                   <h3>选择角色</h3>
-                  <button class="modal-close" onclick="closeProfileSelectModal()">&times;</button>
+                  <button class="modal-close" @click="closeProfileSelectModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                   <p style="color:var(--text-secondary);margin-bottom:16px;font-size:13px;">该账户有多个角色，请选择要使用的角色：</p>
@@ -177,14 +193,14 @@ const PageAccounts = {
             <div id="page-account-detail" class="acct-detail" style="display:none">
               <div class="acct-detail-left" id="acct-detail-left">
                 <div class="acct-bg-toggle">
-                  <button class="acct-bg-btn active" data-bg="white" onclick="setSkinBg('white')" title="白色背景" aria-label="白色背景"></button>
-                  <button class="acct-bg-btn" data-bg="black" onclick="setSkinBg('black')" title="黑色背景" aria-label="黑色背景"></button>
+                  <button class="acct-bg-btn active" data-bg="white" @click="setSkinBg('white')" title="白色背景" aria-label="白色背景"></button>
+                  <button class="acct-bg-btn" data-bg="black" @click="setSkinBg('black')" title="黑色背景" aria-label="黑色背景"></button>
                 </div>
                 <div id="skin-3d-container"></div>
               </div>
               <div class="acct-detail-right">
                 <div class="acct-detail-header-area">
-                  <button class="acct-detail-back-btn" onclick="showAccountList()" title="返回账户列表" aria-label="返回账户列表">
+                  <button class="acct-detail-back-btn" @click="showAccountList()" title="返回账户列表" aria-label="返回账户列表">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
                   <h2 class="acct-detail-title" id="detail-username">-</h2>
@@ -195,7 +211,7 @@ const PageAccounts = {
                     <span class="acct-detail-label">UUID</span>
                     <div class="acct-detail-copy-row">
                       <code class="acct-detail-uuid" id="detail-uuid">-</code>
-                      <button class="acct-copy-btn" onclick="copyDetailUuid()" aria-label="复制UUID" title="复制UUID">
+                      <button class="acct-copy-btn" @click="copyDetailUuid()" aria-label="复制UUID" title="复制UUID">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                       </button>
                     </div>
@@ -208,21 +224,21 @@ const PageAccounts = {
                 <div class="acct-detail-animations">
                   <span class="acct-detail-label">动作</span>
                   <div class="acct-anim-btns">
-                    <button class="acct-anim-btn active" data-anim="idle" onclick="setAnim('idle')" title="站立"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="2"/><path d="M10 22V17H7l5-9 5 9h-3v5"/></svg></button>
-                    <button class="acct-anim-btn" data-anim="walk" onclick="setAnim('walk')" title="行走"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="14" cy="4" r="2"/><path d="M6 22l3-7 3 2 4-5 2 4"/><path d="M10 12l-2 6"/></svg></button>
-                    <button class="acct-anim-btn" data-anim="run" onclick="setAnim('run')" title="跑步"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="15" cy="4" r="2"/><path d="M4 22l4-6 3 1 5-6 3 3"/><path d="M13 11l-3 5"/></svg></button>
-                    <button class="acct-anim-btn" data-anim="fly" onclick="setAnim('fly')" title="飞行"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="2"/><path d="M5 14l7-3 7 3"/><path d="M12 8v14"/><path d="M8 14l4 2 4-2"/></svg></button>
-                    <button class="acct-anim-btn" data-anim="wave" onclick="setAnim('wave')" title="挥手"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="2"/><path d="M7 22v-5l-2-3"/><path d="M17 22v-5l2-3"/><path d="M9 14l3-4 3 4"/></svg></button>
-                    <button class="acct-anim-btn" data-anim="crouch" onclick="setAnim('crouch')" title="蹲下"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="8" r="2"/><path d="M8 22v-4l2-4h4l2 4v4"/><path d="M10 14l-2 2"/><path d="M14 14l2 2"/></svg></button>
-                    <button class="acct-anim-btn" data-anim="hit" onclick="setAnim('hit')" title="攻击"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2l8 8-4 4-8-8z"/><path d="M10 10L2 22"/><circle cx="12" cy="5" r="1"/></svg></button>
-                    <button class="acct-anim-btn" data-anim="swim" onclick="setAnim('swim')" title="游泳"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="2"/><path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M6 12l6-2 6 2"/></svg></button>
+                    <button class="acct-anim-btn active" data-anim="idle" @click="setAnim('idle')" title="站立"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="2"/><path d="M10 22V17H7l5-9 5 9h-3v5"/></svg></button>
+                    <button class="acct-anim-btn" data-anim="walk" @click="setAnim('walk')" title="行走"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="14" cy="4" r="2"/><path d="M6 22l3-7 3 2 4-5 2 4"/><path d="M10 12l-2 6"/></svg></button>
+                    <button class="acct-anim-btn" data-anim="run" @click="setAnim('run')" title="跑步"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="15" cy="4" r="2"/><path d="M4 22l4-6 3 1 5-6 3 3"/><path d="M13 11l-3 5"/></svg></button>
+                    <button class="acct-anim-btn" data-anim="fly" @click="setAnim('fly')" title="飞行"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="2"/><path d="M5 14l7-3 7 3"/><path d="M12 8v14"/><path d="M8 14l4 2 4-2"/></svg></button>
+                    <button class="acct-anim-btn" data-anim="wave" @click="setAnim('wave')" title="挥手"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="2"/><path d="M7 22v-5l-2-3"/><path d="M17 22v-5l2-3"/><path d="M9 14l3-4 3 4"/></svg></button>
+                    <button class="acct-anim-btn" data-anim="crouch" @click="setAnim('crouch')" title="蹲下"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="8" r="2"/><path d="M8 22v-4l2-4h4l2 4v4"/><path d="M10 14l-2 2"/><path d="M14 14l2 2"/></svg></button>
+                    <button class="acct-anim-btn" data-anim="hit" @click="setAnim('hit')" title="攻击"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2l8 8-4 4-8-8z"/><path d="M10 10L2 22"/><circle cx="12" cy="5" r="1"/></svg></button>
+                    <button class="acct-anim-btn" data-anim="swim" @click="setAnim('swim')" title="游泳"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="2"/><path d="M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M6 12l6-2 6 2"/></svg></button>
                   </div>
                 </div>
                 <div class="acct-detail-skins" id="acct-detail-skins" style="display:none">
                   <span class="acct-detail-label">皮肤</span>
                   <div class="acct-skin-grid" id="acct-skin-grid"></div>
                   <input type="file" id="skin-file-input" accept=".png" style="display:none" onchange="handleSkinUpload(this)">
-                  <button class="acct-skin-import-btn" onclick="document.getElementById('skin-file-input').click()">
+                  <button class="acct-skin-import-btn" @click="pickSkinFile()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span>导入自定义皮肤</span>
                   </button>
@@ -232,31 +248,31 @@ const PageAccounts = {
                   <div class="acct-skin-grid" id="acct-cape-grid"></div>
                   <input type="file" id="cape-file-input" accept=".png" style="display:none" onchange="handleCapeUpload(this)">
                   <div class="acct-cape-btns">
-                    <button class="acct-skin-import-btn" onclick="document.getElementById('cape-file-input').click()">
+                    <button class="acct-skin-import-btn" @click="pickCapeFile()">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       <span>导入披风</span>
                     </button>
-                    <button class="acct-skin-import-btn" id="cape-fetch-session-btn" style="display:none" onclick="fetchSessionCape()">
+                    <button class="acct-skin-import-btn" id="cape-fetch-session-btn" style="display:none" @click="fetchSessionCape()">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="21 15 21 19 15 21"/><polyline points="3 9 3 5 9 3"/><line x1="12" y1="3" x2="12" y2="15"/><polyline points="8 7 12 3 16 7"/></svg>
                       <span>获取官方披风</span>
                     </button>
-                    <button class="acct-skin-import-btn" onclick="unselectCape()">
+                    <button class="acct-skin-import-btn" @click="unselectCape()">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                       <span>卸下披风</span>
                     </button>
                   </div>
                 </div>
                 <div class="acct-detail-actions">
-                  <button class="acct-btn acct-btn-primary" onclick="detailSelectAccount()">
+                  <button class="acct-btn acct-btn-primary" @click="detailSelectAccount()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
                     <span>切换到此账户</span>
                   </button>
                   <div class="acct-detail-actions-row">
-                    <button class="acct-btn acct-btn-ghost" onclick="detailRefreshSkin()">
+                    <button class="acct-btn acct-btn-ghost" @click="detailRefreshSkin()">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
                       <span>刷新皮肤</span>
                     </button>
-                    <button class="acct-btn acct-btn-danger" onclick="detailDeleteAccount()">
+                    <button class="acct-btn acct-btn-danger" @click="detailDeleteAccount()">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                       <span>登出</span>
                     </button>
@@ -267,7 +283,5 @@ const PageAccounts = {
           </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageAccounts;

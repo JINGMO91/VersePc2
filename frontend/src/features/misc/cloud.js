@@ -1,11 +1,15 @@
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { apiGet } from '../../core/api.js';
+import { showToast } from './ui-components.js';
+
+import { actionAttrs, actionAttrsStop, registerActions } from '../../core/actions.js';
+
 /* cloud.js — Verse云盘页交互逻辑
  * 登录：统一UID+密码（官网 /api/cloud/pc-login 签发24h token）
  * 文件操作：cloudapi 中继（overview/redeem/delete）+ Rust 打包/上传/下载
  */
-(function () {
-  'use strict';
-
-  var BUY_URL = 'https://afdian.com/item/143beddcc5fa11f189925254001e7c00';
+var BUY_URL = 'https://afdian.com/item/143beddcc5fa11f189925254001e7c00';
   var SKIN_URL = 'https://skin.verselauncher.cn';
 
   var S = {
@@ -64,7 +68,7 @@
   }
 
   /* ---------- 页面显示 ---------- */
-  window.onCloudPageShow = function () {
+  function onCloudPageShow() {
     var logged = !!S.token;
     $('cloud-login-card').hidden = logged;
     $('cloud-main').hidden = !logged;
@@ -74,12 +78,12 @@
   };
 
   /* ---------- 登录/退出 ---------- */
-  window.cloudUpdateLoginState = function () {
+  function cloudUpdateLoginState() {
     var ok = $('cloud-uid').value.trim().length >= 4 && $('cloud-password').value.length >= 1;
     $('cloud-login-btn').disabled = !ok;
   };
 
-  window.cloudLogin = async function () {
+  async function cloudLogin() {
     var uid = $('cloud-uid').value.trim();
     var password = $('cloud-password').value;
     if (!uid || !password) return;
@@ -110,7 +114,7 @@
     }
   };
 
-  window.cloudLogout = function () {
+  function cloudLogout() {
     S.token = ''; S.ov = null;
     localStorage.removeItem('verse-cloud-token');
     localStorage.removeItem('verse-cloud-name');
@@ -124,7 +128,7 @@
     return unwrapOuter(outer);
   }
 
-  window.cloudRefresh = async function () {
+  async function cloudRefresh() {
     if (!S.token) return;
     try {
       var r = await relay('GET', '/overview');
@@ -174,8 +178,8 @@
         '<td>' + fmtSize(f.size) + '</td>' +
         '<td>' + fmtTime(f.uploadedAt) + '</td>' +
         '<td class="cloud-fops">' +
-        '<button class="btn btn-secondary btn-sm" onclick="cloudDownload(\'' + f.id + '\')">下载</button>' +
-        '<button class="btn btn-secondary btn-sm cloud-btn-danger" onclick="cloudDelete(\'' + f.id + '\',\'' + esc(f.name).replace(/'/g, '') + '\')">删除</button>' +
+        '<button class="btn btn-secondary btn-sm"' + actionAttrs('cloudDownload', f.id) + '>下载</button>' +
+        '<button class="btn btn-secondary btn-sm cloud-btn-danger"' + actionAttrs('cloudDelete', f.id, esc(f.name).replace(/'/g, '')) + '>删除</button>' +
         '</td></tr>';
     });
     html += '</tbody></table>';
@@ -183,16 +187,16 @@
   }
 
   /* ---------- 兑换 ---------- */
-  window.cloudRedeemOpen = function () {
+  function cloudRedeemOpen() {
     cloudDialog('兑换套餐', '<div class="form-group">' +
       '<label>爱发电订单号</label>' +
       '<input type="text" id="cloud-redeem-input" class="text-input" placeholder="在爱发电App-订单详情里复制订单号" maxlength="64">' +
       '</div><div class="form-hint">购买「Verse云盘资源」后，用下单的爱发电账号登录本云盘，粘贴订单号即可到账（¥3=1G，¥13.88=5G，30天有效）</div>' +
-      '<div class="fb-submit-bar"><button class="btn btn-primary" onclick="cloudRedeemSubmit()">确认兑换</button></div>');
+      '<div class="fb-submit-bar"><button class="btn btn-primary"' + actionAttrs('cloudRedeemSubmit') + '>确认兑换</button></div>');
     setTimeout(function () { var i = $('cloud-redeem-input'); if (i) i.focus(); }, 50);
   };
 
-  window.cloudRedeemSubmit = async function () {
+  async function cloudRedeemSubmit() {
     var no = ($('cloud-redeem-input') && $('cloud-redeem-input').value.trim()) || '';
     if (!no) { toast('请输入订单号', 'warning'); return; }
     try {
@@ -206,7 +210,7 @@
   };
 
   /* ---------- 上传 ---------- */
-  window.cloudUploadFlow = async function () {
+  async function cloudUploadFlow() {
     if (S.busy) return;
     var versions;
     try {
@@ -220,7 +224,7 @@
     if (!withSaves.length) { toast('没有找到带存档的已安装版本', 'warning'); return; }
     var html = '<div class="cloud-version-list">';
     withSaves.forEach(function (v) {
-      html += '<button class="cloud-version-item" onclick="cloudUploadPick(\'' + esc(v.id).replace(/'/g, "\\'") + '\')">' +
+      html += '<button class="cloud-version-item"' + actionAttrs('cloudUploadPick', esc(v.id).replace(/'/g, '')) + '>' +
         '<span class="cloud-version-name">' + esc(v.id) + '</span>' +
         '<span class="cloud-version-meta">' + (v.worldsCount || (v.hasSaves ? '有存档' : '')) + '</span></button>';
     });
@@ -228,7 +232,7 @@
     cloudDialog('选择要上传存档的版本', html);
   };
 
-  window.cloudUploadPick = async function (versionId) {
+  async function cloudUploadPick(versionId) {
     if (S.busy) return;
     cloudDialogClose();
     S.busy = true;
@@ -261,7 +265,7 @@
   };
 
   /* ---------- 下载 ---------- */
-  window.cloudDownload = async function (fileId) {
+  async function cloudDownload(fileId) {
     if (S.busy) return;
     var versions;
     try {
@@ -274,7 +278,7 @@
     if (!versions.length) { toast('没有已安装版本，请先安装一个版本', 'warning'); return; }
     var html = '<div class="cloud-version-list">';
     versions.forEach(function (v) {
-      html += '<button class="cloud-version-item" onclick="cloudDownloadPick(\'' + fileId + '\',\'' + esc(v.id).replace(/'/g, "\\'") + '\')">' +
+      html += '<button class="cloud-version-item"' + actionAttrs('cloudDownloadPick', fileId, esc(v.id).replace(/'/g, '')) + '>' +
         '<span class="cloud-version-name">' + esc(v.id) + '</span>' +
         '<span class="cloud-version-meta">' + (v.hasSaves ? '已有存档' : '无存档') + '</span></button>';
     });
@@ -283,7 +287,7 @@
     S._dlFileId = fileId;
   };
 
-  window.cloudDownloadPick = async function (fileId, versionId) {
+  async function cloudDownloadPick(fileId, versionId) {
     if (S.busy) return;
     cloudDialogClose();
     var f = (S.ov && S.ov.files || []).find(function (x) { return x.id === fileId; });
@@ -308,7 +312,7 @@
   };
 
   /* ---------- 删除 ---------- */
-  window.cloudDelete = async function (fileId, name) {
+  async function cloudDelete(fileId, name) {
     if (!confirm('确定删除云盘文件「' + (name || fileId) + '」？删除后不可恢复')) return;
     try {
       var r = await relay('POST', '/files/' + fileId + '/delete', {});
@@ -320,13 +324,13 @@
   };
 
   /* ---------- 外链与弹层 ---------- */
-  window.cloudBuy = function () {
-    var api = window.electronAPI;
+  function cloudBuy() {
+    var api = bridge;
     if (api && typeof api.openExternal === 'function') { api.openExternal(BUY_URL).catch(function () {}); return; }
     window.open(BUY_URL, '_blank');
   };
-  window.cloudOpenSkin = function () {
-    var api = window.electronAPI;
+  function cloudOpenSkin() {
+    var api = bridge;
     if (api && typeof api.openExternal === 'function') { api.openExternal(SKIN_URL).catch(function () {}); return; }
     window.open(SKIN_URL, '_blank');
   };
@@ -336,7 +340,7 @@
     $('cloud-dialog-body').innerHTML = bodyHtml;
     $('cloud-overlay').hidden = false;
   }
-  window.cloudDialogClose = function () { $('cloud-overlay').hidden = true; };
+  function cloudDialogClose() { $('cloud-overlay').hidden = true; };
 
   function showProgress(show, label) {
     var box = $('cloud-progress');
@@ -344,5 +348,13 @@
     if (label != null) $('cloud-progress-label').textContent = label;
     if (!show) $('cloud-progress-bar').style.width = '0%';
   }
-})();
 
+registerActions({
+  cloudDownload: (event, el, fileId) => cloudDownload(fileId),
+  cloudDelete: (event, el, fileId, name) => cloudDelete(fileId, name),
+  cloudRedeemSubmit,
+  cloudUploadPick: (event, el, versionId) => cloudUploadPick(versionId),
+  cloudDownloadPick: (event, el, fileId, versionId) => cloudDownloadPick(fileId, versionId),
+});
+
+export { onCloudPageShow, cloudUpdateLoginState, cloudLogin, cloudLogout, cloudRefresh, cloudRedeemOpen, cloudRedeemSubmit, cloudUploadFlow, cloudUploadPick, cloudDownload, cloudDownloadPick, cloudDelete, cloudBuy, cloudOpenSkin, cloudDialogClose };

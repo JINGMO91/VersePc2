@@ -1,3 +1,11 @@
+import { API } from '../../core/api.js';
+import { bridge } from '../../core/tauri-bridge.js';
+import { appState } from '../../core/app-state.js';
+import { navigateToPage } from '../versions/versions.js';
+import { openVersionSettings, checkModUpdatesForVersion } from '../versions/version-settings.js';
+import { handleLaunch } from '../launch/launch.js';
+import { searchMods } from '../mods/mod-browse.js';
+
 /**
  * dynamic-island.js - V岛 (灵动岛) 组件
  * 左侧：圆环+数字（任务数），圆环显示总进度
@@ -5,8 +13,6 @@
  * 展开：每个任务的进度条
  */
 
-(function () {
-    'use strict';
 
     var _el = null;
     var _hoverZone = null;
@@ -439,7 +445,7 @@
                     '实验': 'experimental', '实验性': 'experimental', 'experimental': 'experimental'
                 };
                 var p = pageMap[args.page] || args.page;
-                if (typeof navigateToPage === 'function') {
+                if (navigateToPage) {
                     navigateToPage(p);
                     return '已切换到 ' + args.page + ' 页面';
                 }
@@ -452,10 +458,10 @@
             danger: false,
             params: { type: '文件夹类型：mods(模组文件夹)/saves(存档文件夹)/version(版本文件夹)/screenshots(截图文件夹)' },
             run: function (args) {
-                var versionId = (typeof currentLaunchVersionId !== 'undefined' && currentLaunchVersionId) ||
-                                (typeof launchVersionCustomSelect !== 'undefined' && launchVersionCustomSelect ? launchVersionCustomSelect.getValue() : '');
+                var versionId = (typeof appState.currentLaunchVersionId !== 'undefined' && appState.currentLaunchVersionId) ||
+                                (typeof appState.launchVersionCustomSelect !== 'undefined' && appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '');
                 if (!versionId) return '请先选择一个版本';
-                if (typeof API !== 'undefined' && API.openVersionFolder) {
+                if (API.openVersionFolder) {
                     API.openVersionFolder(versionId, args.type || 'mods');
                     return '已打开 ' + (args.type || 'mods') + ' 文件夹';
                 }
@@ -468,13 +474,13 @@
             danger: true,
             params: { version: '要启动的版本ID（可选，不填则启动当前选中版本）' },
             run: function (args) {
-                if (args.version && typeof launchVersionCustomSelect !== 'undefined' && launchVersionCustomSelect) {
-                    var versions = (typeof installedVersions !== 'undefined') ? installedVersions : [];
+                if (args.version && typeof appState.launchVersionCustomSelect !== 'undefined' && appState.launchVersionCustomSelect) {
+                    var versions = (typeof appState.installedVersions !== 'undefined') ? appState.installedVersions : [];
                     var match = versions.find(function (v) {
                         return v.id === args.version || (v.customName && v.customName.indexOf(args.version) !== -1);
                     });
                     if (match) {
-                        launchVersionCustomSelect.setValue(match.id);
+                        appState.launchVersionCustomSelect.setValue(match.id);
                     }
                 }
                 if (typeof handleLaunch === 'function') {
@@ -490,15 +496,15 @@
             danger: false,
             params: { version: '版本名称或ID' },
             run: function (args) {
-                if (typeof launchVersionCustomSelect === 'undefined' || !launchVersionCustomSelect) return '版本选择器未初始化';
-                if (typeof installedVersions === 'undefined') return '版本列表未加载';
-                var match = installedVersions.find(function (v) {
+                if (typeof appState.launchVersionCustomSelect === 'undefined' || !appState.launchVersionCustomSelect) return '版本选择器未初始化';
+                if (typeof appState.installedVersions === 'undefined') return '版本列表未加载';
+                var match = appState.installedVersions.find(function (v) {
                     return v.id === args.version ||
                            (v.customName && v.customName.indexOf(args.version) !== -1) ||
                            v.id.indexOf(args.version) !== -1;
                 });
                 if (match) {
-                    launchVersionCustomSelect.setValue(match.id);
+                    appState.launchVersionCustomSelect.setValue(match.id);
                     return '已选择版本：' + (match.customName || match.id);
                 }
                 return '未找到版本：' + args.version;
@@ -510,7 +516,7 @@
             danger: false,
             params: { query: '搜索关键词' },
             run: function (args) {
-                if (typeof navigateToPage === 'function') navigateToPage('mods');
+                if (navigateToPage) navigateToPage('mods');
                 setTimeout(function () {
                     var searchInput = document.querySelector('#mods-search-input, input[placeholder*="搜索"]');
                     if (searchInput) {
@@ -531,17 +537,17 @@
             run: function (args) {
                 var versionId = args.version;
                 if (!versionId) {
-                    versionId = (typeof currentLaunchVersionId !== 'undefined' && currentLaunchVersionId) ||
-                                (typeof launchVersionCustomSelect !== 'undefined' && launchVersionCustomSelect ? launchVersionCustomSelect.getValue() : '');
+                    versionId = (typeof appState.currentLaunchVersionId !== 'undefined' && appState.currentLaunchVersionId) ||
+                                (typeof appState.launchVersionCustomSelect !== 'undefined' && appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '');
                 }
                 if (!versionId) return '请先选择一个版本';
-                if (typeof installedVersions !== 'undefined') {
-                    var match = installedVersions.find(function (v) {
+                if (typeof appState.installedVersions !== 'undefined') {
+                    var match = appState.installedVersions.find(function (v) {
                         return v.id === versionId || (v.customName && v.customName.indexOf(versionId) !== -1) || v.id.indexOf(versionId) !== -1;
                     });
                     if (match) versionId = match.id;
                 }
-                if (typeof openVersionSettings === 'function') {
+                if (openVersionSettings) {
                     openVersionSettings(versionId, versionId);
                     return '已打开版本设置：' + versionId;
                 }
@@ -555,16 +561,16 @@
             params: {},
             run: function () {
                 var status = [];
-                if (typeof installedVersions !== 'undefined') {
-                    status.push('已安装 ' + installedVersions.length + ' 个版本');
+                if (typeof appState.installedVersions !== 'undefined') {
+                    status.push('已安装 ' + appState.installedVersions.length + ' 个版本');
                 }
                 var activeTaskCount = _getActiveTaskCount();
                 if (activeTaskCount > 0) {
                     status.push(activeTaskCount + ' 个下载任务进行中');
                 }
                 var currentVer = '';
-                if (typeof launchVersionCustomSelect !== 'undefined' && launchVersionCustomSelect) {
-                    currentVer = launchVersionCustomSelect.getValue();
+                if (typeof appState.launchVersionCustomSelect !== 'undefined' && appState.launchVersionCustomSelect) {
+                    currentVer = appState.launchVersionCustomSelect.getValue();
                 }
                 if (currentVer) {
                     status.push('当前选中版本：' + currentVer);
@@ -578,8 +584,8 @@
             danger: false,
             params: {},
             run: function () {
-                var versionId = (typeof currentLaunchVersionId !== 'undefined' && currentLaunchVersionId) ||
-                                (typeof launchVersionCustomSelect !== 'undefined' && launchVersionCustomSelect ? launchVersionCustomSelect.getValue() : '');
+                var versionId = (typeof appState.currentLaunchVersionId !== 'undefined' && appState.currentLaunchVersionId) ||
+                                (typeof appState.launchVersionCustomSelect !== 'undefined' && appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '');
                 if (!versionId) return '请先选择一个版本';
                 if (typeof checkModUpdatesForVersion === 'function') {
                     checkModUpdatesForVersion();
@@ -595,7 +601,7 @@
             params: { version: 'Minecraft 版本号，如 1.21.1' },
             run: function (args) {
                 if (!args.version) return '请指定要下载的版本号';
-                if (typeof navigateToPage === 'function') navigateToPage('download');
+                if (navigateToPage) navigateToPage('download');
                 setTimeout(function () {
                     var searchInput = document.querySelector('#download-search-input, input[placeholder*="搜索"]');
                     if (searchInput) {
@@ -919,7 +925,7 @@
 
             // 快照当前界面
             var snapshot = _snapshotUI();
-            var pageId = (typeof currentPage === 'string') ? currentPage : (document.querySelector('.nav-item.active')?.textContent || '').trim();
+            var pageId = (document.querySelector('.page.active')?.id || '').replace(/^page-/, '');
             var pageDesc = '当前页面：' + (pageId || '未知');
 
             // 把提示词放到user消息里，不用system消息（避免mimo空回复bug）
@@ -1149,10 +1155,6 @@
         }, speed);
     }
 
-    function _esc(s) {
-        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
-
     function _showIdle() {
         if (!isEnabled()) return;
         var el = _ensureEl();
@@ -1370,11 +1372,11 @@
 
             // 主方案：IPC 调用主进程 msedge-tts
             _playWithEdge: function (text, cb) {
-                if (!window.electronAPI || !window.electronAPI.tts || !window.electronAPI.tts.speak) {
+                if (!bridge || !bridge.tts || !bridge.tts.speak) {
                     cb(false); return;
                 }
                 var self = this;
-                window.electronAPI.tts.speak(text, 'zh-CN-XiaoxiaoNeural').then(function (res) {
+                bridge.tts.speak(text, 'zh-CN-XiaoxiaoNeural').then(function (res) {
                     if (!res || !res.ok || !res.data || res.data.length === 0) {
                         console.warn('[V岛 TTS] msedge-tts 返回空，降级原生');
                         cb(false);
@@ -1590,9 +1592,9 @@
         }
 
         // 通过 IPC 调用主进程发起请求，绕过 CORS
-        if (window.electronAPI && window.electronAPI.ai && window.electronAPI.ai.chat) {
+        if (bridge && bridge.ai && bridge.ai.chat) {
             try {
-                var res = await window.electronAPI.ai.chat(reqConfig);
+                var res = await bridge.ai.chat(reqConfig);
                 if (res && res.ok) return res.reply || '(空回复)';
                 return '对话失败：' + (res && res.error ? res.error : '未知错误');
             } catch (e) {
@@ -2161,7 +2163,7 @@
     // ========================================================================
     // 公开接口
     // ========================================================================
-    window.DynamicIsland = {
+    export const DynamicIsland = {
         show: show,
         update: update,
         dismiss: dismiss,
@@ -2175,6 +2177,5 @@
         chatWithAI: chatWithAI,
         showOnboarding: _showOnboarding,
         fixCrash: fixCrash,
-        AI_PROVIDERS: AI_PROVIDERS
-    };
-})();
+    AI_PROVIDERS: AI_PROVIDERS
+};

@@ -1,6 +1,7 @@
 // features/registry.js — 按原 index.html 的加载顺序静态导入各功能模块
 // 每个模块在自身求值结束时把导出名挂到 window，保证后续模块与旧脚本仍可访问。
 import './settings/wallpaper-engine.js';
+import './misc/dynamic-island.js';
 import './misc/lan.js';
 import './misc/private-server.js';
 import './mods/favorites.js';
@@ -12,6 +13,7 @@ import './launch/launch.js';
 import './launch/java.js';
 import './versions/versions.js';
 import './mods/mod-browse.js';
+import './mods/modpack-import.js';
 import './misc/sponsors.js';
 import './misc/dino-game.js';
 import './settings/custom-theme.js';
@@ -26,6 +28,7 @@ import './launch/launch-settings.js';
 import './misc/announcement.js';
 import './settings/window-theme.js';
 import './settings/settings-misc.js';
+import './settings/updater-ui.js';
 import './misc/ui-components.js';
 import './versions/custom-download.js';
 import './launch/java-mgr.js';

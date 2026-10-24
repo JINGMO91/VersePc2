@@ -1,9 +1,40 @@
 // main.js — 前端模块入口
-// 1. legacy/globals.js 先安装 core 全局别名；
-// 2. features/registry.js 按原 index.html 顺序导入功能模块；
-// 3. 尚未迁移的 app.js / Vue 页面仍由 index.html 以 classic script 加载。
-import './legacy/globals.js';
+// 1. 按原加载顺序导入功能模块；
+// 2. 安装统一事件委托与错误提示通道；
+// 3. 启动 DOMContentLoaded 初始化流程。
+import './features/misc/rose-loader.js';
 import './features/registry.js';
+import './core/plugin-compat.js';
 import './vue/mount.js';
+import { init } from './features/launch/init-setup.js';
+import { initSettingsPages } from './features/settings/settings-misc.js';
+import { renderSponsors } from './features/misc/sponsors.js';
+import { showToast } from './features/misc/ui-components.js';
+import { setApiNotifier } from './core/api.js';
+import { bridge } from './core/tauri-bridge.js';
+import { installActionDelegation, registerActions } from './core/actions.js';
+
+installActionDelegation();
+setApiNotifier(showToast);
+registerActions({
+  openExternal: (event, el, url) => bridge.openExternal(url),
+});
+
+// 平台功能显隐：仅隐藏 Windows 专属入口
+function hideWinOnlyFeatures() {
+  document.querySelectorAll('.win-only').forEach((el) => (el.style.display = 'none'));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  init();
+  setTimeout(initSettingsPages, 500);
+  renderSponsors();
+
+  if (!bridge.isWindows) {
+    hideWinOnlyFeatures();
+    // 设置页模板延迟插入，稍后再补一次，确保平台专属入口被隐藏
+    setTimeout(hideWinOnlyFeatures, 700);
+  }
+});
 
 export const buildMode = 'vite';

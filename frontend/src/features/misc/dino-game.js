@@ -13,6 +13,11 @@
  *     在 Tauri 与 Electron 环境下均可用（Tauri 走 invoke('api_proxy')，Electron 走 fetch）。
  */
 
+import { apiPost } from '../../core/api.js';
+import { showToast } from './ui-components.js';
+
+import { registerActions } from '../../core/actions.js';
+
 const DinoGame = {
   overlay: null,
 
@@ -27,7 +32,7 @@ const DinoGame = {
       'font-family:system-ui,-apple-system,"Segoe UI",sans-serif;';
     ov.innerHTML = `
       <div class="dino-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #e0e0e0;background:#fafafa;position:relative;z-index:9999;flex-shrink:0;">
-        <button class="btn btn-ghost btn-sm dino-back-btn" type="button" style="position:relative;z-index:10000;pointer-events:auto;cursor:pointer;" onclick="window.closeDinoGame && window.closeDinoGame()">← 返回</button>
+        <button class="btn btn-ghost btn-sm dino-back-btn" type="button" style="position:relative;z-index:10000;pointer-events:auto;cursor:pointer;" data-action="closeDinoGame">← 返回</button>
         <span style="font-size:13px;color:#888;">赞助者彩蛋 · 恐龙快跑</span>
         <span style="width:60px;"></span>
       </div>
@@ -92,10 +97,10 @@ const DinoGame = {
   }
 };
 
-/** 全局兜底关闭函数，供内联 onclick 使用 */
-window.closeDinoGame = function () {
+/** 关闭恐龙游戏覆盖层 */
+function closeDinoGame() {
   DinoGame.close();
-};
+}
 
 /**
  * 订单号验证。
@@ -129,13 +134,8 @@ async function openSponsorDino() {
   }
 }
 
-window.dinoGame = DinoGame;
-window.verifySponsorOrder = verifySponsorOrder;
-window.openSponsorDino = openSponsorDino;
+
+registerActions({ closeDinoGame });
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { verifySponsorOrder, openSponsorDino, DinoGame };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ verifySponsorOrder, openSponsorDino, DinoGame })) {
-  window[name] = value;
-}

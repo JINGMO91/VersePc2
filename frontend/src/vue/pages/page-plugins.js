@@ -1,8 +1,13 @@
 /* page-plugins.js - 插件市场页 Vue 组件
  * 说明：从统一 Gitee 插件仓库拉取 index.json，叠加已安装信息，
  * 支持按分类筛选、搜索和一键安装/更新/卸载插件。
- * 通信统一走 window.bridge.invoke（唯一 IPC 入口）。
+ * 通信统一走 bridge.invoke（唯一 IPC 入口）。
  */
+import { bridge } from '../../core/tauri-bridge.js';
+import { reloadPluginUI } from '../../features/misc/plugin-runtime.js';
+
+import { showToast } from '../../features/misc/ui-components.js';
+
 const PagePlugins = {
   data() {
     return {
@@ -58,8 +63,8 @@ const PagePlugins = {
     },
     openDocs() {
       const url = 'https://doujie081231.github.io/verseplugin-docs/';
-      if (window.bridge && window.bridge.invoke) {
-        window.bridge.invoke('open_external', { url }).catch(() => {
+      if (bridge && bridge.invoke) {
+        bridge.invoke('open_external', { url }).catch(() => {
           if (typeof showToast === 'function') showToast('无法打开开发文档', 'error');
         });
       } else if (typeof window.open === 'function') {
@@ -70,7 +75,7 @@ const PagePlugins = {
       this.loading = true;
       this.error = '';
       try {
-        const res = await window.bridge.invoke('plugin_market_index', { indexUrl: '' });
+        const res = await bridge.invoke('plugin_market_index', { indexUrl: '' });
         if (res && res.ok) {
           this.plugins = Array.isArray(res.plugins) ? res.plugins : [];
         } else {
@@ -112,7 +117,7 @@ const PagePlugins = {
       }
       this.busy = p.id;
       try {
-        const res = await window.bridge.invoke('plugin_download_install', {
+        const res = await bridge.invoke('plugin_download_install', {
           url: p.downloadUrl || p.url || '',
           sha256: p.sha256 || '',
           size: p.size || 0,
@@ -128,14 +133,14 @@ const PagePlugins = {
       } finally {
         this.busy = '';
         this.loadMarket();
-        if (window.VersePC && window.VersePC.reloadPluginUI) window.VersePC.reloadPluginUI();
+        if (reloadPluginUI) reloadPluginUI();
       }
     },
     async uninstall(p) {
       if (this.busy) return;
       this.busy = p.id;
       try {
-        const res = await window.bridge.invoke('plugin_uninstall', { id: p.id });
+        const res = await bridge.invoke('plugin_uninstall', { id: p.id });
         if (res && res.ok) {
           this.showToast('插件已卸载', 'success');
         } else {
@@ -146,12 +151,11 @@ const PagePlugins = {
       } finally {
         this.busy = '';
         this.loadMarket();
-        if (window.VersePC && window.VersePC.reloadPluginUI) window.VersePC.reloadPluginUI();
+        if (reloadPluginUI) reloadPluginUI();
       }
     },
     showToast(msg, type) {
-      if (typeof showToast === 'function') showToast(msg, type);
-      else if (typeof toast === 'function') toast(msg, type);
+      showToast(msg, type);
     }
   },
   async mounted() {
@@ -229,7 +233,5 @@ const PagePlugins = {
     </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PagePlugins;

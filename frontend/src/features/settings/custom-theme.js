@@ -5,6 +5,10 @@
  *              支持深色基底与浅色基底两种模式。
  */
 
+import { bridge } from '../../core/tauri-bridge.js';
+
+import { getPersonalizeState } from './personalize.js';
+
 const CUSTOM_THEME_DEFAULT_COLOR = '#4c8dff';
 const CUSTOM_THEME_STORE_KEY = 'versepc_custom_theme_color';
 const CUSTOM_THEME_LIGHT_STORE_KEY = 'versepc_custom_theme_light';
@@ -197,7 +201,7 @@ async function applyCustomThemeColor(color, opts = {}) {
 
   if (save) {
     try {
-      await window.electronAPI?.store?.set(CUSTOM_THEME_STORE_KEY, color);
+      await bridge?.store?.set(CUSTOM_THEME_STORE_KEY, color);
     } catch (e) {
       console.error('[Theme] Save custom theme color error:', e);
     }
@@ -219,7 +223,7 @@ async function setCustomThemeMode(isLight, opts = {}) {
   }
   if (save) {
     try {
-      await window.electronAPI?.store?.set(CUSTOM_THEME_LIGHT_STORE_KEY, isLight);
+      await bridge?.store?.set(CUSTOM_THEME_LIGHT_STORE_KEY, isLight);
     } catch (e) {
       console.error('[Theme] Save custom theme light mode error:', e);
     }
@@ -229,7 +233,7 @@ async function setCustomThemeMode(isLight, opts = {}) {
 /** 从 store 读取保存的浅色模式状态 */
 async function getSavedCustomThemeLight() {
   try {
-    const saved = await window.electronAPI?.store?.get(CUSTOM_THEME_LIGHT_STORE_KEY);
+    const saved = await bridge?.store?.get(CUSTOM_THEME_LIGHT_STORE_KEY);
     return saved === true || saved === 'true' || saved === '1';
   } catch (e) { /* ignore */ }
   return false;
@@ -247,7 +251,7 @@ function clearCustomThemeVars() {
 /** 从 store 读取保存的自定义主题色 */
 async function getSavedCustomThemeColor() {
   try {
-    const saved = await window.electronAPI?.store?.get(CUSTOM_THEME_STORE_KEY);
+    const saved = await bridge?.store?.get(CUSTOM_THEME_STORE_KEY);
     if (saved && _hexToRgb(saved)) return saved;
   } catch (e) { /* ignore */ }
   return CUSTOM_THEME_DEFAULT_COLOR;
@@ -315,7 +319,3 @@ function pickCustomThemePreset(color) {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { _hexToRgb, _rgbToHsl, _hslToHex, _contrastTextColor, generateCustomThemeVars, applyCustomThemeColor, setCustomThemeMode, getSavedCustomThemeLight, clearCustomThemeVars, getSavedCustomThemeColor, syncCustomThemeColorUI, syncCustomThemeLightModeUI, toggleCustomThemeColorGroup, onCustomThemeColorInput, onCustomThemeLightModeChange, pickCustomThemePreset, CUSTOM_THEME_DEFAULT_COLOR, CUSTOM_THEME_STORE_KEY, CUSTOM_THEME_LIGHT_STORE_KEY, _CUSTOM_THEME_VARS };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ _hexToRgb, _rgbToHsl, _hslToHex, _contrastTextColor, generateCustomThemeVars, applyCustomThemeColor, setCustomThemeMode, getSavedCustomThemeLight, clearCustomThemeVars, getSavedCustomThemeColor, syncCustomThemeColorUI, syncCustomThemeLightModeUI, toggleCustomThemeColorGroup, onCustomThemeColorInput, onCustomThemeLightModeChange, pickCustomThemePreset, CUSTOM_THEME_DEFAULT_COLOR, CUSTOM_THEME_STORE_KEY, CUSTOM_THEME_LIGHT_STORE_KEY, _CUSTOM_THEME_VARS })) {
-  window[name] = value;
-}

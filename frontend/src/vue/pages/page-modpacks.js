@@ -47,6 +47,7 @@ const PageModpacks = {
                 </div>
               </div>
             </div>
+          </div>
           <div id="modpack-browse-list" class="mod-list">
             <div class="loading-spinner"><div class="spinner"></div></div>
           </div>
@@ -57,7 +58,5 @@ const PageModpacks = {
           </div>
   `
 };
-
-window.VersePC = window.VersePC || {};
 
 export default PageModpacks;

@@ -1,11 +1,15 @@
+import { showToast } from './ui-components.js';
+
+import { appState } from '../../core/app-state.js';
+
 /**
  * @file console-log.js
  * @description 游戏日志导出（启动失败提示与反馈页共用）
  */
 async function exportGameLog() {
   try {
-    const versionId = typeof currentSettingsVersionId !== 'undefined' ? currentSettingsVersionId
-      : (typeof launchVersionCustomSelect !== 'undefined' && launchVersionCustomSelect ? launchVersionCustomSelect.getValue() : '');
+    const versionId = typeof appState.currentSettingsVersionId !== 'undefined' ? appState.currentSettingsVersionId
+      : (typeof appState.launchVersionCustomSelect !== 'undefined' && appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '');
     const url = `/api/game/log/export${versionId ? '?versionId=' + encodeURIComponent(versionId) : ''}`;
     const a = document.createElement('a');
     a.href = url;
@@ -22,7 +26,3 @@ async function exportGameLog() {
 
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
 export { exportGameLog };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ exportGameLog })) {
-  window[name] = value;
-}

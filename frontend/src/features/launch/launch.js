@@ -1,10 +1,25 @@
+import { API } from '../../core/api.js';
 /**
  * @file launch.js
  * @description 游戏启动流程 - 检查依赖、显示启动模态框、处理进度
  */
 
-// 快速进世界目标存档名（由存档快捷启动入口写入，handleLaunch 读取后立即清空）
-let quickPlayWorld = '';
+import { gameStore } from '../../core/game-store.js';
+import { bridge } from '../../core/tauri-bridge.js';
+
+let launching = false;
+let launchDlPollInterval = null;
+let gameLogUnlisten = null;
+let gameExitUnlisten = null;
+import { escapeHtml } from '../../core/utils.js';
+import { incrementLaunchCount, checkSupportMilestone } from '../misc/announcement.js';
+import { showToast } from '../misc/ui-components.js';
+import { wallpaperEngine } from '../settings/wallpaper-engine.js';
+import { openVersionSettings, repairFiles } from '../versions/version-settings.js';
+import { navigateToPage } from '../versions/versions.js';
+
+import { appState } from '../../core/app-state.js';
+import { actionAttrs, registerActions } from '../../core/actions.js';
 
 /**
  * 等待后端 Java 自动安装完成（轮询 /api/java/install-status）
@@ -59,21 +74,21 @@ function getCurrentWindowSize() {
 
 async function handleLaunch() {
   // 读取本次快速进世界目标并立即清空，避免下次普通启动误进上一次的世界
-  const _quickPlayWorld = quickPlayWorld;
-  quickPlayWorld = '';
+  const _quickPlayWorld = appState.quickPlayWorld;
+  appState.quickPlayWorld = '';
 
-  if (window._versepc_launching) {
+  if (launching) {
     if (typeof showToast === 'function') showToast('正在启动中，请稍候...', 'info');
     return;
   }
-  window._versepc_launching = true;
-  setTimeout(() => { window._versepc_launching = false; }, 300000);
+  launching = true;
+  setTimeout(() => { launching = false; }, 300000);
 
-  const versionId = (typeof currentLaunchVersionId !== 'undefined' && currentLaunchVersionId) || (launchVersionCustomSelect ? launchVersionCustomSelect.getValue() : '');
-  if (!versionId) { showToast('请选择游戏版本', 'error'); window._versepc_launching = false; return; }
+  const versionId = (typeof appState.currentLaunchVersionId !== 'undefined' && appState.currentLaunchVersionId) || (appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '');
+  if (!versionId) { showToast('请选择游戏版本', 'error'); launching = false; return; }
 
-  _cachedLastLaunchVersion = versionId;
-  try { await window.electronAPI.store.set('versepc_last_launch_version', versionId); } catch (_) {}
+  appState._cachedLastLaunchVersion = versionId;
+  try { await bridge.store.set('versepc_last_launch_version', versionId); } catch (_) {}
 
   const launchBtn = document.getElementById('launch-btn');
   const homeLaunchBtn = document.getElementById('home-launch-btn');
@@ -81,7 +96,7 @@ async function handleLaunch() {
   launchBtn.disabled = true;
   homeLaunchBtn.disabled = true;
 
-  _launchCounted = false;
+  appState._launchCounted = false;
 
   showLaunchModal();
   hideLaunchError();
@@ -93,7 +108,7 @@ async function handleLaunch() {
     if (accounts.length === 0) {
       setLaunchStep('auth', 'failed', '未登录，请先添加账户');
       showLaunchError('未登录，请先在账户管理中添加账户后再启动游戏。');
-      window._versepc_launching = false;
+      launching = false;
       launchBtn.disabled = false;
       homeLaunchBtn.disabled = false;
       return;
@@ -132,7 +147,7 @@ async function handleLaunch() {
             showLaunchError(`Java 自动下载失败，请检查网络后重试，或前往 Java 管理页面手动安装。<br><a href="javascript:void(0)" id="launch-nav-java" style="color:var(--accent);text-decoration:underline;cursor:pointer;">前往 Java 管理页面 →</a>`);
             launchBtn.disabled = false;
             homeLaunchBtn.disabled = false;
-            window._versepc_launching = false;
+            launching = false;
             return;
           }
           setLaunchStep('java-check', 'success', `Java ${requiredVer} 自动安装成功 ✓`);
@@ -144,7 +159,7 @@ async function handleLaunch() {
         showLaunchError(`${e.message || 'Java 自动下载失败'}<br><a href="javascript:void(0)" id="launch-nav-java" style="color:var(--accent);text-decoration:underline;cursor:pointer;">前往 Java 管理页面 →</a>`);
         launchBtn.disabled = false;
         homeLaunchBtn.disabled = false;
-        window._versepc_launching = false;
+        launching = false;
         return;
       }
 
@@ -157,7 +172,7 @@ async function handleLaunch() {
         showLaunchError(`${serverMsg || `未找到合适的Java运行环境（需要 Java ${rangeDesc}）`}<br><a href="javascript:void(0)" id="launch-nav-java" style="color:var(--accent);text-decoration:underline;cursor:pointer;">前往 Java 管理页面 →</a>`);
         launchBtn.disabled = false;
         homeLaunchBtn.disabled = false;
-        window._versepc_launching = false;
+        launching = false;
         return;
       }
       setLaunchStep('java-check', 'success', depCheck.java.message || `Java ${depCheck.java.version} ✓`);
@@ -184,7 +199,7 @@ async function handleLaunch() {
           showLaunchError(depCheck.mainJar.message);
           launchBtn.disabled = false;
           homeLaunchBtn.disabled = false;
-          window._versepc_launching = false;
+          launching = false;
           return;
         }
       }
@@ -203,7 +218,7 @@ async function handleLaunch() {
         const dlResult = await API.launchGame(versionId, { checkOnly: true }, 120000);
         if (dlResult.needDownload && dlResult.sessionId) {
           pollLaunchDownload(dlResult.sessionId, versionId, requiredJava);
-          window._versepc_launching = false;
+          launching = false;
           return;
         }
       }
@@ -220,7 +235,7 @@ async function handleLaunch() {
         );
         launchBtn.disabled = false;
         homeLaunchBtn.disabled = false;
-        window._versepc_launching = false;
+        launching = false;
         return;
       }
     }
@@ -252,7 +267,7 @@ async function handleLaunch() {
         showLaunchError(failMsg);
         launchBtn.disabled = false;
         homeLaunchBtn.disabled = false;
-        window._versepc_launching = false;
+        launching = false;
         return;
       }
       // 补全成功后重新检查，确认无缺失再继续启动
@@ -263,7 +278,7 @@ async function handleLaunch() {
         showLaunchError(stillMsg);
         launchBtn.disabled = false;
         homeLaunchBtn.disabled = false;
-        window._versepc_launching = false;
+        launching = false;
         return;
       }
       setLaunchStep('download', 'success', '缺失文件已补全');
@@ -282,7 +297,7 @@ async function handleLaunch() {
 
     if (result.needDownload && result.sessionId) {
       pollLaunchDownload(result.sessionId, versionId, requiredJava);
-      window._versepc_launching = false;
+      launching = false;
       return;
     }
 
@@ -303,14 +318,14 @@ async function handleLaunch() {
         closeLaunchModal('fade');
         launchBtn.disabled = false;
         homeLaunchBtn.disabled = false;
-        window._versepc_launching = false;
+        launching = false;
       }, 2000);
     } else {
       setLaunchStep('launching', 'error', result.error || '启动失败');
       showLaunchError(result.error || '启动失败', result.details || result);
       launchBtn.disabled = false;
       homeLaunchBtn.disabled = false;
-      window._versepc_launching = false;
+      launching = false;
     }
   } catch (e) {
     console.error('[Launch] 启动异常:', e);
@@ -322,7 +337,7 @@ async function handleLaunch() {
     showLaunchError(e.message || '启动请求失败', { error: e.message, stack: e.stack });
     launchBtn.disabled = false;
     homeLaunchBtn.disabled = false;
-    window._versepc_launching = false;
+    launching = false;
     // 超时后游戏可能已在后台启动，延迟关闭模态框让用户看到错误提示
     setTimeout(() => {
       if (typeof closeLaunchModal === 'function') closeLaunchModal();
@@ -344,7 +359,7 @@ function showLaunchDepModal(versionId, sessionId, missingCount, depCheck) {
 }
 
 function closeLaunchDepModal() {
-  if (launchDepPollTimer) { clearInterval(launchDepPollTimer); launchDepPollTimer = null; }
+  if (appState.launchDepPollTimer) { clearInterval(appState.launchDepPollTimer); appState.launchDepPollTimer = null; }
   const modal = document.getElementById('launch-dep-modal');
   if (modal) {
     modal.classList.remove('modal-visible');
@@ -412,10 +427,10 @@ async function startLaunchDepDownload(versionId, sessionId) {
 }
 
 function pollLaunchDepProgress(sessionId, versionId) {
-  if (launchDepPollTimer) clearInterval(launchDepPollTimer);
+  if (appState.launchDepPollTimer) clearInterval(appState.launchDepPollTimer);
   let depSmoothPct = 0;
 
-  launchDepPollTimer = setInterval(async () => {
+  appState.launchDepPollTimer = setInterval(async () => {
     try {
       const status = await API.getLaunchSessionStatus(sessionId);
 
@@ -439,8 +454,8 @@ function pollLaunchDepProgress(sessionId, versionId) {
       updateLaunchProgress(baseProgress + (smoothDepPct / 100) * 50);
 
       if (status.status === 'launched') {
-        clearInterval(launchDepPollTimer);
-        launchDepPollTimer = null;
+        clearInterval(appState.launchDepPollTimer);
+        appState.launchDepPollTimer = null;
         setLaunchStep('download', 'success', '缺失文件下载完成');
         setLaunchStep('build-args', 'success', '启动参数构建完成');
         setLaunchStep('launching', 'success', '游戏进程已创建');
@@ -462,20 +477,20 @@ function pollLaunchDepProgress(sessionId, versionId) {
           if (homeLaunchBtn) homeLaunchBtn.disabled = false;
         }, 2000);
       } else if (status.status === 'launch_failed') {
-        clearInterval(launchDepPollTimer);
-        launchDepPollTimer = null;
+        clearInterval(appState.launchDepPollTimer);
+        appState.launchDepPollTimer = null;
         setLaunchStep('launching', 'error', status.message || '启动失败');
         showLaunchError(status.message || '启动失败', status.launchResult || status);
       } else if (status.status === 'failed') {
-        clearInterval(launchDepPollTimer);
-        launchDepPollTimer = null;
+        clearInterval(appState.launchDepPollTimer);
+        appState.launchDepPollTimer = null;
         setLaunchStep('download', 'error', status.message || '下载失败');
         showLaunchError(status.message || '下载失败', { failedFiles: status.failedFiles });
       } else if (status.status === 'completed' && status.failed > 0) {
         setLaunchStep('download', 'warning', `${status.failed} 个文件下载失败`);
       } else if (status.status === 'completed') {
-        clearInterval(launchDepPollTimer);
-        launchDepPollTimer = null;
+        clearInterval(appState.launchDepPollTimer);
+        appState.launchDepPollTimer = null;
         updateLaunchDownloadProgress(100, '下载完成', {
           completedFiles: status.totalFiles || 0,
           totalFiles: status.totalFiles || 0,
@@ -871,7 +886,7 @@ function showLaunchError(msg, details = null) {
   if (errorSection) errorSection.style.display = 'flex';
   if (repairGuide) {
     repairGuide.style.display = 'flex';
-    repairGuide.dataset.versionId = (details && details.versionId) || currentSettingsVersionId || (launchVersionCustomSelect ? launchVersionCustomSelect.getValue() : '');
+    repairGuide.dataset.versionId = (details && details.versionId) || appState.currentSettingsVersionId || (appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '');
   }
 
   let fullMsg = msg || '未知错误';
@@ -920,7 +935,7 @@ function hideLaunchError() {
 
 function openVersionSettingsForRepair() {
   const repairGuide = document.getElementById('launch-repair-guide');
-  const versionId = (repairGuide && repairGuide.dataset.versionId) || (launchVersionCustomSelect ? launchVersionCustomSelect.getValue() : '');
+  const versionId = (repairGuide && repairGuide.dataset.versionId) || (appState.launchVersionCustomSelect ? appState.launchVersionCustomSelect.getValue() : '');
   if (versionId) {
     openVersionSettings(versionId);
   }
@@ -949,11 +964,11 @@ function updateLaunchDownloadProgress(pct, msg, detailData) {
 }
 
 function cancelLaunchFlow() {
-  if (window._launchDlPollInterval) {
-    clearInterval(window._launchDlPollInterval);
-    window._launchDlPollInterval = null;
+  if (launchDlPollInterval) {
+    clearInterval(launchDlPollInterval);
+    launchDlPollInterval = null;
   }
-  window._versepc_launching = false;
+  launching = false;
   if (typeof API !== 'undefined' && API.cancelLaunch) {
     API.cancelLaunch().catch(() => {});
   }
@@ -979,7 +994,7 @@ async function pollLaunchDownload(sessionId, versionId, requiredJava) {
     let smoothPct = 0;
     
     const pollInterval = setInterval(async () => {
-      window._launchDlPollInterval = pollInterval;
+      launchDlPollInterval = pollInterval;
       try {
         const dlStatus = await API.getLaunchSessionStatus(sessionId);
         
@@ -1077,9 +1092,9 @@ function updateGameInstanceList(instances) {
   instances = instances || [];
 
   // 写入共享响应式 store，由主页 Vue 卡片渲染（优先）
-  if (window.VersePCGameStore) {
-    window.VersePCGameStore.instances = instances;
-    window.VersePCGameStore.running = instances.length > 0;
+  if (gameStore) {
+    gameStore.instances = instances;
+    gameStore.running = instances.length > 0;
   }
 
   // 兼容旧的悬浮任务卡片（若存在则不重复渲染）
@@ -1107,7 +1122,7 @@ function updateGameInstanceList(instances) {
           <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${inst.versionId}</div>
           <div style="color:var(--text-secondary);font-size:11px;">PID: ${inst.pid} · ${timeStr}${inst.lanPort ? ' · LAN:' + inst.lanPort : ''}</div>
         </div>
-        <button onclick="stopGameInstance('${inst.sessionId}')" style="
+        <button${actionAttrs('stopGameInstance', inst.sessionId)} style="
           background:var(--red);color:white;border:none;border-radius:4px;
           padding:2px 8px;cursor:pointer;font-size:11px;flex-shrink:0;
         ">停止</button>
@@ -1140,12 +1155,12 @@ function _onGameRunning() {
     }
   } catch (e) {}
   try {
-    if (window.electronAPI && window.electronAPI.store && window.electronAPI.windowMinimize) {
-      window.electronAPI.store.get('minimizeOnGameRun').then((val) => {
+    if (bridge && bridge.store && bridge.windowMinimize) {
+      bridge.store.get('minimizeOnGameRun').then((val) => {
         // 默认开启：undefined/null 视为 true
         if (val === undefined || val === null || val === true) {
           setTimeout(() => {
-            try { window.electronAPI.windowMinimize(); } catch (e) {}
+            try { bridge.windowMinimize(); } catch (e) {}
           }, 5000);
         }
       }).catch(() => {});
@@ -1163,8 +1178,8 @@ function _onGameExited() {
     }
   } catch (e) {}
   try {
-    if (window.electronAPI && window.electronAPI.windowRestore) {
-      window.electronAPI.windowRestore();
+    if (bridge && bridge.windowRestore) {
+      bridge.windowRestore();
     }
   } catch (e) {}
   // 刷新运行状态，让主页"启动任务"卡片及时消失
@@ -1172,10 +1187,10 @@ function _onGameExited() {
 }
 
 function startGameLogStream() {
-  if (gameLogEventSource) { try { gameLogEventSource.close(); } catch(_) {} gameLogEventSource = null; }
+  if (appState.gameLogEventSource) { try { appState.gameLogEventSource.close(); } catch(_) {} appState.gameLogEventSource = null; }
   // 清理之前的 Tauri 事件监听器
-  if (window._versepcGameLogUnlisten) { try { window._versepcGameLogUnlisten(); } catch(_) {} window._versepcGameLogUnlisten = null; }
-  if (window._versepcGameExitUnlisten) { try { window._versepcGameExitUnlisten(); } catch(_) {} window._versepcGameExitUnlisten = null; }
+  if (gameLogUnlisten) { try { gameLogUnlisten(); } catch(_) {} gameLogUnlisten = null; }
+  if (gameExitUnlisten) { try { gameExitUnlisten(); } catch(_) {} gameExitUnlisten = null; }
 
   const consoleOutput = document.getElementById('console-output');
   if (consoleOutput) consoleOutput.innerHTML = '';
@@ -1195,7 +1210,7 @@ function startGameLogStream() {
       var evt = (window.__TAURI__ && window.__TAURI__.event) || window.__TAURI_INTERNALS__;
       if (evt && evt.listen) {
         // 监听 game-log 事件
-        window._versepcGameLogUnlisten = (function() {
+        gameLogUnlisten = (function() {
           var disposed = false;
           var unlisten = null;
           evt.listen('game-log', function(event) {
@@ -1217,7 +1232,7 @@ function startGameLogStream() {
         })();
 
         // 监听 game-exit 事件
-        window._versepcGameExitUnlisten = (function() {
+        gameExitUnlisten = (function() {
           var disposed = false;
           var unlisten = null;
           evt.listen('game-exit', function(event) {
@@ -1249,15 +1264,15 @@ function startGameLogStream() {
 
   // 非 Tauri 环境：用 SSE
   try {
-    gameLogEventSource = new EventSource('/api/game/log/stream');
-    gameLogEventSource.onmessage = (event) => {
+    appState.gameLogEventSource = new EventSource('/api/game/log/stream');
+    appState.gameLogEventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         if (data.event === 'exited') {
           appendConsoleLine('[VersePC] 游戏进程已退出', 'warn');
           _onGameExited();
-          gameLogEventSource.close();
-          gameLogEventSource = null;
+          appState.gameLogEventSource.close();
+          appState.gameLogEventSource = null;
           return;
         }
         if (data.batch && Array.isArray(data.batch)) {
@@ -1284,7 +1299,7 @@ function startGameLogStream() {
         console.warn('[GameLog] 解析日志行失败:', e);
       }
     };
-    gameLogEventSource.onerror = () => { gameLogEventSource.close(); gameLogEventSource = null; };
+    appState.gameLogEventSource.onerror = () => { appState.gameLogEventSource.close(); appState.gameLogEventSource = null; };
   } catch (e) {
     console.warn('[GameLog] 创建日志流失败:', e);
   }
@@ -1319,7 +1334,7 @@ async function detectJava() {
   } catch (e) { if (hint) hint.textContent = '检测失败'; }
 }
 
-let javaInstallPollTimer = null;
+
 
 async function checkJavaOnStartup() {
   try {
@@ -1336,7 +1351,7 @@ async function checkJavaOnStartup() {
 
 async function triggerJvmPreheat() {
   try {
-    const saved = await window.electronAPI.store.get('versepc_launch_settings');
+    const saved = await bridge.store.get('versepc_launch_settings');
     if (!saved) return;
     const settings = JSON.parse(saved);
     if (!settings.jvmPreheat) return;
@@ -1398,35 +1413,10 @@ async function checkCdsStatus() {
   }
 }
 
+registerActions({
+  stopGameInstance: (event, el, sessionId) => stopGameInstance(sessionId),
+});
+
 // 迁移过渡：保持旧脚本与模板可用的全局名（Phase 5 移除）
-export { waitJavaAutoInstall, getCurrentWindowSize, handleLaunch, showLaunchDepModal, closeLaunchDepModal, startLaunchDepDownload, pollLaunchDepProgress, retryLaunchDepDownload, refreshGameStatusAfterLaunch, updateGameStatus, showCrashAnalysis, showCrashAnalysisDialog, showLaunchModal, closeLaunchModal, updateLaunchProgress, setLaunchStep, completeAllPreviousSteps, showLaunchError, hideLaunchError, openVersionSettingsForRepair, updateLaunchDownloadProgress, cancelLaunchFlow, toggleLaunchLog, pollLaunchDownload, updateGameInstanceList, stopGameInstance, _onGameRunning, _onGameExited, startGameLogStream, appendConsoleLine, detectJava, checkJavaOnStartup, triggerJvmPreheat, generateCdsArchive, checkCdsStatus, MAX_STATUS_ERRORS, LAUNCH_STEP_PROGRESS, quickPlayWorld, _gameStatusTimer, _gameWasRunning, _gameStatusErrorCount, javaInstallPollTimer };
-// const/function/class 直接挂到 window
-for (const [name, value] of Object.entries({ waitJavaAutoInstall, getCurrentWindowSize, handleLaunch, showLaunchDepModal, closeLaunchDepModal, startLaunchDepDownload, pollLaunchDepProgress, retryLaunchDepDownload, refreshGameStatusAfterLaunch, updateGameStatus, showCrashAnalysis, showCrashAnalysisDialog, showLaunchModal, closeLaunchModal, updateLaunchProgress, setLaunchStep, completeAllPreviousSteps, showLaunchError, hideLaunchError, openVersionSettingsForRepair, updateLaunchDownloadProgress, cancelLaunchFlow, toggleLaunchLog, pollLaunchDownload, updateGameInstanceList, stopGameInstance, _onGameRunning, _onGameExited, startGameLogStream, appendConsoleLine, detectJava, checkJavaOnStartup, triggerJvmPreheat, generateCdsArchive, checkCdsStatus, MAX_STATUS_ERRORS, LAUNCH_STEP_PROGRESS })) {
-  window[name] = value;
-}
+export { waitJavaAutoInstall, getCurrentWindowSize, handleLaunch, showLaunchDepModal, closeLaunchDepModal, startLaunchDepDownload, pollLaunchDepProgress, retryLaunchDepDownload, refreshGameStatusAfterLaunch, updateGameStatus, showCrashAnalysis, showCrashAnalysisDialog, showLaunchModal, closeLaunchModal, updateLaunchProgress, setLaunchStep, completeAllPreviousSteps, showLaunchError, hideLaunchError, openVersionSettingsForRepair, updateLaunchDownloadProgress, cancelLaunchFlow, toggleLaunchLog, pollLaunchDownload, updateGameInstanceList, stopGameInstance, _onGameRunning, _onGameExited, startGameLogStream, appendConsoleLine, detectJava, checkJavaOnStartup, triggerJvmPreheat, generateCdsArchive, checkCdsStatus, MAX_STATUS_ERRORS, LAUNCH_STEP_PROGRESS, _gameStatusTimer, _gameWasRunning, _gameStatusErrorCount };
 // let/var 用访问器同步读写，避免旧脚本读到过期值
-Object.defineProperty(window, 'quickPlayWorld', {
-  configurable: true,
-  get: () => quickPlayWorld,
-  set: (v) => { quickPlayWorld = v; },
-});
-Object.defineProperty(window, '_gameStatusTimer', {
-  configurable: true,
-  get: () => _gameStatusTimer,
-  set: (v) => { _gameStatusTimer = v; },
-});
-Object.defineProperty(window, '_gameWasRunning', {
-  configurable: true,
-  get: () => _gameWasRunning,
-  set: (v) => { _gameWasRunning = v; },
-});
-Object.defineProperty(window, '_gameStatusErrorCount', {
-  configurable: true,
-  get: () => _gameStatusErrorCount,
-  set: (v) => { _gameStatusErrorCount = v; },
-});
-Object.defineProperty(window, 'javaInstallPollTimer', {
-  configurable: true,
-  get: () => javaInstallPollTimer,
-  set: (v) => { javaInstallPollTimer = v; },
-});
