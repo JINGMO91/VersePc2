@@ -5,7 +5,7 @@ import { API } from '../../core/api.js';
  */
 import { bridge } from '../../core/tauri-bridge.js';
 
-import { resetCarouselPosition, showAccountList, _currentDetailAccount } from '../accounts/accounts.js';
+import { resetCarouselPosition, showAccountList, getCurrentDetailAccount } from '../accounts/accounts.js';
 import { applyAccentColor } from '../launch/java.js';
 import { showToast } from '../misc/ui-components.js';
 import { updateWallpaperTheme } from './wallpaper-engine.js';
@@ -359,7 +359,7 @@ function switchPage(pageName) {
   const target = document.getElementById(`page-${pageName}`);
   if (!target || target === currentPage) return;
 
-  if (currentPage && currentPage.id === 'page-accounts' && _currentDetailAccount) {
+  if (currentPage && currentPage.id === 'page-accounts' && getCurrentDetailAccount()) {
     showAccountList();
   }
 
