@@ -112,7 +112,8 @@ docs/templates/page-template.js  # 新增页面模板，复制后按注释步骤
 
 - **`vue-sonner` 已从基座移除**：实测容器能渲染、toast 也能进 DOM，但不传/传 `duration` 都在约 1 秒内自行 dismiss（500ms 采样时 opacity 已为 0）。已排除预打包双实例（`optimizeDeps.exclude` 无效）、跨 app 挂载、`position` 缺省三种可能，且 2.0.9 已是最新版本。通知统一用现有 `#toast-container` + `showToast()`。`tailwind.css` 保留 `--popover` / `--popover-foreground` 别名供 Dialog / Popover 使用。
 - shadcn 的 `--color-destructive` 只映射了 `var(--red)`，没有配套的 `-foreground`，用到危险色文字时注意对比度
-- **自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`**：显示状态与选项由 features 层命令式驱动（`style.display`、`customSelectInstances`）。换成组件会改变焦点管理与动画行为，与计划自身「交互行为不变」的约束冲突；且当前环境跑不了真实 Tauri 应用，这类改造无法验证。建议单独立项、在能跑真机的环境里做。
+- **自研 `.modal` 与 `.custom-select` 未迁移到 `Dialog` / `Select`**：显示状态与选项由 features 层命令式驱动（`style.display`、`customSelectInstances`）。换成组件会改变焦点管理与动画行为，与计划自身「交互行为不变」的约束冲突；且当前环境跑不了真实 Tauri 应用，这类改造无法验证。已按决策归入独立的「结构迁移」项目，在能跑真机的环境里做。
+- **旧类残留实测基线**（2026-10-24，作为结构迁移项目的起点数据）：页面模板 `.btn` 68 / `.modal` 33 / `.custom-select` 101 处；`features/` 动态生成标记 `.btn` 90 / `.modal` 29 / `.custom-select` 33 处。动态标记是「模板已组件化、内容仍由 JS 拼 HTML」的部分，必须连同渲染代码一起改造，只改模板无法收敛。
 - 全站 31 个 CSS 尚未收敛，`.btn` / `.card` / `.text-input` 等全局类仍被未迁移结构（JS 动态生成的标记、自研模态框）使用，需要等这些结构迁移完才能删
 - 页面模板里还有 29 处超长内联 `style`（已由架构检查的棘轮守住，只减不增）
 

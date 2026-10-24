@@ -203,7 +203,7 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 | P0 基建 | 已完成 | 2026-10-24 | 只引 theme + utilities，跳过 preflight；token 经 `@theme inline` 映射到现有变量 |
 | P1 组件基座 | 已完成 | 2026-10-24 | 已生成 14 个组件（含 textarea，不含已移除的 sonner）；预览页 `frontend/dev-components.html` |
 | P2 试点页 | 已完成 | 2026-10-24 | 试点页「问题反馈」，产出迁移 playbook |
-| P3 批量迁移 | 已完成 | 2026-10-24 | 4 批共 19 个页面；100+ 通用控件迁移完成 |
+| P3 批量迁移 | 已完成 | 2026-10-24 | 4 批共 19 个页面；100+ 通用控件迁移完成（`.modal`/`.custom-select` 归入后续独立项目） |
 | P4 收尾 | 已完成 | 2026-10-24 | 护栏两项 + 死 CSS 核减 + 组件层文档与页面模板 |
 
 ### 执行记录
@@ -223,6 +223,19 @@ Dialog、DropdownMenu 依赖 Teleport，不受影响；Toast（sonner）这类�
 ### 计划本身的修正
 
 P3 原先的完成标准写成「该批页面无旧 `.btn` / `.modal` / `.custom-select` 残留」。实际执行后确认这个标准与计划自身的约束「迁移期间功能与交互行为不变」冲突：`.modal` 换成 `Dialog` 会改变焦点管理与动画行为，`.custom-select` 换成 `Select` 要重写整个下拉模块。故本期实际完成范围是**通用控件（按钮 / 输入框 / 多行输入）全部迁移**，`.modal` / `.custom-select` 明确延后，理由如上。这个修正基于实测，不是为了迁就现状。
+
+### 本期收尾与后续项目（2026-10-24 决策）
+
+本期迁移（P0–P4）到此关闭。**计划原文 P3 的「页面无 `.btn` / `.modal` / `.custom-select` 残留」未清零**，这是本期唯一未达成的完成标准，不计入已完成范围，如实留下基线：
+
+| 层 | `.btn` | `.modal` | `.custom-select` |
+| --- | --- | --- | --- |
+| 页面模板 `src/vue/pages` | 68 | 33 | 101 |
+| `features/` 动态生成标记 | 90 | 29 | 33 |
+
+- 决策：剩余工作**另立「结构迁移」项目**，前置条件是能运行真实 Tauri 应用的环境（本机无 cargo，只有浏览器预览桩，验证不了焦点管理、动画与命令式交互）。
+- 后续项目范围：`.modal` → `Dialog`（含 27 个容器级 + 104 处命令式开关）、`.custom-select` → `Select`（单模块 `customSelectInstances` 驱动）、改造 features 里拼接 HTML 的渲染代码，最后才能删 `.btn` / `.card` / `.text-input` 等全局 CSS。
+- 本期明确不做：不删全局类 CSS、不改模态框与下拉的交互实现——它们支撑着尚未迁移的动态标记，提前删会直接打烂界面。
 
 ### 验证方式
 
