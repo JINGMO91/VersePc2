@@ -14,4 +14,7 @@ pub mod fabric_api;
 pub mod forge;
 pub mod neoforge;
 pub mod optifine;
+mod base_install;
+mod java_lookup;
+mod merge_json;
 pub mod shared;
