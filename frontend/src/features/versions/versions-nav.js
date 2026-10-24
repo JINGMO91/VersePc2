@@ -5,9 +5,13 @@ import { showLegalNotice as showLegalNotice, VERSE_FEATURES as VERSE_FEATURES } 
 import { updateGameStatus as updateGameStatus } from '../launch/launch.js';
 import { refreshMemoryInfo as refreshMemoryInfo } from '../settings/settings-misc.js';
 import { appState as appState } from '../../core/app-state.js';
-import { modDetailState as modDetailState } from '../mods/detail-state.js';
 import { versionsState as S } from './versions-state.js';
 import { loadVersions, renderInstalledVersionsInto } from './versions-list.js';
+import { setNavigationHandler, setVersionDetailHandler } from '../../core/navigation.js';
+
+// 注册页面导航实现，供其他模块通过 core/navigation.js 调用，避免循环依赖
+setNavigationHandler(navigateToPage);
+setVersionDetailHandler(openVersionDetail);
 
 /// 页面专属模块加载表（静态字面量路径，构建期可正确分包）
 const PAGE_LOADERS = {
@@ -298,37 +302,6 @@ async function navigateToPage(pageName) {
   }
 }
 
-function goBackFromDetail() {
-  if (appState.modDetailHistory.length > 0) {
-    const prev = appState.modDetailHistory.pop();
-    appState._isRestoringModDetail = true;
-    if (prev && prev.type !== 'mod') {
-      runPageModule(PAGE_LOADERS.resource, 'openResourceDetail', prev.id, prev.type, prev.source);
-    } else {
-      runPageModule(PAGE_LOADERS.modDetail, 'openModDetail', prev && prev.id, prev && prev.source);
-    }
-    appState._isRestoringModDetail = false;
-  } else {
-    const backPage = appState.previousPage || 'mods';
-    navigateToPage(backPage);
-  }
-}
-
-function pushModDetailHistory() {
-  if (appState._isRestoringModDetail) return;
-  const active = document.querySelector('.page.active');
-  if (!active || active.id !== 'page-mod-detail') return;
-  if (appState.modDetailHistory.length > 0) {
-    const last = appState.modDetailHistory[appState.modDetailHistory.length - 1];
-    if (last.id === appState.currentModDetailId && last.source === appState.currentModDetailSource) return;
-  }
-  appState.modDetailHistory.push({
-    id: appState.currentModDetailId,
-    source: appState.currentModDetailSource,
-    type: modDetailState.type
-  });
-}
-
 function openVersionDetail(versionId, versionUrl, versionType) {
   S.currentVersionDetail = { id: versionId, url: versionUrl, type: versionType };
   
@@ -404,4 +377,5 @@ function openVersionDetail(versionId, versionUrl, versionType) {
   runPageModule(PAGE_LOADERS.versionsInstall, 'loadLoaderVersions', versionId);
 }
 
-export { _collectPclBlocks, runPageEnterAnim, runPageExitAnim, navigateToPage, goBackFromDetail, pushModDetailHistory, openVersionDetail };
+export { _collectPclBlocks, runPageEnterAnim, runPageExitAnim, navigateToPage, openVersionDetail };
+export { goBackFromDetail, pushModDetailHistory } from './versions-detail-history.js';
