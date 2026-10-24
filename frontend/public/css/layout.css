@@ -409,13 +409,13 @@ body.show-nav-labels .nav-submenu-toggle .submenu-arrow {
 }
 
 /* 内容区 - 主内容滚动容器
-   - 侧边栏悬浮不占位，左右留白对称；内容随窗口宽度自适应，全屏下铺满可用空间 */
+   - 侧边栏悬浮不占位；内容收敛到固定宽度并居中，宽屏留白而不是无限拉伸 */
 .content-area {
     flex: 1;
     overflow: hidden;
-    padding: 72px 30px 30px 30px;
+    padding: 64px 32px 32px 32px;
     width: 100%;
-    max-width: 100%;
+    max-width: 1440px;
     margin: 0 auto;
     box-sizing: border-box;
     display: flex;
@@ -466,16 +466,30 @@ body.show-nav-labels .nav-submenu-toggle .submenu-arrow {
     border-radius: 3px;
 }
 
+/* 页面头部：随内容滚动吸顶，作为页面的工具条，标题与操作在同一行 */
 .page-header {
+    position: sticky;
+    top: -4px;
+    z-index: 6;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    gap: 16px;
+    min-height: 52px;
+    margin-bottom: 20px;
+    padding: 6px 0;
+    background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
 }
 
 .page-header h2 {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    color: var(--text-primary);
 }
 
 .page-actions {
@@ -765,27 +779,27 @@ body.show-nav-labels .nav-submenu-toggle .submenu-arrow {
     opacity: 0.9;
 }
 
-/* 通用卡片容器 - 玻璃拟态背景 */
+/* 通用卡片容器 - 实色面板 + 细边框，统一内容区的 surface 层级 */
 .card {
-    background: var(--bg-card-glass);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    border-radius: calc(var(--radius-lg) + 2px);
     padding: 20px;
     border: 1px solid var(--border);
-    transition: transform 0.3s var(--ease-out-expo), box-shadow 0.3s var(--ease-out-expo), border-color 0.3s ease;
-    will-change: transform;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .card:hover {
     border-color: var(--border);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .card h3 {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
-    margin-bottom: 16px;
-    color: var(--text-secondary);
+    letter-spacing: 0.01em;
+    margin-bottom: 14px;
+    color: var(--text-primary);
 }
 
 .quick-launch {

@@ -19,7 +19,7 @@
 .settings-container {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
     max-width: 800px;
     margin: 0 auto;
     width: 100%;
@@ -170,7 +170,7 @@
 .feedback-container {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
     max-width: 860px;
     margin: 0 auto;
     width: 100%;
