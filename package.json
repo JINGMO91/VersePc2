@@ -12,11 +12,15 @@
     "build:setup": "tauri build --bundles nsis",
     "build:portable": "node scripts/build-portable.mjs",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:density": "node scripts/check-test-density.mjs",
+    "test:coverage:check": "node scripts/check-coverage.mjs",
     "test:e2e": "npm run build:web && playwright test",
     "lint": "eslint frontend/src scripts/*.mjs vite.config.mjs",
     "arch:cycles": "madge --circular --extensions js frontend/src",
     "audit": "npm audit --audit-level=high",
     "verify": "npm run lint && npm run test && npm run arch:cycles && npm run build:web && node scripts/check-architecture.mjs --strict",
+    "verify:full": "npm run lint && npm run test:coverage && npm run test:coverage:check && npm run test:density && npm run arch:cycles && npm run build:web && node scripts/check-architecture.mjs --strict",
     "tauri": "tauri"
   },
   "devDependencies": {

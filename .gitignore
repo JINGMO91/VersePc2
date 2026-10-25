@@ -33,3 +33,6 @@ frontend-tauri/
 # Playwright
 test-results/
 playwright-report/
+
+# 覆盖率报告（仅本地与 CI 产物）
+coverage/

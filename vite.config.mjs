@@ -54,5 +54,27 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.js'],
     passWithNoTests: true,
+    // 限制并发 worker，避免在低配机器/并行构建时出现 worker 启动超时
+    pool: 'forks',
+    maxWorkers: 4,
+    // jsdom 模块导入在低配机器/并行构建时可能超过默认 5 秒
+    testTimeout: 15000,
+    hookTimeout: 15000,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'json-summary', 'html'],
+      reportsDirectory: resolve(rootDir, 'coverage'),
+      include: ['src/core/**/*.js', 'src/features/**/*.js'],
+      exclude: [
+        '**/*.test.js',
+        // 纯数据表与生成内容不计入逻辑覆盖率
+        'src/features/mods/chinese-names-data-*.js',
+        // 视图与入口由 E2E 覆盖
+        'src/vue/**',
+        'src/components/**',
+        'src/main.js',
+        'src/dev-*.js',
+      ],
+    },
   },
 });

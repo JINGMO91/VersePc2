@@ -30,9 +30,25 @@ jobs:
         shell: bash
         run: npm run lint
 
-      - name: Frontend unit tests
+      - name: Frontend unit tests with coverage
         shell: bash
-        run: npm run test
+        run: npm run test:coverage
+
+      - name: Coverage ratchet
+        shell: bash
+        run: npm run test:coverage:check
+
+      - name: Test density ratchet
+        shell: bash
+        run: npm run test:density
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: coverage/
+          if-no-files-found: ignore
 
       - name: Module cycle check
         shell: bash

@@ -1,0 +1,9 @@
+{
+  "core": { "files": 11, "cases": 107 },
+  "features/accounts": { "files": 4, "cases": 55 },
+  "features/launch": { "files": 10, "cases": 135 },
+  "features/misc": { "files": 27, "cases": 423 },
+  "features/mods": { "files": 14, "cases": 250 },
+  "features/settings": { "files": 11, "cases": 200 },
+  "features/versions": { "files": 17, "cases": 222 }
+}
