@@ -1,28 +1,28 @@
 {
-    "version":  "1.8.0",
-    "releaseName":  "v1.8.0",
-    "releaseDate":  "2026-10-25",
-    "releaseNotes":  "VersePC2 v1.8.0\n\n新增:\n- 云盘页全面重做：容量概览、文件排序、上传/下载进度与确认弹窗\n- 经典导航栏支持收起、图钉固定与左侧悬停临时呼出\n- 启动动画改为波浪进度条；主页支持手动编辑布局并保存\n\n修复:\n- 修复 26.3 启动退出码 -3：natives 改用短 ASCII 缓存目录，按原生库实际清单校验并原地补齐，缺失时中止并写入诊断日志\n- 修复 26.3 Forge 的 universal/client classpath 去重误删，以及 Java 检测缓存过期/阻塞导致启动检测失败\n- 修复 26.1.1 被误标为「愚人节版本」\n- WE 壁纸仅显示当前 Steam 账号订阅的内容，支持家庭共享与多 Steam 库\n- 修复页面右侧滚动条、主页布局错位、头像无法跳转与全屏宽度不适配\n- 修复 macOS/Linux 构建中的 Windows 专用导入与符号链接目标变量问题\n\n优化:\n- 更新下载延长总超时、复用连接、流式校验、进度节流并自动清理旧缓存\n- 降低后台运行与启动阶段的资源占用",
+    "version":  "1.8.1",
+    "releaseName":  "v1.8.1",
+    "releaseDate":  "2026-10-26",
+    "releaseNotes":  "VersePC2 v1.8.1\n\n修复:\n- 修复第三方登录（LittleSkin 等）登录后请求超时、重启后才显示账号的问题\n- 修复添加账号卡片与外置登录按钮点击无反应\n- 修复调整主页布局后切页返回，控件挤到左上角",
     "files":  {
                   "win-x64":  {
-                                  "url":  "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.8.0/VersePC2.exe",
-                                  "size":  71634432,
-                                  "sha256":  "f1344dac0ee5d7262d2278a78ac9e69610ea304ef12c354ffec3ceb1006964bf"
+                                  "url":  "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.8.1/VersePC2.exe",
+                                  "size":  71631360,
+                                  "sha256":  "2a9fcc3a8535c702f93e4aaf461b472d4a60b15728d0e1333641cb37453d312a"
                               },
                   "linux-x86_64":  {
-                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.0/VersePC2-linux-x86_64",
-                                       "size":  14359200,
-                                       "sha256":  "adeec9adebd8e3bdd127a9cacb130ef0a4fa7751d2108710122955e750ecda09"
+                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.1/VersePC2-linux-x86_64",
+                                       "size":  14358272,
+                                       "sha256":  "39ca67fa915e581a333b7f861b96fb9ac028fd77abcd4e4ab5288df0f408a63d"
                                    },
                   "macos-x86_64":  {
-                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.0/VersePC2-macos-x86_64.zip",
-                                       "size":  11360868,
-                                       "sha256":  "17a85ffa871b2857cf7464b627623418190f484269a968c9864e227686cb7922"
+                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.1/VersePC2-macos-x86_64.zip",
+                                       "size":  11355813,
+                                       "sha256":  "e27820248661631177fef1463746f4fbf649dfe99d981a45eef28aa7a979349e"
                                    },
                   "macos-aarch64":  {
-                                        "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.0/VersePC2-macos-aarch64.zip",
-                                        "size":  10897631,
-                                        "sha256":  "9be8ba51ca701cdee824e79ee796520aaa3f980d4d6cd58f86e32f2a7dcea4b0"
+                                        "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.1/VersePC2-macos-aarch64.zip",
+                                        "size":  10897844,
+                                        "sha256":  "ab984d1745afb55dddb662ab5e1cae1417cb82ac58e14312cd59fb76823054a6"
                                     }
               }
 }
