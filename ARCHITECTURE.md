@@ -64,7 +64,7 @@ npm run verify
 | 步骤 | 命令 | 当前结果 |
 | --- | --- | --- |
 | ESLint | `npm run lint` | 0 error / 0 warning |
-| 单元测试 | `npm run test` | 94 个文件 / 1395 项通过 |
+| 单元测试 | `npm run test` | 95 个文件 / 1410 项通过 |
 | 覆盖率棘轮 | `npm run test:coverage:check` | core 90.9% / features 55.4% / 总 57.0% 基线 |
 | 循环依赖 | `npm run arch:cycles`（madge） | 0 条 |
 | 生产构建 | `npm run build:web` | 成功，无构建警告 |
@@ -118,8 +118,8 @@ CI（`.github/workflows/verify.yml`）包含：Lint、前端单测、循环依�
 | ESLint | 0 warning |
 | npm 依赖漏洞 | 0 |
 | Rust Clippy | `-D warnings` 通过 |
-| Rust 测试 | 106 项通过（含基础版本安装、重复安装、缺失版本等 5 个 mock 服务集成场景） |
-| 前端单测 | 94 个文件 / 1395 项 |
+| Rust 测试 | 118 项通过（含基础版本安装、重复安装、缺失版本等 5 个 mock 服务集成场景） |
+| 前端单测 | 95 个文件 / 1410 项 |
 | 前端行覆盖 | core 90.9% / features 55.4% / 总计 57.0%（棘轮基线） |
 | Playwright E2E | 7 个 spec（启动、导航、设置、版本错误、模组、Java、云盘） |
 

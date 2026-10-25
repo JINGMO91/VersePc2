@@ -302,6 +302,12 @@ const PageHome = {
       if (typeof ResizeObserver !== 'undefined' && this.$refs.homePage) {
         this._layoutObserver = new ResizeObserver(function () { self.applyLayout(); });
         this._layoutObserver.observe(this.$refs.homePage);
+      } else {
+        // 无 ResizeObserver 时兜底显示，避免布局未应用导致控件一直隐藏
+        setTimeout(function () {
+          self.applyLayout();
+          if (!self.layoutReady) self.layoutReady = true;
+        }, 200);
       }
       // 个性化页「恢复主页默认布局」
       window.addEventListener('versepc-home-layout-reset', function () { self.applyLayout(true); });

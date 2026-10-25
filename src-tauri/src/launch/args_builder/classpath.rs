@@ -317,7 +317,7 @@ mod tests {
         let base = temp_base("main");
         touch(&base, "lwjgl-3.4.1.jar");
         touch(&base, "lwjgl-3.4.1-unsafe.jar");
-        let found = find_lib_by_fallback("org.lwjgl:lwjgl:3.4.1", &[base.clone()]);
+        let found = find_lib_by_fallback("org.lwjgl:lwjgl:3.4.1", std::slice::from_ref(&base));
         assert!(found.unwrap().ends_with("lwjgl-3.4.1.jar"));
         let _ = fs::remove_dir_all(base);
     }

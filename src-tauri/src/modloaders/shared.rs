@@ -821,19 +821,14 @@ pub(crate) async fn prefetch_installer_libraries(
     let mut archive = zip::ZipArchive::new(file)
         .map_err(|e| format!("无法解析 {} installer: {}", label, e))?;
 
-    let profile_bytes = entry_bytes(&mut archive, "install_profile.json")
-        .ok_or_else(|| format!("{} installer 中缺少 install_profile.json", label))?;
-    let profile: Value = serde_json::from_slice(&profile_bytes)
-        .map_err(|e| format!("解析 {} install_profile.json 失败: {}", label, e))?;
-
-    let version_bytes = entry_bytes(&mut archive, "version.json")
-        .ok_or_else(|| format!("{} installer 中缺少 version.json", label))?;
-    let version_json: Value = serde_json::from_slice(&version_bytes)
-        .map_err(|e| format!("解析 {} version.json 失败: {}", label, e))?;
+    let profile: Option<Value> = entry_bytes(&mut archive, "install_profile.json")
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
+    let version_json: Option<Value> = entry_bytes(&mut archive, "version.json")
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
 
     type LibEntry = (String, String, String, Option<String>, Option<u64>);
     let mut libs: Vec<LibEntry> = Vec::new();
-    for json in [&profile, &version_json] {
+    for json in [profile.as_ref(), version_json.as_ref()].into_iter().flatten() {
         if let Some(arr) = json.get("libraries").and_then(|v| v.as_array()) {
             for lib in arr {
                 let Some(obj) = lib.as_object() else { continue };

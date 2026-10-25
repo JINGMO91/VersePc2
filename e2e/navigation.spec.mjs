@@ -48,5 +48,10 @@ test('全部导航页面可打开且无致命脚本错误', async ({ page }) => 
       .toBe(`page-${name}`);
   }
 
+  // 回到主页：布局应在可见后应用完成，控件不能被布局占位类隐藏
+  await clickPage(page, 'home');
+  await expect(page.locator('.home-page')).not.toHaveClass(/home-layout-pending/, { timeout: 5000 });
+  await expect(page.locator('#home-launch-btn')).toBeVisible();
+
   expect(fatal).toEqual([]);
 });
