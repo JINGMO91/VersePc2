@@ -40,7 +40,7 @@ pub(super) fn handle_launch_cancel() -> ApiResult {
 }
 
 /// POST /api/launch/check — 检查版本依赖完整性
-pub(super) fn handle_launch_check(_params: &Option<Value>, body: &Option<Value>) -> ApiResult {
+pub(super) async fn handle_launch_check(_params: &Option<Value>, body: &Option<Value>) -> ApiResult {
     let data = body.clone().unwrap_or(Value::Null);
     let version_id = utils::get_str(&data, "versionId").to_string();
     if version_id.is_empty() {
@@ -52,7 +52,16 @@ pub(super) fn handle_launch_check(_params: &Option<Value>, body: &Option<Value>)
     let external_dir = resolve_external_version_dir(&version_id);
     let external_path = external_dir.as_ref().map(PathBuf::from);
 
-    let dep_result = dep_check::check_dependencies(&clean_id, &settings, external_path.as_deref());
+    // 依赖检查会遍历库文件并计算 SHA1（26.3 有 114 个库 + 5147 个资源），
+    // 同步执行会占住异步运行时线程，导致前端请求超时；放到阻塞线程池。
+    let dep_result = match tokio::task::spawn_blocking(move || {
+        dep_check::check_dependencies(&clean_id, &settings, external_path.as_deref())
+    })
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => return ApiResult::err(500, &format!("依赖检查失败: {}", e)),
+    };
 
     // 把 dep_result 的字段展开到顶层
     // 前端直接用 depCheck.java / depCheck.maxVersion 等访问

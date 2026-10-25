@@ -666,20 +666,26 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    /// 同一个库的不同版本必须归并到 group:artifact 键
+    /// 同一个库的不同版本必须归并到 group:artifact 键；
+    /// classifier 不同的条目（如 Forge 的 universal/client）必须保留为不同键。
     #[test]
     fn lib_artifact_key_groups_versions_and_classifiers() {
         assert_eq!(
             lib_artifact_key("org.ow2.asm:asm:9.6"),
-            Some("org.ow2.asm:asm".to_string())
+            Some("org.ow2.asm:asm:".to_string())
         );
         assert_eq!(
             lib_artifact_key("org.ow2.asm:asm:9.10.1"),
-            Some("org.ow2.asm:asm".to_string())
+            Some("org.ow2.asm:asm:".to_string())
         );
         assert_eq!(
             lib_artifact_key("org.lwjgl:lwjgl:3.3.1:natives-windows"),
-            Some("org.lwjgl:lwjgl".to_string())
+            Some("org.lwjgl:lwjgl:natives-windows".to_string())
+        );
+        assert_ne!(
+            lib_artifact_key("net.minecraftforge:forge:26.3-66.0.8:universal"),
+            lib_artifact_key("net.minecraftforge:forge:26.3-66.0.8:client"),
+            "同一版本的 universal/client 不能归并"
         );
         assert_eq!(lib_artifact_key("broken"), None);
     }

@@ -671,12 +671,28 @@ pub(crate) fn is_special_path(java_exe: &Path) -> bool {
         || lower.contains("\\system32\\")
 }
 
+/// 检测缓存有效期（秒）。缓存不是永久有效：早期扫描若因 Java 目录暂时
+/// 不可读而得到空列表，不能让它把"没有 Java"的结果固定到整个进程生命周期。
+const JAVA_CACHE_TTL_SECS: u64 = 600;
+
+/// 缓存是否仍在有效期内
+fn cache_is_fresh(cached_at: u64, now: u64) -> bool {
+    now >= cached_at && now - cached_at < JAVA_CACHE_TTL_SECS
+}
+
 /// 执行完整 Java 检测（带缓存）
 pub fn detect_all() -> Vec<Value> {
-    // 检查缓存（10 分钟内有效）
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    // 检查缓存（10 分钟内有效；空结果不缓存，避免短暂扫描失败被永久记住）
     {
         let cache = JAVA_CACHE.lock().unwrap();
-        if let Some(c) = cache.as_ref() {
+        if let Some(c) = cache.as_ref()
+            && cache_is_fresh(c.cached_at, now)
+            && !c.java_list.is_empty()
+        {
             return c.java_list.clone();
         }
     }
@@ -736,16 +752,14 @@ pub fn detect_all() -> Vec<Value> {
     // 排序（候选文件夹优先，其次接近 21 优先）
     sort_java_list(&mut java_list);
 
-    // 写缓存
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    let mut cache = JAVA_CACHE.lock().unwrap();
-    *cache = Some(JavaCache {
-        java_list: java_list.clone(),
-        cached_at: now,
-    });
+    // 写缓存（空结果不缓存）
+    if !java_list.is_empty() {
+        let mut cache = JAVA_CACHE.lock().unwrap();
+        *cache = Some(JavaCache {
+            java_list: java_list.clone(),
+            cached_at: now,
+        });
+    }
 
     println!("[java] detect_all 完成，找到 {} 个 Java", java_list.len());
     for j in &java_list {
@@ -753,4 +767,18 @@ pub fn detect_all() -> Vec<Value> {
     }
 
     java_list
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn java_cache_expires_after_ttl() {
+        assert!(cache_is_fresh(1000, 1000));
+        assert!(cache_is_fresh(1000, 1599));
+        assert!(!cache_is_fresh(1000, 1600), "超过 10 分钟的缓存必须失效");
+        // 系统时间回拨时不能把缓存判定为有效
+        assert!(!cache_is_fresh(2000, 1000));
+    }
 }

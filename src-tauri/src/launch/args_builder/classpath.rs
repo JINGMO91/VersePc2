@@ -133,7 +133,10 @@ pub(crate) fn push_classpath_entry(entries: &mut Vec<ClasspathEntry>, name: &str
     });
 }
 
-/// 从 Maven 坐标取 group:artifact 作为去重键
+/// 从 Maven 坐标取 group:artifact[:classifier] 作为去重键。
+/// classifier 必须参与去重：Forge 26.x 同时提供 `forge:<ver>:universal` 与
+/// `forge:<ver>:client`，版本号相同但两个 jar 缺一不可（client 里是打过补丁的
+/// Minecraft 类）。若只按 group:artifact 去重会把后加入的 client 直接丢掉。
 pub(crate) fn lib_artifact_key(name: &str) -> Option<String> {
     let mut parts = name.split(':');
     let group = parts.next()?.trim();
@@ -141,7 +144,8 @@ pub(crate) fn lib_artifact_key(name: &str) -> Option<String> {
     if group.is_empty() || artifact.is_empty() {
         return None;
     }
-    Some(format!("{}:{}", group, artifact))
+    let classifier = parts.nth(1).map(str::trim).unwrap_or("");
+    Some(format!("{}:{}:{}", group, artifact, classifier))
 }
 
 /// 从 Maven 坐标或文件路径取库版本号
@@ -319,6 +323,32 @@ mod tests {
         touch(&base, "lwjgl-3.4.1-unsafe.jar");
         let found = find_lib_by_fallback("org.lwjgl:lwjgl:3.4.1", std::slice::from_ref(&base));
         assert!(found.unwrap().ends_with("lwjgl-3.4.1.jar"));
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn classpath_keeps_forge_universal_and_client_classifiers() {
+        let base = temp_base("forge-classifiers");
+        let dir = base.join("net/minecraftforge/forge/26.3-66.0.8");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("forge-26.3-66.0.8-universal.jar"), b"x").unwrap();
+        fs::write(dir.join("forge-26.3-66.0.8-client.jar"), b"x").unwrap();
+        let json = serde_json::json!({
+            "libraries": [
+                {
+                    "name": "net.minecraftforge:forge:26.3-66.0.8:universal",
+                    "downloads": { "artifact": { "path": "net/minecraftforge/forge/26.3-66.0.8/forge-26.3-66.0.8-universal.jar" } }
+                },
+                {
+                    "name": "net.minecraftforge:forge:26.3-66.0.8:client",
+                    "downloads": { "artifact": { "path": "net/minecraftforge/forge/26.3-66.0.8/forge-26.3-66.0.8-client.jar" } }
+                }
+            ]
+        });
+        let classpath = build_classpath(&json, None, &base);
+        assert_eq!(classpath.len(), 2, "universal 与 client 都必须保留: {:?}", classpath);
+        assert!(classpath.iter().any(|p| p.ends_with("forge-26.3-66.0.8-universal.jar")));
+        assert!(classpath.iter().any(|p| p.ends_with("forge-26.3-66.0.8-client.jar")));
         let _ = fs::remove_dir_all(base);
     }
 

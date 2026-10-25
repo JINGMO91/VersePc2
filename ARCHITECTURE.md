@@ -118,7 +118,7 @@ CI（`.github/workflows/verify.yml`）包含：Lint、前端单测、循环依�
 | ESLint | 0 warning |
 | npm 依赖漏洞 | 0 |
 | Rust Clippy | `-D warnings` 通过 |
-| Rust 测试 | 118 项通过（含基础版本安装、重复安装、缺失版本等 5 个 mock 服务集成场景） |
+| Rust 测试 | 120 项通过（含基础版本安装、重复安装、缺失版本等 5 个 mock 服务集成场景） |
 | 前端单测 | 95 个文件 / 1410 项 |
 | 前端行覆盖 | core 90.9% / features 55.4% / 总计 57.0%（棘轮基线） |
 | Playwright E2E | 7 个 spec（启动、导航、设置、版本错误、模组、Java、云盘） |

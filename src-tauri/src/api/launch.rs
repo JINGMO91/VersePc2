@@ -164,7 +164,7 @@ pub async fn handle(
         "POST /api/launch/cancel" => Some(handle_launch_cancel()),
 
         // ===== POST /api/launch/check — 检查版本依赖完整性 =====
-        "POST /api/launch/check" => Some(handle_launch_check(params, body)),
+        "POST /api/launch/check" => Some(handle_launch_check(params, body).await),
 
         // ===== POST /api/launch/args-preview — 预览启动参数 =====
         "POST /api/launch/args-preview" => Some(handle_args_preview(body)),
