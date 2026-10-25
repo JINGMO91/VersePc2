@@ -447,22 +447,15 @@ body.show-nav-labels .nav-submenu-toggle .submenu-arrow {
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior: contain;
-    scrollbar-gutter: stable;
+    /* 隐藏页面右侧滚动条：滚轮/触控板仍可滚动，只是不再显示滑条 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     transform: translateZ(0);
     backface-visibility: hidden;
 }
 
 .page.active::-webkit-scrollbar {
-    width: 6px;
-}
-
-.page.active::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.page.active::-webkit-scrollbar-thumb {
-    background: var(--bg-active);
-    border-radius: 3px;
+    display: none;
 }
 
 /* 页面头部：随内容滚动吸顶，作为页面的工具条，标题与操作在同一行 */
