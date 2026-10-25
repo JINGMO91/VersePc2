@@ -17,7 +17,7 @@
                   "macos-x86_64":  {
                                        "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.1/VersePC2-macos-x86_64.zip",
                                        "size":  11355813,
-                                       "sha256":  "e27820248661631177fef1463746f4fbf649dfe99d981a45eef28aa7a979349e"
+                                       "sha256":  "e27820248681631177fef1463746f4fbf649dfe99d981a45eef28aa7a979349e"
                                    },
                   "macos-aarch64":  {
                                         "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.1/VersePC2-macos-aarch64.zip",
