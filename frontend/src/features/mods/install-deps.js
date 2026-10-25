@@ -7,6 +7,7 @@ import { dlManager as dlManager } from '../versions/custom-download.js';
 import { modDetailState as modDetailState } from './detail-state.js';
 import { formatModNameWithChinese as formatModNameWithChinese } from './chinese-names.js';
 import { S } from './install-state.js';
+import { S as modDetailS } from './mod-detail-state.js';
 import { showModDownloadModal } from './install-batch.js';
 import { matchInstalledVersion, resolveModSavePath } from './install-paths.js';
 
@@ -185,7 +186,7 @@ async function downloadDepWithNestedDeps(projectId, source, versionId, savePath,
       }
     }
 
-    modDetailState.mdDepsCache.clear();
+    modDetailS.mdDepsCache.clear();
     dlManager.update(taskId, { status: 'completed', progress: 100, message: `全部下载完成 (${total} 个依赖)` });
     showToast(`前置模组下载完成: ${total} 个依赖`, 'success');
   } catch (e) {
@@ -262,7 +263,7 @@ async function proceedModInstall(projectId, source, versionId, fileId, savePath,
     const currentLoader = loader || getCustomSelectValue('mod-filter-loader') || '';
     const result = await API.downloadModVersion(versionId || '', projectId, source, fileId || '', currentGameVersion, currentLoader, savePath, includeDeps);
     if (result.success) {
-      modDetailState.mdDepsCache.clear();
+      modDetailS.mdDepsCache.clear();
       dlManager.remove(pendingTaskId);
       showModDownloadModal(result.fileName, result.sessionId, savePath, iconUrl);
       if (includeDeps) {

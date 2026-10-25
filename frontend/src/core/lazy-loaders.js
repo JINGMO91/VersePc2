@@ -8,11 +8,11 @@ export function registerLazyLoader(name, loader) {
     }
 }
 
-export function requestLazyLoad(name) {
+export function requestLazyLoad(name, ...args) {
     const loader = loaders.get(name);
     if (!loader) {
         console.warn('[lazy-loaders] 加载器尚未注册:', name);
         return undefined;
     }
-    return loader();
+    return loader(...args);
 }

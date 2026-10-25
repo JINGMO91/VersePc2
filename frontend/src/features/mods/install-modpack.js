@@ -235,7 +235,7 @@ function showModpackInstallModal(fileName, sessionId) {
       appState.modDownloadPollTimers.push(timer);
     }
   };
-  setTimeout(poll, 300);
+  appState.modDownloadPollTimers.push(setTimeout(poll, 300));
 }
 
 async function _doInstallModpack(projectId, versionId, customName) {

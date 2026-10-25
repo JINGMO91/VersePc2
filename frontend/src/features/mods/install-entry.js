@@ -6,6 +6,7 @@ import { dlManager as dlManager } from '../versions/custom-download.js';
 import { modDetailState as modDetailState } from './detail-state.js';
 import { appState as appState } from '../../core/app-state.js';
 import { S } from './install-state.js';
+import { S as modDetailS } from './mod-detail-state.js';
 import { resolveModTarget, resolveModVersionTarget, resolveModSavePathWithConfirm } from './install-target.js';
 import { resolveModSavePath } from './install-paths.js';
 import { proceedModInstall, maybeShowPostInstallDeps } from './install-deps.js';
@@ -87,7 +88,7 @@ async function quickInstallMod(projectId, source, versionId, fileId) {
     const savePath = await resolveModSavePath();
     const result = await API.downloadModVersion(versionId || '', projectId, source, fileId || '', currentGameVersion, currentLoader, savePath);
     if (result.success) {
-      modDetailState.mdDepsCache.clear();
+      modDetailS.mdDepsCache.clear();
       dlManager.remove(pendingTaskId);
       showModDownloadModal(result.fileName, result.sessionId, savePath, iconUrl);
       maybeShowPostInstallDeps(projectId, source, versionId, savePath, currentGameVersion, currentLoader, iconUrl);

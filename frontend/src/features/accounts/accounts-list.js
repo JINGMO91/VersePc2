@@ -563,7 +563,8 @@ async function initSkinViewer(skinUrl, resolvedModel) {
       container.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);font-size:14px;gap:8px;"><span style="font-size:24px;">⏳</span><span>正在加载皮肤查看器...</span></div>';
       await _lazyLoadScript('js/skinview3d.bundle.js');
     }
-    let skinModel = resolvedModel || ((S._currentDetailAccount?.skinModel || '').toLowerCase() === 'slim') ? 'slim' : 'default';
+    let skinModel = resolvedModel ||
+      (((S._currentDetailAccount?.skinModel || '').toLowerCase() === 'slim') ? 'slim' : 'default');
     if (S._currentDetailAccount) S._currentDetailAccount._resolvedSkinModel = skinModel;
     await new Promise(r => setTimeout(r, 100));
     container.innerHTML = '';
