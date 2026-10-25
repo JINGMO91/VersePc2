@@ -159,42 +159,75 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* ── 进度条轨道 ── */
+/* ── 波浪线条进度条 ──
+   固定宽度的波动路径放在按百分比裁剪的容器内：进度增长时从左向右
+   “画出”波浪线，线头带一个发光圆点。 */
 .launch-splash-track {
+    --launch-pct: 0;
     position: relative;
-    height: 3px;
-    border-radius: 2px;
-    overflow: hidden;
-    background: var(--launch-track-bg, #e2e8f0);
+    height: 16px;
+    border-radius: 0;
+    overflow: visible;
+}
+/* 未填充部分：细虚线基线 */
+.launch-splash-track::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    transform: translateY(-50%);
+    background: repeating-linear-gradient(
+        90deg,
+        var(--border, rgba(0, 0, 0, 0.12)) 0 5px,
+        transparent 5px 10px
+    );
+    opacity: 0.9;
 }
 .launch-splash-progress {
     position: absolute;
     top: 0;
     left: 0;
-    height: 100%;
+    height: 16px;
     width: 0%;
-    border-radius: 2px;
-    background: var(--launch-progress-bg, linear-gradient(90deg, var(--accent), #8b5cf6, #06b6d4));
-    background-size: 200% 100%;
+    overflow: hidden;
     transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    animation: launch-progress-shimmer 2s linear infinite;
-    will-change: width, background-position;
+    will-change: width;
 }
-.launch-splash-progress::after {
-    content: '';
+.launch-wave-svg {
+    display: block;
+    width: 280px;
+    height: 16px;
+    overflow: visible;
+}
+.launch-wave-flow {
+    animation: launch-wave-flow 1.8s linear infinite;
+}
+.launch-wave-line {
+    animation: launch-wave-bob 2.4s ease-in-out infinite;
+    transform-origin: center;
+}
+.launch-wave-head {
     position: absolute;
-    right: 0;
-    top: -2px;
-    width: 8px;
-    height: 8px;
-    background: var(--accent);
+    top: 50%;
+    left: calc(var(--launch-pct, 0) * 1%);
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    box-shadow: 0 0 8px var(--accent), 0 0 16px var(--accent);
-    opacity: 0.8;
+    background: var(--accent, #4a9eff);
+    box-shadow: 0 0 8px var(--accent, #4a9eff), 0 0 16px var(--accent, #4a9eff);
+    transform: translate(-50%, -50%);
+    transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
 }
-@keyframes launch-progress-shimmer {
-    0% { background-position: 0% 0%; }
-    100% { background-position: 200% 0%; }
+@keyframes launch-wave-flow {
+    from { transform: translateX(0); }
+    to { transform: translateX(-42px); }
+}
+@keyframes launch-wave-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-1.5px); }
 }
 
 /* ── 状态文字 ── */

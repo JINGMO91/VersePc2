@@ -1750,180 +1750,6 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
     .add-acct-cards { grid-template-columns: 1fr; }
 }
 
-/* ===== 首页底部存档快速启动（内嵌在首页布局中） ===== */
-/* 箭头绝对定位在底部中央，不参与 flex 流，避免把头像/启动按钮等内容顶离居中位置 */
-.home-saves-arrow {
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  flex-shrink: 0;
-  width: 40px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
-  transition: color 0.2s ease, border-color 0.2s ease;
-  padding: 0;
-}
-.home-saves-arrow:hover {
-  color: var(--accent-ink);
-  border-color: var(--accent);
-}
-.home-saves-arrow svg {
-  width: 16px;
-  height: 16px;
-  transition: transform 0.25s ease;
-}
-.home-saves-arrow.open {
-  color: var(--accent-ink);
-}
-.home-saves-arrow.open svg {
-  transform: rotate(180deg);
-}
-.home-saves-wrap {
-  width: 100%;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.home-saves-wrap.open {
-  max-height: 46vh;
-}
-.home-saves-drawer {
-  width: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 18px 18px 12px 12px;
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.12);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.home-saves-drawer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--border);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.home-saves-drawer-close {
-  background: none;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: var(--text-muted);
-}
-.home-saves-body {
-  padding: 12px 18px 16px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.home-saves-hint {
-  font-size: 12px;
-  color: var(--text-muted);
-  text-align: center;
-  padding: 10px 0;
-}
-.home-saves-row {
-  display: flex;
-  gap: 16px;
-  overflow-x: auto;
-  padding: 6px 2px 8px;
-}
-/* 存档卡片：与账户页一致的长方形玻璃拟态卡片 */
-.home-save-card {
-  flex-shrink: 0;
-  width: 170px;
-  min-height: 208px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 20px 12px 16px;
-  border-radius: 24px;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px) saturate(1.6);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.35) inset,
-    0 18px 40px rgba(0, 0, 0, 0.12);
-  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
-}
-.home-save-card:hover {
-  transform: translateY(-3px) scale(1.02);
-  border-color: var(--accent);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.5) inset,
-    0 24px 50px rgba(0, 0, 0, 0.18);
-}
-[data-theme="dark"] .home-save-card {
-  background: rgba(18, 18, 24, 0.35);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-[data-theme="dark"] .home-save-card:hover {
-  border-color: var(--accent);
-}
-.home-save-card-bg {
-  width: 96px;
-  height: 96px;
-  flex-shrink: 0;
-  border-radius: 26%;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.06);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.home-save-card-bg img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.home-save-card-bg svg {
-  width: 40px;
-  height: 40px;
-  color: var(--text-tertiary, #555a66);
-  opacity: 0.6;
-}
-.home-save-card-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  text-align: center;
-  width: 100%;
-}
-.home-save-card-name {
-  max-width: 100%;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.home-save-card-meta {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
 /* ===== 便利贴 ===== */
 .home-stickynote-btn {
   position: absolute;
@@ -1998,16 +1824,6 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
   height: 16px;
 }
 
-/* 存档卡片上的钉子按钮定位 */
-.home-save-card {
-  position: relative;
-}
-.home-save-pin-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
-}
 .save-pin-btn {
   position: absolute;
   top: 10px;
@@ -2201,38 +2017,54 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
 
 
 /* ============================================================
-   主页可移动控件系统（参考 ZalithLauncher2 主页卡片模式）
-   - 控件绝对定位 + 按住主体直接拖动，位置持久化 localStorage
-   - 存档坞：常驻卡片（替代原底部展开抽屉）
+   主页可移动控件系统
+   - 默认仅保留点击交互；点击「编辑布局」后才允许拖动
+   - 编辑中显示虚线轮廓，点击「确认」后才保存位置
    ============================================================ */
 .home-page > .home-page-title,
 .home-page > .home-avatar-widget,
 .home-page > .home-version-card-wrap,
 .home-page > .home-launch-btn,
-.home-page > .home-running-card,
-.home-page > .home-save-dock {
+.home-page > .home-running-card {
     position: absolute;
     margin: 0 !important;
 }
 
-/* 按住拖动：控件主体可抓取，拖动中加视觉反馈；文本不可选中避免拖出选区 */
+/* 默认指针：控件仍可点击；只有编辑模式显示可拖动光标 */
 .home-page-title,
 .home-avatar-widget,
 .home-version-card-wrap,
 .home-launch-btn,
-.home-running-card,
-.home-save-dock {
-    cursor: grab;
-    touch-action: none;
+.home-running-card {
     user-select: none;
     -webkit-user-select: none;
 }
-.home-page-title:active,
-.home-avatar-widget:active,
-.home-version-card-wrap:active,
-.home-launch-btn:active,
-.home-running-card:active,
-.home-save-dock:active {
+.home-page-title,
+.home-avatar-widget,
+.home-version-card-wrap,
+.home-launch-btn {
+    cursor: pointer;
+}
+/* 编辑模式下标题不再拖动窗口，而是作为普通控件移动 */
+.home-page.home-editing .home-page-title.topbar-title {
+    -webkit-app-region: no-drag;
+}
+.home-page.home-editing .home-page-title,
+.home-page.home-editing .home-avatar-widget,
+.home-page.home-editing .home-version-card-wrap,
+.home-page.home-editing .home-launch-btn,
+.home-page.home-editing .home-running-card {
+    cursor: grab;
+    touch-action: none;
+    outline: 1px dashed rgba(var(--accent-rgb), 0.45);
+    outline-offset: 6px;
+    border-radius: 8px;
+}
+.home-page.home-editing .home-page-title:active,
+.home-page.home-editing .home-avatar-widget:active,
+.home-page.home-editing .home-version-card-wrap:active,
+.home-page.home-editing .home-launch-btn:active,
+.home-page.home-editing .home-running-card:active {
     cursor: grabbing;
 }
 .home-dragging {
@@ -2245,8 +2077,41 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
     cursor: pointer;
 }
 
+/* 启动按钮：编辑中仅置灰提示，确认布局前不可点击；位置保持不动 */
+.home-launch-btn-locked {
+    opacity: 0.55;
+    filter: saturate(0.65);
+    cursor: not-allowed;
+}
+
+/* 布局编辑工具栏：默认只显示「编辑布局」，编辑中显示提示与取消/确认 */
+.home-edit-toolbar {
+    position: absolute;
+    right: 24px;
+    bottom: 22px;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 12px;
+    background: var(--bg-card-glass);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+.home-edit-toolbar-active {
+    padding-left: 12px;
+}
+.home-edit-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
 /* CSS 默认位置（未拖动过的控件）：标题/头像/版本卡/启动按钮精确水平居中，
-   存档坞右侧停靠，运行卡片左下角；用户拖动后由内联 left/top 接管 */
+   运行卡片左下角；用户拖动后由内联 left/top 接管 */
 .home-page > .home-avatar-widget {
     top: 15%;
     left: 50%;
@@ -2262,9 +2127,10 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
     left: 50%;
     transform: translateX(-50%);
 }
-.home-page > .home-save-dock {
-    top: 22%;
-    right: 28px;
+/* 覆盖通用 .btn:active 的 scale：保留 translateX(-50%) 居中，
+   避免按下时按钮横向跳到鼠标旁边。 */
+.home-page > .home-launch-btn:active {
+    transform: translateX(-50%) scale(0.97);
 }
 .home-page > .home-running-card {
     top: auto;
@@ -2289,93 +2155,4 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
 }
 .home-avatar-widget .home-account-bar {
     margin-top: 0;
-}
-
-
-/* 存档坞：zL2 网格卡风格的常驻卡片 */
-.home-save-dock {
-    width: 320px;
-    max-width: 70%;
-    background: var(--bg-card-glass);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 10px 12px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-    z-index: 4;
-}
-.home-save-dock-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 2px 2px 8px;
-    cursor: grab;
-    user-select: none;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 8px;
-    touch-action: none;
-}
-.home-save-dock-header:active {
-    cursor: grabbing;
-}
-.home-save-dock-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.home-save-dock-body {
-    max-height: 46vh;
-    overflow-y: auto;
-}
-.home-save-dock-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.home-save-dock-list .home-save-card {
-    width: 100%;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    padding: 8px;
-}
-.home-save-dock-list .home-save-card-bg {
-    width: 44px;
-    height: 44px;
-    border-radius: 8px;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-.home-save-dock-list .home-save-card-bg img,
-.home-save-dock-list .home-save-card-bg svg {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.home-save-dock-list .home-save-card-info {
-    flex: 1;
-    min-width: 0;
-    text-align: left;
-}
-.home-save-dock-list .home-save-card-name {
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.home-save-dock-list .home-save-card-meta {
-    font-size: 11px;
-    color: var(--text-muted);
-}
-.home-saves-hint {
-    font-size: 12.5px;
-    color: var(--text-muted);
-    text-align: center;
-    padding: 10px 0;
 }

@@ -14,8 +14,7 @@ function showLaunchModal() {
 
   overlay.style.display = 'flex';
 
-  const progressBar = document.getElementById('launch-splash-progress');
-  if (progressBar) progressBar.style.width = '0%';
+  updateLaunchProgress(0);
 
   const statusEl = document.getElementById('launch-splash-status');
   if (statusEl) {
@@ -63,6 +62,9 @@ function closeLaunchModal(name_fade) {
 function updateLaunchProgress(pct) {
   const bar = document.getElementById('launch-splash-progress');
   if (bar) bar.style.width = pct + '%';
+  // 线头圆点跟随波浪线填充边缘
+  const track = document.getElementById('launch-splash-track');
+  if (track) track.style.setProperty('--launch-pct', pct);
 }
 
 function setLaunchStep(stepName, status, desc) {

@@ -13,7 +13,9 @@ import {
 function mountModal() {
   document.body.innerHTML = `
     <div id="game-launch-overlay" style="display:none">
-      <div id="launch-splash-progress"></div>
+      <div id="launch-splash-track" style="--launch-pct:0">
+        <div id="launch-splash-progress"></div>
+      </div>
       <div id="launch-splash-status"></div>
       <div id="launch-splash-logo"></div>
       <div id="launch-error-section" style="display:flex"></div>
@@ -31,6 +33,7 @@ describe('showLaunchModal / closeLaunchModal', () => {
     showLaunchModal();
     expect(document.getElementById('game-launch-overlay').style.display).toBe('flex');
     expect(document.getElementById('launch-splash-progress').style.width).toBe('0%');
+    expect(document.getElementById('launch-splash-track').style.getPropertyValue('--launch-pct')).toBe('0');
     expect(document.getElementById('launch-splash-status').textContent).toBe('正在验证登录状态...');
     expect(document.getElementById('launch-error-section').style.display).toBe('none');
     expect(document.getElementById('launch-log-section').style.display).toBe('none');
@@ -68,9 +71,10 @@ describe('进度与步骤', () => {
     expect(document.getElementById('launch-splash-status').style.color).toBe('rgb(220, 38, 38)');
   });
 
-  it('直接更新进度', () => {
+  it('直接更新进度并同步波浪线头位置', () => {
     updateLaunchProgress(42);
     expect(document.getElementById('launch-splash-progress').style.width).toBe('42%');
+    expect(document.getElementById('launch-splash-track').style.getPropertyValue('--launch-pct')).toBe('42');
   });
 });
 

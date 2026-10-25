@@ -416,7 +416,23 @@
             </div>
             <div class="launch-splash-progress-container">
               <div id="launch-splash-track" class="launch-splash-track">
-                <div id="launch-splash-progress" class="launch-splash-progress"></div>
+                <div id="launch-splash-progress" class="launch-splash-progress">
+                  <svg class="launch-wave-svg" width="280" height="16" viewBox="0 0 280 16" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="launch-wave-gradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" style="stop-color:var(--accent,#4a9eff)"></stop>
+                        <stop offset="55%" style="stop-color:#8b5cf6"></stop>
+                        <stop offset="100%" style="stop-color:#06b6d4"></stop>
+                      </linearGradient>
+                    </defs>
+                    <g class="launch-wave-flow">
+                      <path class="launch-wave-line"
+                            d="M-50 8 Q -29 1, -8 8 T 34 8 T 76 8 T 118 8 T 160 8 T 202 8 T 244 8 T 286 8 T 328 8"
+                            fill="none" stroke="url(#launch-wave-gradient)" stroke-width="2.4" stroke-linecap="round"></path>
+                    </g>
+                  </svg>
+                </div>
+                <span class="launch-wave-head" aria-hidden="true"></span>
               </div>
               <div id="launch-splash-status" class="launch-splash-status">正在验证登录状态...</div>
             </div>
