@@ -64,6 +64,14 @@ const PageSettingsPersonalize = (function () {
                   </div>
                   <span class="theme-name">白色</span>
                 </div>
+                <div class="theme-option" :class="{active: state.theme === 'auto'}" data-theme="auto" @click="pickTheme('auto')">
+                  <div class="theme-swatch">
+                    <div class="theme-dot" style="background: #ffffff;"></div>
+                    <div class="theme-dot" style="background: linear-gradient(135deg, #ffffff 50%, #14171d 50%);"></div>
+                    <div class="theme-dot" style="background: #14171d;"></div>
+                  </div>
+                  <span class="theme-name">跟随系统</span>
+                </div>
                 <div class="theme-option" :class="{active: state.theme === 'custom'}" data-theme="custom" @click="pickTheme('custom')">
                   <div class="theme-swatch">
                     <div class="theme-dot" id="custom-theme-swatch-dot" :style="{background: state.customColor}"></div>

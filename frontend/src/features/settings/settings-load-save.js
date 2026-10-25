@@ -55,7 +55,10 @@ async function loadSettings() {
         let savedTheme = settings.theme || 'light';
         const legacyThemes = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'teal', 'cyan', 'amber'];
         if (legacyThemes.includes(savedTheme)) savedTheme = 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
+        const resolvedTheme = savedTheme === 'auto'
+            ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : savedTheme;
+        document.documentElement.setAttribute('data-theme', resolvedTheme);
         document.querySelectorAll('.theme-option').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-theme') === savedTheme);
         });
@@ -77,7 +80,7 @@ async function loadSettings() {
             }
         } else {
             if (typeof toggleCustomThemeColorGroup === 'function') toggleCustomThemeColorGroup(false);
-            const defaultAccent = savedTheme === 'light' ? '#1a1a1a' : '#ffffff';
+            const defaultAccent = resolvedTheme === 'light' ? '#1a1a1a' : '#ffffff';
             const effectiveAccent = settings.accentColor || defaultAccent;
             if (accentColorInput) accentColorInput.value = effectiveAccent;
             if (accentColorValueEl) accentColorValueEl.textContent = effectiveAccent;

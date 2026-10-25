@@ -65,6 +65,26 @@ describe('installActionDelegation', () => {
     holder.remove();
   });
 
+  it('非法 data-args 视为无参数', () => {
+    received.length = 0;
+    const holder = document.createElement('div');
+    holder.innerHTML = '<button id="bad-args" data-action="test-basic" data-args="{bad"></button>';
+    document.body.appendChild(holder);
+    holder.querySelector('#bad-args').click();
+    expect(received).toEqual([{ id: 'bad-args', args: [] }]);
+    holder.remove();
+  });
+
+  it('从子元素点击也能命中最近的 data-action', () => {
+    received.length = 0;
+    const holder = document.createElement('div');
+    holder.innerHTML = `<div ${actionAttrs('test-basic', 'nested').trim()}><span id="nested-child"></span></div>`;
+    document.body.appendChild(holder);
+    holder.querySelector('#nested-child').click();
+    expect(received).toEqual([{ id: '', args: ['nested'] }]);
+    holder.remove();
+  });
+
   it('未注册动作只警告、不抛错', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const holder = document.createElement('div');

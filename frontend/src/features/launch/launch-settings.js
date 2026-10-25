@@ -388,16 +388,47 @@ async function loadLaunchSettings() {
   }
 }
 
+/** 解析“跟随系统”主题为实际深浅色 */
+function resolveAutoTheme() {
+  try {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch (e) {
+    return 'light';
+  }
+}
+
+let autoThemeMedia = null;
+let autoThemeHandler = null;
+
+function syncAutoThemeListener(theme) {
+  if (autoThemeMedia) {
+    if (autoThemeHandler) {
+      if (autoThemeMedia.removeEventListener) autoThemeMedia.removeEventListener('change', autoThemeHandler);
+      else if (autoThemeMedia.removeListener) autoThemeMedia.removeListener(autoThemeHandler);
+    }
+    autoThemeMedia = null;
+    autoThemeHandler = null;
+  }
+  if (theme !== 'auto' || !window.matchMedia) return;
+  autoThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+  autoThemeHandler = function () { applyThemeByName('auto'); };
+  if (autoThemeMedia.addEventListener) autoThemeMedia.addEventListener('change', autoThemeHandler);
+  else if (autoThemeMedia.addListener) autoThemeMedia.addListener(autoThemeHandler);
+}
+
 /** 应用主题（值参数核心函数，供 Vue 卡片与 DOM 兼容层共用） */
 async function applyThemeByName(theme) {
-  const isCustom = theme === 'custom';
+  // “跟随系统”保存原始值，实际渲染时解析为 dark/light；
+  // 系统主题变化时由媒体查询监听重新应用。
+  const resolvedTheme = theme === 'auto' ? resolveAutoTheme() : theme;
+  const isCustom = resolvedTheme === 'custom';
 
-  document.documentElement.setAttribute('data-theme', theme);
-  document.documentElement.classList.toggle('dark-theme', theme === 'dark' || isCustom);
-  document.documentElement.classList.toggle('light-theme', theme === 'light');
+  document.documentElement.setAttribute('data-theme', resolvedTheme);
+  document.documentElement.classList.toggle('dark-theme', resolvedTheme === 'dark' || isCustom);
+  document.documentElement.classList.toggle('light-theme', resolvedTheme === 'light');
 
   const app = document.getElementById('app');
-  if (app && theme === 'light') {
+  if (app && resolvedTheme === 'light') {
     app.classList.remove('wp-light', 'wp-dark');
   }
 
@@ -421,7 +452,7 @@ async function applyThemeByName(theme) {
     }
   } else {
     if (typeof clearCustomThemeVars === 'function') clearCustomThemeVars();
-    const isDark = theme === 'dark';
+    const isDark = resolvedTheme === 'dark';
     document.documentElement.style.setProperty('--accent', isDark ? '#ffffff' : '#1a1a1a');
     document.documentElement.style.setProperty('--accent-hover', isDark ? '#d0d0d0' : '#333333');
     document.documentElement.style.setProperty('--accent-rgb', isDark ? '255, 255, 255' : '26, 26, 26');
@@ -431,17 +462,19 @@ async function applyThemeByName(theme) {
   }
 
   if (typeof updateWallpaperTheme === 'function') {
-    updateWallpaperTheme(theme === 'dark' || isCustom);
+    updateWallpaperTheme(resolvedTheme === 'dark' || isCustom);
   }
 
   const editorIframe = document.getElementById('editor-iframe');
   if (editorIframe && editorIframe.contentWindow) {
-    editorIframe.contentWindow.postMessage({ type: 'editor:set-theme', theme: isCustom ? 'dark' : theme }, '*');
+    editorIframe.contentWindow.postMessage({ type: 'editor:set-theme', theme: isCustom ? 'dark' : resolvedTheme }, '*');
   }
 
   // 同步 Vue 共享状态（个性化页卡片由该状态渲染 active）
   const st = typeof getPersonalizeState === 'function' ? getPersonalizeState() : null;
   if (st) st.theme = theme;
+
+  syncAutoThemeListener(theme);
 
   try {
     await bridge.store.set('versepc_theme', theme);

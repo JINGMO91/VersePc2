@@ -44,12 +44,13 @@ const PageHome = {
       saves: [],
       currentVersionId: '',
       savesLoading: false,
+      layoutReady: false,
       _saveIconCache: {},
       _saveIconLoading: {}
     };
   },
   template: `
-    <div class="home-page" ref="homePage">
+    <div class="home-page" :class="{ 'home-layout-pending': !layoutReady }" ref="homePage">
       <!-- 软件名称（按住拖动，点击回主页） -->
       <div class="home-page-title topbar-title" ref="titleEl" data-widget="title" title="按住拖动 · 点击回主页">
         Verse<span class="home-page-title-accent">PC2</span>
@@ -182,6 +183,8 @@ const PageHome = {
       if (this.$refs.avatarScale) {
         this.$refs.avatarScale.style.transform = 'scale(' + s + ')';
       }
+      // 首次成功应用后再显示控件，避免从 CSS 默认位置跳到持久化位置
+      this.layoutReady = true;
     },
     persistPos(key, el) {
       const layout = loadHomeLayout();

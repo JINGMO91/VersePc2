@@ -71,9 +71,12 @@ async function init() {
     if (earlyTheme) {
       const legacyThemes = ['blue', 'purple', 'green', 'orange', 'red', 'pink', 'teal', 'cyan', 'amber'];
       const themeName = legacyThemes.includes(earlyTheme) ? 'light' : earlyTheme;
-      document.documentElement.setAttribute('data-theme', themeName);
-      document.documentElement.classList.toggle('dark-theme', themeName === 'dark' || themeName === 'custom');
-      document.documentElement.classList.toggle('light-theme', themeName === 'light');
+      const resolvedTheme = themeName === 'auto'
+        ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : themeName;
+      document.documentElement.setAttribute('data-theme', resolvedTheme);
+      document.documentElement.classList.toggle('dark-theme', resolvedTheme === 'dark' || resolvedTheme === 'custom');
+      document.documentElement.classList.toggle('light-theme', resolvedTheme === 'light');
       document.querySelectorAll('.theme-option').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-theme') === themeName);
       });

@@ -1,6 +1,16 @@
 // features/mods/mod-version-utils.test.js — 模组版本号归一与排序单元测试
-import { describe, expect, it } from 'vitest';
-import { _sortVersionsByNumber, _versionToExact, _versionToMajor } from './mod-version-utils.js';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { modDetailState } from './detail-state.js';
+import {
+  _sortVersionsByNumber,
+  _versionToExact,
+  _versionToMajor,
+  pickDependencyRootVersion,
+} from './mod-version-utils.js';
+
+beforeEach(() => {
+  modDetailState.allVersions = [];
+});
 
 describe('_versionToExact', () => {
   it('提取三段式版本号', () => {
@@ -50,5 +60,42 @@ describe('_sortVersionsByNumber', () => {
       { versionNumber: '1.0.0', datePublished: '2024-06-01' },
     ];
     expect(_sortVersionsByNumber(input)[0].datePublished).toBe('2024-06-01');
+  });
+
+  it('多段版本号按数值而非字符串比较', () => {
+    const sorted = _sortVersionsByNumber([
+      { versionNumber: '2.10.0' },
+      { versionNumber: '2.9.9' },
+      { versionNumber: 'v2.11.1' },
+    ]).map((v) => v.versionNumber);
+    expect(sorted).toEqual(['v2.11.1', '2.10.0', '2.9.9']);
+  });
+});
+
+describe('pickDependencyRootVersion', () => {
+  const versions = [
+    { id: 'v-old', gameVersions: ['1.20.1'], loaders: ['fabric'], versionNumber: '1.0.0', releaseType: 'release' },
+    { id: 'v-new', gameVersions: ['1.20.1'], loaders: ['Fabric'], versionNumber: '2.0.0', releaseType: 'beta' },
+    { id: 'v-forge', gameVersions: ['1.20.1'], loaders: ['forge'], versionNumber: '3.0.0', releaseType: 'release' },
+    { id: 'v-other', gameVersions: ['1.21.1'], loaders: ['fabric'], versionNumber: '4.0.0', releaseType: 'release' },
+  ];
+
+  it('按游戏版本与加载器过滤，优先稳定版', () => {
+    modDetailState.allVersions = versions;
+    expect(pickDependencyRootVersion('1.20.1', 'fabric')).toBe('v-old');
+    expect(pickDependencyRootVersion('1.20.1', 'forge')).toBe('v-forge');
+  });
+
+  it('无游戏版本或加载器时放宽过滤', () => {
+    modDetailState.allVersions = versions;
+    expect(pickDependencyRootVersion('', 'fabric')).toBe('v-other');
+    expect(pickDependencyRootVersion('1.20.1', '')).toBe('v-forge');
+  });
+
+  it('没有候选版本时返回空串', () => {
+    modDetailState.allVersions = versions;
+    expect(pickDependencyRootVersion('1.19.2', 'quilt')).toBe('');
+    modDetailState.allVersions = [];
+    expect(pickDependencyRootVersion('1.20.1', 'fabric')).toBe('');
   });
 });
