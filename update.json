@@ -1,28 +1,28 @@
 {
-    "version": "1.7.2",
-    "releaseName": "v1.7.2",
-    "releaseDate": "2026-10-23",
-    "releaseNotes": "VersePC2 v1.7.2\n\n新增:\n- 记住关闭前的窗口大小与最大化状态\n\n修复:\n- 修复 Fabric / NeoForge 版本因原版与加载器重复 ASM 库导致启动退出码 1\n- 修复启动即退时只提示“检查 Java 版本”，现在直接显示 stderr 中的具体异常\n- 修复模组前置依赖解析：按游戏版本与加载器选择兼容文件，修正 CurseForge 关系类型与加载器 ID\n- 修复模组搜索：JEI Forge 等关键词能正确命中 JEI 本体，NeoForge 使用正确的加载器筛选\n- 修复整合包模组批量下载失败：并发上限调整为 64，CurseForge 文件接口支持官方源回退，失败提示更明确\n- 修复运行中每 2 分钟强制内存压缩造成的周期性卡顿（约 1 秒）\n- 修复 WE 壁纸列表混入其他 Steam 账号订阅、WE 视频大文件播放失败\n- 修复场景渲染器启动超时与下载地址 404，增加 v1.4.3 回退；场景壁纸暂时显示预览图\n\n优化:\n- WE 视频改为本地协议 + HTTP Range 流式读取，降低内存占用\n- 插件与资源包解压路径校验加强（Zip Slip）",
-    "files": {
-        "win-x64": {
-            "url": "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.7.2/VersePC2.exe",
-            "size": 74567680,
-            "sha256": "d508a6c41214d01829d1f99939fd912cffc457d1589e934b502947651adccc9d"
-        },
-        "linux-x86_64": {
-            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.2/VersePC2-linux-x86_64",
-            "size": 70508448,
-            "sha256": "9a232c3c71550446735600cd3e73b1bd97d8583bbf7b34fc8bb1c8435d36dc79"
-        },
-        "macos-x86_64": {
-            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.2/VersePC2-macos-x86_64.zip",
-            "size": 62536616,
-            "sha256": "0c60f94c5eb7cba6deeab0dc77c5f9f0655bf766c121832e3ea4c77e2a1006de"
-        },
-        "macos-aarch64": {
-            "url": "https://github.com/doujie081231/VersePc2/releases/download/v1.7.2/VersePC2-macos-aarch64.zip",
-            "size": 62614732,
-            "sha256": "3e7be08094bb66f02abc969abf0230b0c037dfff78ed1b72de4440a58ac519a5"
-        }
-    }
+    "version":  "1.8.0",
+    "releaseName":  "v1.8.0",
+    "releaseDate":  "2026-10-25",
+    "releaseNotes":  "VersePC2 v1.8.0\n\n新增:\n- 云盘页全面重做：容量概览、文件排序、上传/下载进度与确认弹窗\n- 经典导航栏支持收起、图钉固定与左侧悬停临时呼出\n- 启动动画改为波浪进度条；主页支持手动编辑布局并保存\n\n修复:\n- 修复 26.3 启动退出码 -3：natives 改用短 ASCII 缓存目录，按原生库实际清单校验并原地补齐，缺失时中止并写入诊断日志\n- 修复 26.3 Forge 的 universal/client classpath 去重误删，以及 Java 检测缓存过期/阻塞导致启动检测失败\n- 修复 26.1.1 被误标为「愚人节版本」\n- WE 壁纸仅显示当前 Steam 账号订阅的内容，支持家庭共享与多 Steam 库\n- 修复页面右侧滚动条、主页布局错位、头像无法跳转与全屏宽度不适配\n- 修复 macOS/Linux 构建中的 Windows 专用导入与符号链接目标变量问题\n\n优化:\n- 更新下载延长总超时、复用连接、流式校验、进度节流并自动清理旧缓存\n- 降低后台运行与启动阶段的资源占用",
+    "files":  {
+                  "win-x64":  {
+                                  "url":  "https://gitee.com/doujie081231/verse-pc2/releases/download/v1.8.0/VersePC2.exe",
+                                  "size":  71634432,
+                                  "sha256":  "f1344dac0ee5d7262d2278a78ac9e69610ea304ef12c354ffec3ceb1006964bf"
+                              },
+                  "linux-x86_64":  {
+                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.0/VersePC2-linux-x86_64",
+                                       "size":  14359200,
+                                       "sha256":  "adeec9adebd8e3bdd127a9cacb130ef0a4fa7751d2108710122955e750ecda09"
+                                   },
+                  "macos-x86_64":  {
+                                       "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.0/VersePC2-macos-x86_64.zip",
+                                       "size":  11360868,
+                                       "sha256":  "17a85ffa871b2857cf7464b627623418190f484269a968c9864e227686cb7922"
+                                   },
+                  "macos-aarch64":  {
+                                        "url":  "https://github.com/doujie081231/VersePc2/releases/download/v1.8.0/VersePC2-macos-aarch64.zip",
+                                        "size":  10897631,
+                                        "sha256":  "9be8ba51ca701cdee824e79ee796520aaa3f980d4d6cd58f86e32f2a7dcea4b0"
+                                    }
+              }
 }
