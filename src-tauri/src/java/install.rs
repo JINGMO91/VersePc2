@@ -105,7 +105,7 @@ pub(crate) async fn install_mojang_runtime(
         let dest = target_dir.join(file_path);
         // 清单中的 link 项：macOS/Linux 创建符号链接（如 legal 目录），不是空文件
         if info.get("type").and_then(|v| v.as_str()) == Some("link") {
-            if let Some(_target) = info.get("target").and_then(|v| v.as_str()) {
+            if let Some(target) = info.get("target").and_then(|v| v.as_str()) {
                 if let Some(parent) = dest.parent() {
                     let _ = std::fs::create_dir_all(parent);
                 }
@@ -116,6 +116,7 @@ pub(crate) async fn install_mojang_runtime(
                 }
                 #[cfg(not(unix))]
                 {
+                    let _ = target;
                     let _ = std::fs::write(&dest, "");
                 }
             }

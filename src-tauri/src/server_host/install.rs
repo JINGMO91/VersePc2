@@ -13,6 +13,7 @@ use tokio::process::{ChildStdin, Command};
 use tokio::sync::oneshot;
 use crate::download::download_with_mirror;
 use crate::storage;
+#[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use super::*;
 

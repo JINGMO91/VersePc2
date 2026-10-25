@@ -13,7 +13,6 @@ use tokio::process::{ChildStdin, Command};
 use tokio::sync::oneshot;
 use crate::download::download_with_mirror;
 use crate::storage;
-use std::os::windows::process::CommandExt;
 use super::*;
 
 /// 开服日志/状态广播出口。
