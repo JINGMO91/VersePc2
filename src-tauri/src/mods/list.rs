@@ -332,3 +332,28 @@ fn resolve_version_game_dir(settings: &Value, version_id: &str) -> PathBuf {
         &data_dir,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_size_units() {
+        assert_eq!(format_size(512), "512 B");
+        assert_eq!(format_size(1536), "1.5 KB");
+        assert_eq!(format_size(2 * 1024 * 1024), "2.0 MB");
+        assert_eq!(format_size(2 * 1024 * 1024 * 1024), "2.00 GB");
+    }
+
+    #[test]
+    fn external_marker_is_removed() {
+        assert_eq!(clean_external_marker("1.20.1 [外部1]"), "1.20.1");
+        assert_eq!(clean_external_marker("1.20.1[外部2]"), "1.20.1");
+        assert_eq!(clean_external_marker("1.20.1"), "1.20.1");
+    }
+
+    #[test]
+    fn empty_version_has_no_mods_dir() {
+        assert!(resolve_mods_dir_for(&serde_json::json!({}), "").is_none());
+    }
+}

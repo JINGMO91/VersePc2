@@ -346,6 +346,16 @@ pub async fn install_neoforge(
     shared::ensure_launcher_profile(game_version);
 
     // 安装器内部按 install_profile.json 里的官方 Maven 地址下载依赖，
+    // 国内直连常见超时；先按库清单预下载到 libraries，安装器校验通过后会跳过联网下载。
+    match shared::prefetch_installer_libraries(&installer_path, "NeoForge").await {
+        Ok(count) => eprintln!("[NeoForge] 支持库预下载完成: {} 个", count),
+        Err(e) => {
+            let _ = std::fs::remove_file(&installer_path);
+            return json!({ "success": false, "error": e });
+        }
+    }
+
+    // 安装器内部按 install_profile.json 里的官方 Maven 地址下载依赖，
     // 国内直连常见超时；改写为 BMCLAPI 镜像后再执行（先跑镜像版，失败回退原版）
     let orig_path = installer_path.with_extension("orig.jar");
     let mut use_mirror = true;

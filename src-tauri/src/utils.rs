@@ -124,6 +124,69 @@ pub fn bytes_to_data_url(bytes: &[u8], mime: &str) -> String {
     format!("data:{};base64,{}", mime, b64)
 }
 
+#[allow(clippy::items_after_test_module)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn offline_uuid_is_stable_and_version_3() {
+        let first = offline_uuid("Steve");
+        let second = offline_uuid("Steve");
+        assert_eq!(first, second);
+        let chars: Vec<char> = first.chars().collect();
+        assert_eq!(chars.len(), 36);
+        assert_eq!(chars[14], '3', "UUID version 位应为 3: {first}");
+        assert!(
+            matches!(chars[19], '8' | '9' | 'a' | 'b'),
+            "UUID variant 位非法: {first}"
+        );
+        assert_ne!(offline_uuid("Steve"), offline_uuid("Alex"));
+    }
+
+    #[test]
+    fn unix_seconds_convert_to_iso() {
+        assert_eq!(ts_to_iso(0), "1970-01-01T00:00:00Z");
+        assert_eq!(ts_to_iso(1_700_000_000), "2023-11-14T22:13:20Z");
+    }
+
+    #[test]
+    fn invalid_release_time_detection() {
+        assert!(is_invalid_release_time(""));
+        assert!(is_invalid_release_time("1970-01-01T00:00:00Z"));
+        assert!(!is_invalid_release_time("2026-10-24T08:00:00Z"));
+    }
+
+    #[test]
+    fn json_getters_handle_missing_and_wrong_types() {
+        let value = json!({ "name": "  Sodium  ", "count": 3, "enabled": true });
+        assert_eq!(get_str(&value, "name"), "  Sodium  ");
+        assert_eq!(get_str_trim(&value, "name"), "Sodium");
+        assert_eq!(get_str(&value, "missing"), "");
+        assert_eq!(get_u64(&value, "count"), Some(3));
+        assert_eq!(get_u64(&value, "name"), None);
+        assert!(get_bool(&value, "enabled"));
+        assert!(!get_bool(&value, "missing"));
+    }
+
+    #[test]
+    fn data_url_encoding() {
+        assert_eq!(
+            bytes_to_data_url(&[1, 2, 3], "image/png"),
+            "data:image/png;base64,AQID"
+        );
+    }
+
+    #[test]
+    fn now_helpers_return_reasonable_values() {
+        assert!(now_millis() > 1_700_000_000_000);
+        let iso = now_iso();
+        assert!(iso.ends_with('Z'), "ISO 时间应以 Z 结尾: {iso}");
+        assert_eq!(iso.len(), 24, "ISO 时间长度异常: {iso}");
+    }
+}
+
 /// 从 Value 中安全取字符串字段
 pub fn get_str(v: &Value, key: &str) -> String {
     v.get(key)

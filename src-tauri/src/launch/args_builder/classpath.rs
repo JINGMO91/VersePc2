@@ -71,6 +71,11 @@ pub fn build_classpath(
         if let Some(artifact) = lib.get("downloads").and_then(|d| d.get("artifact"))
             && let Some(path) = artifact.get("path").and_then(|p| p.as_str())
                 && !path.is_empty() {
+                    // 26.2+ 把 natives 作为独立 classifier 条目；artifact 指向 natives jar 时
+                    // 绝不能进入 classpath（应交给 extract_natives_dir 解压）。
+                    if path.contains("-natives-") {
+                        continue;
+                    }
                     resolved_path = find_lib_in_bases(&search_bases, path);
                 }
 
@@ -210,6 +215,8 @@ pub(crate) fn find_lib_in_bases(bases: &[PathBuf], rel_path: &str) -> Option<Str
 }
 
 /// 兜底：扫描目录找到匹配的 JAR
+/// 只接受与请求坐标完全匹配的文件，避免把同目录下的 natives/sources/javadoc
+/// 当成主 jar 加入 classpath（26.2 的 lwjgl unsafe 缺失时曾因此加载到 natives jar）。
 pub(crate) fn find_lib_by_fallback(name: &str, bases: &[PathBuf]) -> Option<String> {
     let parts: Vec<&str> = name.split(':').collect();
     if parts.len() < 3 {
@@ -247,12 +254,94 @@ pub(crate) fn find_lib_by_fallback(name: &str, bases: &[PathBuf]) -> Option<Stri
             if let Some(m) = jars.iter().find(|f| *f == &preferred) {
                 return Some(dir.join(m).to_string_lossy().to_string());
             }
+            // 请求的是 classifier，但对应文件不存在：不能退化成主 jar 或其他 classifier
+            continue;
         }
         let preferred = format!("{}-{}.jar", artifact_id, version);
         if let Some(m) = jars.iter().find(|f| *f == &preferred) {
             return Some(dir.join(m).to_string_lossy().to_string());
         }
-        return Some(dir.join(&jars[0]).to_string_lossy().to_string());
+        // 兼容外部版本目录中的重命名 jar：仅当唯一候选且不是 natives 时兜底
+        let candidates: Vec<&String> = jars.iter().filter(|f| !f.contains("-natives-")).collect();
+        if candidates.len() == 1 {
+            return Some(dir.join(candidates[0]).to_string_lossy().to_string());
+        }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn temp_base(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "verse-classpath-{}-{}-{}",
+            tag,
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        fs::create_dir_all(dir.join("org/lwjgl/lwjgl/3.4.1")).unwrap();
+        dir
+    }
+
+    fn touch(dir: &Path, name: &str) {
+        fs::write(dir.join("org/lwjgl/lwjgl/3.4.1").join(name), b"x").unwrap();
+    }
+
+    #[test]
+    fn fallback_never_returns_natives_jar_for_main_artifact() {
+        let base = temp_base("natives-only");
+        touch(&base, "lwjgl-3.4.1-natives-windows.jar");
+        let found = find_lib_by_fallback("org.lwjgl:lwjgl:3.4.1", std::slice::from_ref(&base));
+        assert!(found.is_none());
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn fallback_returns_exact_classifier_jar() {
+        let base = temp_base("classifier");
+        touch(&base, "lwjgl-3.4.1-unsafe.jar");
+        touch(&base, "lwjgl-3.4.1-natives-windows.jar");
+        let found = find_lib_by_fallback("org.lwjgl:lwjgl:3.4.1:unsafe", std::slice::from_ref(&base));
+        assert!(found.unwrap().ends_with("lwjgl-3.4.1-unsafe.jar"));
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn fallback_prefers_exact_main_jar() {
+        let base = temp_base("main");
+        touch(&base, "lwjgl-3.4.1.jar");
+        touch(&base, "lwjgl-3.4.1-unsafe.jar");
+        let found = find_lib_by_fallback("org.lwjgl:lwjgl:3.4.1", &[base.clone()]);
+        assert!(found.unwrap().ends_with("lwjgl-3.4.1.jar"));
+        let _ = fs::remove_dir_all(base);
+    }
+
+    #[test]
+    fn classpath_skips_natives_and_uses_unsafe_classifier() {
+        let base = temp_base("build");
+        touch(&base, "lwjgl-3.4.1-natives-windows.jar");
+        touch(&base, "lwjgl-3.4.1-unsafe.jar");
+        let json = serde_json::json!({
+            "libraries": [
+                {
+                    "name": "org.lwjgl:lwjgl:3.4.1:natives-windows",
+                    "downloads": { "artifact": { "path": "org/lwjgl/lwjgl/3.4.1/lwjgl-3.4.1-natives-windows.jar" } }
+                },
+                {
+                    "name": "org.lwjgl:lwjgl:3.4.1:unsafe",
+                    "downloads": { "artifact": { "path": "org/lwjgl/lwjgl/3.4.1/lwjgl-3.4.1-unsafe.jar" } }
+                }
+            ]
+        });
+        let classpath = build_classpath(&json, None, &base);
+        assert_eq!(classpath.len(), 1);
+        assert!(classpath[0].ends_with("lwjgl-3.4.1-unsafe.jar"));
+        let _ = fs::remove_dir_all(base);
+    }
 }

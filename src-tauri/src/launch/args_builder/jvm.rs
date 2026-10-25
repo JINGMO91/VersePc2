@@ -14,12 +14,14 @@ use crate::launch::memory::{
 use super::*;
 
 /// 清理 JVM 参数：过滤当前 Java 版本不支持的参数、trim 系统属性值
-pub(crate) fn sanitize_jvm_args(args: &mut Vec<String>) {
-    // 已知问题参数：
-    // --sun-misc-unsafe-memory-access=allow 是 Java 24+ 参数，低版本会报 "Unrecognized option"
-    let unsupported_options: Vec<&str> = vec![
-        "--sun-misc-unsafe-memory-access=allow",
-    ];
+pub(crate) fn sanitize_jvm_args(args: &mut Vec<String>, java_major: u32) {
+    // --sun-misc-unsafe-memory-access=allow 是 Java 24+ 参数：
+    // 26.2 起版本 JSON 自带该参数，低版本 Java 会报 "Unrecognized option"。
+    let unsupported_options: Vec<&str> = if java_major >= 24 {
+        Vec::new()
+    } else {
+        vec!["--sun-misc-unsafe-memory-access=allow"]
+    };
 
     for arg in args.iter_mut() {
         // trim -Dkey=value 的值部分（如 -DFabricMcEmu= xxx ）
@@ -432,20 +434,15 @@ pub(crate) fn has_garbage_collector_arg(args: &[String]) -> bool {
     })
 }
 
-/// 修复 java.library.path 参数（确保变量已替换）
+/// 修复 java.library.path 参数：原生库统一解压到 natives 根目录，
+/// 26.2+ 的版本 JSON 写成 ${natives_directory}/java，直接替换会指向不存在的子目录。
 pub(crate) fn fix_library_path(jvm_args: &mut Vec<String>, natives_dir: &Path) {
     let natives_str = natives_dir.to_string_lossy().to_string();
-    let idx = jvm_args.iter().position(|a| a.contains("java.library.path"));
-    if let Some(idx) = idx {
-        let val = &jvm_args[idx];
-        if val.contains("${natives_directory}") || val.contains("$natives_directory") {
-            let replaced = val
-                .replace("${natives_directory}", &natives_str)
-                .replace("$natives_directory", &natives_str);
-            jvm_args[idx] = replaced;
-        }
+    let value = format!("-Djava.library.path={}", natives_str);
+    if let Some(idx) = jvm_args.iter().position(|a| a.contains("java.library.path")) {
+        jvm_args[idx] = value;
     } else {
-        jvm_args.push(format!("-Djava.library.path={}", natives_str));
+        jvm_args.push(value);
     }
 }
 
@@ -644,4 +641,44 @@ pub(crate) fn resolve_memory_settings(
     let settings_max = settings.get("maxMemory").and_then(|v| v.as_u64()).unwrap_or(4096);
     let mode = resolve_memory_mode(settings_max, false, None, None);
     (mode, None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsafe_memory_flag_kept_for_java_24_and_newer() {
+        let mut args = vec![
+            "--sun-misc-unsafe-memory-access=allow".to_string(),
+            "-Xmx2G".to_string(),
+        ];
+        sanitize_jvm_args(&mut args, 25);
+        assert!(args.iter().any(|a| a == "--sun-misc-unsafe-memory-access=allow"));
+    }
+
+    #[test]
+    fn unsafe_memory_flag_removed_for_older_java() {
+        let mut args = vec![
+            "--sun-misc-unsafe-memory-access=allow".to_string(),
+            "-Xmx2G".to_string(),
+        ];
+        sanitize_jvm_args(&mut args, 21);
+        assert!(!args.iter().any(|a| a == "--sun-misc-unsafe-memory-access=allow"));
+        assert!(args.iter().any(|a| a == "-Xmx2G"));
+    }
+
+    #[test]
+    fn library_path_is_normalized_to_natives_root() {
+        let mut args = vec!["-Djava.library.path=${natives_directory}/java".to_string()];
+        fix_library_path(&mut args, Path::new("D:/data/natives/26.3"));
+        assert_eq!(args, vec!["-Djava.library.path=D:/data/natives/26.3"]);
+    }
+
+    #[test]
+    fn library_path_is_appended_when_missing() {
+        let mut args = vec!["-Xmx2G".to_string()];
+        fix_library_path(&mut args, Path::new("D:/natives"));
+        assert!(args.contains(&"-Djava.library.path=D:/natives".to_string()));
+    }
 }

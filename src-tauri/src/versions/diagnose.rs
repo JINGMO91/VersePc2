@@ -301,3 +301,84 @@ pub(crate) fn send_to_recycle_bin(path: &Path) -> std::io::Result<()> {
 }
 
 // ============== 版本修复 ==============
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn library_path_follows_maven_layout() {
+        let root = Path::new("libraries");
+        let path = resolve_library_path_from_name("com.mojang:authlib:1.5.25", root);
+        assert_eq!(
+            path,
+            Path::new("libraries")
+                .join("com")
+                .join("mojang")
+                .join("authlib")
+                .join("1.5.25")
+                .join("authlib-1.5.25.jar")
+        );
+    }
+
+    #[test]
+    fn invalid_library_name_falls_back_to_unknown() {
+        let root = Path::new("libraries");
+        assert_eq!(
+            resolve_library_path_from_name("broken", root),
+            root.join("unknown.jar")
+        );
+    }
+
+    #[test]
+    fn version_json_merges_parent_libraries_and_downloads() {
+        let dir = tempfile::tempdir().unwrap();
+        let versions = dir.path();
+        std::fs::create_dir_all(versions.join("base")).unwrap();
+        std::fs::create_dir_all(versions.join("child")).unwrap();
+        std::fs::write(
+            versions.join("base").join("base.json"),
+            json!({
+                "id": "base",
+                "libraries": [{"name": "a:a:1"}, {"name": "b:b:1"}],
+                "downloads": {"client": {"url": "https://example.com/client.jar"}}
+            })
+            .to_string(),
+        )
+        .unwrap();
+        std::fs::write(
+            versions.join("child").join("child.json"),
+            json!({
+                "id": "child",
+                "inheritsFrom": "base",
+                "libraries": [{"name": "b:b:1"}, {"name": "c:c:1"}]
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let merged = resolve_version_json_recursive("child", versions).unwrap();
+        let names: Vec<&str> = merged["libraries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|lib| lib.get("name").and_then(|v| v.as_str()))
+            .collect();
+        assert_eq!(names, vec!["a:a:1", "b:b:1", "c:c:1"]);
+        assert_eq!(
+            merged["downloads"]["client"]["url"].as_str(),
+            Some("https://example.com/client.jar")
+        );
+    }
+
+    #[test]
+    fn missing_or_invalid_version_json_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(resolve_version_json_recursive("missing", dir.path()).is_none());
+
+        std::fs::create_dir_all(dir.path().join("broken")).unwrap();
+        std::fs::write(dir.path().join("broken").join("broken.json"), "{bad").unwrap();
+        assert!(resolve_version_json_recursive("broken", dir.path()).is_none());
+    }
+}

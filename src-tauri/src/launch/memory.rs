@@ -131,3 +131,86 @@ pub fn should_run_memory_optimize(
     }
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn memory_mode_prefers_launch_settings() {
+        assert_eq!(
+            resolve_memory_mode(8192, true, Some("custom"), Some(6144)),
+            MemoryMode::Custom(6144)
+        );
+        assert_eq!(
+            resolve_memory_mode(8192, true, Some("auto"), Some(6144)),
+            MemoryMode::Auto
+        );
+        assert_eq!(
+            resolve_memory_mode(8192, true, None, None),
+            MemoryMode::Auto
+        );
+    }
+
+    #[test]
+    fn memory_mode_falls_back_to_global_setting() {
+        assert_eq!(
+            resolve_memory_mode(6144, false, None, None),
+            MemoryMode::Custom(6144)
+        );
+        assert_eq!(
+            resolve_memory_mode(DEFAULT_LEGACY_MAX_MEMORY, false, None, None),
+            MemoryMode::Auto
+        );
+    }
+
+    #[test]
+    fn custom_mode_returns_exact_value() {
+        assert_eq!(
+            resolve_max_memory(&MemoryMode::Custom(3072), 16384, 8192, 0),
+            3072
+        );
+    }
+
+    #[test]
+    fn auto_mode_is_bounded_and_aligned() {
+        for mod_count in [0u64, 50, 150, 500] {
+            let value = resolve_max_memory(&MemoryMode::Auto, 16384, 8192, mod_count);
+            assert!(value >= 512, "mod_count={mod_count} value={value}");
+            assert!(value <= 16384, "mod_count={mod_count} value={value}");
+            assert_eq!(value % 256, 0, "mod_count={mod_count} value={value}");
+        }
+    }
+
+    #[test]
+    fn auto_mode_respects_small_physical_memory() {
+        // 4GB 机器保留 1536MB 系统占用，上限 2560MB
+        assert_eq!(
+            resolve_max_memory(&MemoryMode::Auto, 4096, 4096, 0),
+            2560
+        );
+        // 8GB 机器保留 2048MB 系统占用，默认需求未触顶
+        assert_eq!(
+            resolve_max_memory(&MemoryMode::Auto, 8192, 8192, 0),
+            4608
+        );
+    }
+
+    #[test]
+    fn auto_mode_grows_with_mod_count() {
+        let low = resolve_max_memory(&MemoryMode::Auto, 16384, 8192, 0);
+        let high = resolve_max_memory(&MemoryMode::Auto, 16384, 8192, 150);
+        assert!(high >= low, "low={low} high={high}");
+    }
+
+    #[test]
+    fn memory_optimize_conditions() {
+        assert!(should_run_memory_optimize(true, "on", 16384, 0, 8192));
+        assert!(!should_run_memory_optimize(true, "off", 4096, 0, 1024));
+        assert!(!should_run_memory_optimize(false, "auto", 4096, 0, 1024));
+        assert!(!should_run_memory_optimize(true, "auto", 12288, 0, 1024));
+        assert!(!should_run_memory_optimize(true, "auto", 8192, 100, 1024));
+        assert!(should_run_memory_optimize(true, "auto", 8192, 10, 2048));
+        assert!(!should_run_memory_optimize(true, "auto", 8192, 10, 5000));
+    }
+}

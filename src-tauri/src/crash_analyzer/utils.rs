@@ -135,3 +135,69 @@ pub fn append_reason(
 pub fn single_additional(s: Option<String>) -> Option<Vec<String>> {
     s.map(|v| vec![v])
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn regex_seek_variants() {
+        assert_eq!(regex_seek("hello 123", r"\d+").as_deref(), Some("123"));
+        assert_eq!(regex_seek("", r"\d+"), None);
+        assert_eq!(regex_seek("abc", "("), None);
+
+        assert_eq!(
+            regex_seek_group("<a>value</a>", r"<a>(.*?)</a>", 1).as_deref(),
+            Some("value")
+        );
+        assert_eq!(regex_seek_all(r"\d+", "1 2 3"), vec!["1", "2", "3"]);
+        assert!(regex_seek_all_group(r"(\d+)-(\d+)", "1-2 3-4", 2) == vec!["2", "4"]);
+    }
+
+    #[test]
+    fn regex_check_handles_invalid_patterns() {
+        assert!(regex_check("abc123", r"\d+"));
+        assert!(!regex_check("abc", r"\d+"));
+        assert!(!regex_check("", r"\d+"));
+        assert!(!regex_check("abc", "("));
+    }
+
+    #[test]
+    fn text_boundary_helpers() {
+        assert_eq!(after_last("a::b::c", "::"), "c");
+        assert_eq!(after_last("abc", "::"), "abc");
+        assert_eq!(between("start-middle-end", "start-", "-end"), "middle");
+        assert_eq!(between("abc", "x", "y"), "");
+        assert_eq!(before_first("a::b", "::"), "a");
+        assert_eq!(before_first("abc", "::"), "abc");
+    }
+
+    #[test]
+    fn append_reason_deduplicates_and_filters_empty() {
+        let mut reasons: HashMap<CrashReason, Vec<String>> = HashMap::new();
+        append_reason(&mut reasons, CrashReason::Unknown, None);
+        assert_eq!(reasons[&CrashReason::Unknown], Vec::<String>::new());
+
+        append_reason(
+            &mut reasons,
+            CrashReason::Unknown,
+            Some(vec!["a".to_string(), "".to_string()]),
+        );
+        append_reason(
+            &mut reasons,
+            CrashReason::Unknown,
+            Some(vec!["a".to_string(), "b".to_string()]),
+        );
+        assert_eq!(reasons[&CrashReason::Unknown], vec!["a", "b"]);
+    }
+
+    #[test]
+    fn single_additional_wraps_value() {
+        assert_eq!(
+            single_additional(Some("x".to_string())),
+            Some(vec!["x".to_string()])
+        );
+        assert_eq!(single_additional(None), None);
+    }
+}

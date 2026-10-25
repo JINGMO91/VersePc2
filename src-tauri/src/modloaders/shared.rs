@@ -800,6 +800,111 @@ pub async fn run_subprocess_with_timeout(
     }
 }
 
+/// 预下载安装器声明的支持库（合并 install_profile.json 与 version.json 的库清单，按路径去重）。
+/// 跳过 universal / shim / client 特殊分类：安装器从自身 jar 提取或由处理器生成，无需联网下载。
+pub(crate) async fn prefetch_installer_libraries(
+    installer_path: &std::path::Path,
+    label: &str,
+) -> Result<usize, String> {
+    fn entry_bytes<R: std::io::Read + std::io::Seek>(
+        archive: &mut zip::ZipArchive<R>,
+        name: &str,
+    ) -> Option<Vec<u8>> {
+        let mut entry = archive.by_name(name).ok()?;
+        let mut buf = Vec::new();
+        std::io::copy(&mut entry, &mut buf).ok()?;
+        Some(buf)
+    }
+
+    let file = std::fs::File::open(installer_path)
+        .map_err(|e| format!("无法打开 {} installer: {}", label, e))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| format!("无法解析 {} installer: {}", label, e))?;
+
+    let profile_bytes = entry_bytes(&mut archive, "install_profile.json")
+        .ok_or_else(|| format!("{} installer 中缺少 install_profile.json", label))?;
+    let profile: Value = serde_json::from_slice(&profile_bytes)
+        .map_err(|e| format!("解析 {} install_profile.json 失败: {}", label, e))?;
+
+    let version_bytes = entry_bytes(&mut archive, "version.json")
+        .ok_or_else(|| format!("{} installer 中缺少 version.json", label))?;
+    let version_json: Value = serde_json::from_slice(&version_bytes)
+        .map_err(|e| format!("解析 {} version.json 失败: {}", label, e))?;
+
+    type LibEntry = (String, String, String, Option<String>, Option<u64>);
+    let mut libs: Vec<LibEntry> = Vec::new();
+    for json in [&profile, &version_json] {
+        if let Some(arr) = json.get("libraries").and_then(|v| v.as_array()) {
+            for lib in arr {
+                let Some(obj) = lib.as_object() else { continue };
+                let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                if let Some(classifier) = name.split(':').nth(3)
+                    && (classifier == "universal" || classifier == "shim" || classifier == "client")
+                {
+                    continue;
+                }
+                let Some(artifact) = obj
+                    .get("downloads")
+                    .and_then(|d| d.get("artifact"))
+                    .and_then(|a| a.as_object())
+                else {
+                    continue;
+                };
+                let url = artifact.get("url").and_then(|v| v.as_str()).unwrap_or("");
+                let path = artifact.get("path").and_then(|v| v.as_str()).unwrap_or("");
+                if url.is_empty() || path.is_empty() {
+                    continue;
+                }
+                if libs.iter().any(|(_, p, _, _, _)| p == path) {
+                    continue;
+                }
+                libs.push((
+                    name.to_string(),
+                    path.to_string(),
+                    url.to_string(),
+                    artifact.get("sha1").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    artifact.get("size").and_then(|v| v.as_u64()),
+                ));
+            }
+        }
+    }
+
+    if libs.is_empty() {
+        return Ok(0);
+    }
+
+    let settings = storage::load_settings();
+    let configured_source = crate::utils::get_str(&settings, "downloadSource");
+    let download_source = if configured_source.is_empty() {
+        "china-first"
+    } else {
+        configured_source.as_str()
+    };
+
+    let libs_dir = libraries_dir();
+    let mut handled = 0usize;
+    for (name, path, url, sha1, size) in &libs {
+        let dest = libs_dir.join(path);
+        match crate::download::single::download_with_mirror(
+            url,
+            &dest,
+            sha1.as_deref(),
+            *size,
+            download_source,
+            180,
+            None,
+        )
+        .await
+        {
+            Ok(()) => handled += 1,
+            Err(e) => {
+                return Err(format!("{} 支持库下载失败: {} ({})", label, name, e));
+            }
+        }
+    }
+    Ok(handled)
+}
+
 /// 用系统自带的 curl 下载文件（绕过程序内部网络无法连接某些源的情况）
 /// curl 使用系统网络通道和系统证书，能连上程序内部连不上的地址。
 ///

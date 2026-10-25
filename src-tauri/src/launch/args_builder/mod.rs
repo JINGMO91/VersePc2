@@ -534,7 +534,7 @@ pub fn build_launch_arguments(
     all_args.extend(final_game_args);
 
     // 清理已知会导致 Java 17/21 崩溃的参数
-    sanitize_jvm_args(&mut all_args);
+    sanitize_jvm_args(&mut all_args, java_major_ver);
 
     LaunchArguments {
         args: all_args,

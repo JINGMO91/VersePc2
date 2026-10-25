@@ -36,6 +36,11 @@ pub(crate) fn extract_natives_dir(
 ) -> PathBuf {
     let natives_root = data_dir.join("natives");
     let natives_dir = natives_root.join(version_id);
+    // 26.2+ 的版本 JSON 会把 java.library.path / jna / lwjgl / netty 指向 natives 下的子目录，
+    // 提前创建可避免 JNA/LWJGL 在首次启动时因目录不存在而失败。
+    for sub in ["java", "jna", "lwjgl", "netty"] {
+        let _ = std::fs::create_dir_all(natives_dir.join(sub));
+    }
 
     let libraries = version_json
         .get("libraries")

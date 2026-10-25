@@ -102,4 +102,13 @@ mod tests {
         assert!(matches!(rules_arch_name(), "arm64" | "x86" | "x64"));
         assert!(matches!(pointer_width_suffix(), "64" | "32"));
     }
+
+    #[test]
+    fn javac_name_follows_platform_suffix() {
+        if cfg!(target_os = "windows") {
+            assert_eq!(javac_bin_name(), "javac.exe");
+        } else {
+            assert_eq!(javac_bin_name(), "javac");
+        }
+    }
 }

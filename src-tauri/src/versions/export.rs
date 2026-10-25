@@ -361,3 +361,23 @@ pub(crate) fn has_junk_ext(name: &str) -> bool {
         || lower.ends_with(".bakacoreinfo")
         || lower.ends_with(".tmp")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn junk_extensions_are_detected_case_insensitively() {
+        assert!(has_junk_ext("latest.log"));
+        assert!(has_junk_ext("level.dat_old"));
+        assert!(has_junk_ext("backup.bakacoreinfo"));
+        assert!(has_junk_ext("temp.TMP"));
+    }
+
+    #[test]
+    fn normal_files_are_not_junk() {
+        assert!(!has_junk_ext("level.dat"));
+        assert!(!has_junk_ext("mod.jar"));
+        assert!(!has_junk_ext("options.txt"));
+    }
+}

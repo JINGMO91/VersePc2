@@ -149,3 +149,101 @@ fn refine_analysis(content: &str, analysis: &mut ExitAnalysis) {
         analysis.suggestion = "Forge安装不完整(fmlcore/javafmllanguage/mclanguage/lowcodelanguage缺失)。\n修复: 1)版本设置→文件修复 2)重新安装Forge 3)检查杀毒白名单".to_string();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn temp_data_dir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "verse-exit-code-{}-{}",
+            std::process::id(),
+            name
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn normal_exit_is_not_crash() {
+        let dir = temp_data_dir("normal");
+        let result = analyze_exit_code(0, "1.20.1", &dir);
+        assert_eq!(result.reason, "正常退出");
+        assert!(!result.is_crash);
+        assert!(result.crash_log_file.is_none());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn known_exit_codes_map_to_reasons() {
+        let dir = temp_data_dir("codes");
+        assert!(analyze_exit_code(137, "v", &dir).reason.contains("内存不足"));
+        assert!(analyze_exit_code(134, "v", &dir).reason.contains("SIGABRT"));
+        assert!(analyze_exit_code(139, "v", &dir).reason.contains("段错误"));
+        assert!(analyze_exit_code(-1073741819, "v", &dir).reason.contains("JVM 崩溃"));
+        assert!(analyze_exit_code(-1, "v", &dir).is_crash);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn unknown_exit_code_keeps_code_in_reason() {
+        let dir = temp_data_dir("unknown");
+        let result = analyze_exit_code(42, "v", &dir);
+        assert!(result.reason.contains("42"));
+        assert!(result.is_crash);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn crash_report_refines_out_of_memory() {
+        let dir = temp_data_dir("oom");
+        let crash_dir = dir.join("versions").join("1.20.1").join("crash-reports");
+        fs::create_dir_all(&crash_dir).unwrap();
+        fs::write(
+            crash_dir.join("crash-2026-01-01.txt"),
+            "java.lang.OutOfMemoryError: Java heap space",
+        )
+        .unwrap();
+
+        let result = analyze_exit_code(1, "1.20.1", &dir);
+        assert!(result.reason.contains("OutOfMemoryError"));
+        assert!(result.crash_log_file.is_some());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn latest_crash_report_is_selected() {
+        let dir = temp_data_dir("latest");
+        let crash_dir = dir.join("crash-reports");
+        fs::create_dir_all(&crash_dir).unwrap();
+        fs::write(crash_dir.join("2026-01-01.txt"), "plain").unwrap();
+        fs::write(crash_dir.join("2026-02-01.txt"), "Mixin apply failed").unwrap();
+
+        let result = analyze_exit_code(1, "1.20.1", &dir);
+        assert!(result.reason.contains("Mixin"));
+        assert!(result
+            .crash_log_file
+            .as_ref()
+            .is_some_and(|path| path.ends_with("2026-02-01.txt")));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn refine_analysis_prioritizes_class_version_errors() {
+        let mut analysis = ExitAnalysis {
+            code: 1,
+            reason: String::new(),
+            suggestion: String::new(),
+            is_crash: true,
+            crash_log_file: None,
+        };
+        refine_analysis(
+            "java.lang.UnsupportedClassVersionError: Unsupported major.minor version 52.0",
+            &mut analysis,
+        );
+        assert!(analysis.reason.contains("Java版本不兼容"));
+    }
+}

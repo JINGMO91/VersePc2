@@ -157,6 +157,104 @@ pub fn to_mirror_url(original: &str) -> Option<String> {
     };
     Some(mirror)
 }
+#[allow(clippy::items_after_test_module)]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mirror_urls_cover_mojang_and_modrinth() {
+        assert_eq!(
+            to_mirror_url("https://piston-data.mojang.com/foo").as_deref(),
+            Some("https://bmclapi2.bangbang93.com/foo")
+        );
+        assert_eq!(
+            to_mirror_url("https://libraries.minecraft.net/a/b.jar").as_deref(),
+            Some("https://bmclapi2.bangbang93.com/libraries/a/b.jar")
+        );
+        assert_eq!(
+            to_mirror_url("https://resources.download.minecraft.net/ab/abc").as_deref(),
+            Some("https://bmclapi2.bangbang93.com/assets/ab/abc")
+        );
+        assert_eq!(
+            to_mirror_url("https://cdn.modrinth.com/data/x.jar").as_deref(),
+            Some("https://mod.mcimirror.top/data/x.jar")
+        );
+        assert_eq!(to_mirror_url("https://example.com/file"), None);
+    }
+
+    #[test]
+    fn temurin_github_links_use_ustc_mirror() {
+        let original = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_x64_windows_hotspot_21.0.5_11.zip";
+        let mirror = to_mirror_url(original).unwrap();
+        assert!(mirror.starts_with("https://mirrors.ustc.edu.cn/adoptium/releases/temurin21-binaries/"));
+        assert!(mirror.ends_with("OpenJDK21U-jdk_x64_windows_hotspot_21.0.5_11.zip"));
+    }
+
+    #[test]
+    fn download_source_controls_ordering() {
+        mirror_success();
+        let official = "https://piston-data.mojang.com/foo";
+        let auto = get_mirror_urls(official, "auto");
+        assert_eq!(auto[0], official);
+        assert!(auto.iter().any(|u| u.contains("bmclapi")));
+
+        let china = get_mirror_urls(official, "china-first");
+        assert!(china[0].contains("bmclapi"));
+
+        let mojang = get_mirror_urls(official, "mojang");
+        assert_eq!(mojang, vec![official.to_string()]);
+
+        // 熔断期间 china-first 跳过镜像，恢复后重新使用镜像
+        for _ in 0..3 {
+            mirror_failed();
+        }
+        assert!(!is_mirror_available());
+        let blocked = get_mirror_urls(official, "china-first");
+        assert_eq!(blocked[0], official);
+        mirror_success();
+        assert!(is_mirror_available());
+    }
+
+    #[test]
+    fn maven_urls_include_aliyun_and_huawei_fallbacks() {
+        mirror_success();
+        let original = "https://maven.minecraftforge.net/org/checkerframework/checker-qual/2.0.0/checker-qual-2.0.0.jar";
+        let urls = get_mirror_urls(original, "china-first");
+        assert!(urls.iter().any(|u| u
+            .starts_with("https://maven.aliyun.com/repository/public/org/checkerframework/")));
+        assert!(urls.iter().any(|u| u
+            .starts_with("https://repo.huaweicloud.com/repository/maven/org/checkerframework/")));
+
+        let central = "https://repo1.maven.org/maven2/org/ow2/asm/asm/9.10.1/asm-9.10.1.jar";
+        let urls = get_mirror_urls(central, "auto");
+        assert!(urls.iter().any(|u| u
+            == "https://maven.aliyun.com/repository/public/org/ow2/asm/asm/9.10.1/asm-9.10.1.jar"));
+    }
+
+    #[test]
+    fn transport_errors_are_distinguished_from_http_errors() {
+        assert!(is_transport_error("connection reset by peer"));
+        assert!(is_transport_error("dns lookup failed"));
+        assert!(!is_transport_error("HTTP 404"));
+        assert!(!is_transport_error("HTTP 503"));
+        assert!(!is_transport_error("429 Too Many Requests"));
+        assert!(!is_transport_error("SHA1 mismatch"));
+        assert!(!is_transport_error("大小不匹配"));
+    }
+
+    #[test]
+    fn bad_hosts_are_session_scoped() {
+        let url = "https://bad-host-test.example/file.jar";
+        assert!(!is_bad_host(url));
+        mark_bad_host(url);
+        assert!(is_bad_host(url));
+        clear_bad_host(url);
+        assert!(!is_bad_host(url));
+        assert!(!is_bad_host("not-a-url"));
+    }
+
+}
 
 /// 根据下载源模式生成镜像候选 URL 列表
 /// - `china-first`: 镜像在前，官方在后
@@ -205,6 +303,26 @@ pub fn get_mirror_urls(original: &str, download_source: &str) -> Vec<String> {
         let ustc = format!("https://mirrors.cernet.edu.cn/bmclapi/{}", rest);
         if !urls.contains(&ustc) {
             urls.push(ustc);
+        }
+    }
+
+    // Maven 公共镜像兜底：BMCLAPI/CERNET 对部分 Maven Central 文件会返回 403，
+    // 官方源在部分网络也不可达；阿里云与华为云覆盖 Maven Central 全量文件。
+    let maven_rest = original
+        .strip_prefix("https://maven.minecraftforge.net/")
+        .or_else(|| original.strip_prefix("https://maven.neoforged.net/releases/"))
+        .or_else(|| original.strip_prefix("https://libraries.minecraft.net/"))
+        .or_else(|| original.strip_prefix("https://repo1.maven.org/maven2/"))
+        .or_else(|| original.strip_prefix("https://repo.maven.apache.org/maven2/"));
+    if let Some(rest) = maven_rest {
+        for base in [
+            "https://maven.aliyun.com/repository/public/",
+            "https://repo.huaweicloud.com/repository/maven/",
+        ] {
+            let candidate = format!("{}{}", base, rest);
+            if !urls.contains(&candidate) {
+                urls.push(candidate);
+            }
         }
     }
 

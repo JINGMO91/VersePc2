@@ -126,3 +126,72 @@ pub fn search(
     }
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entries() -> Vec<Vec<SearchSource>> {
+        vec![
+            vec![SearchSource::new_text("Sodium", 1.0)],
+            vec![SearchSource::new_text("Iris Shaders", 1.0)],
+            vec![SearchSource::new_text("Sodium Extra", 1.0)],
+        ]
+    }
+
+    #[test]
+    fn exact_query_marks_absolute_matches() {
+        // 关闭模糊结果，只保留绝对匹配
+        let hits = search(&entries(), "sodium", 0, 0.5);
+        assert!(hits.iter().any(|h| h.index == 0 && h.absolute_right));
+        assert!(hits.iter().any(|h| h.index == 2 && h.absolute_right));
+        assert!(!hits.iter().any(|h| h.index == 1));
+    }
+
+    #[test]
+    fn matching_is_case_and_space_insensitive() {
+        let hits = search(&entries(), "SOD IUM", 5, 0.0);
+        assert!(hits.iter().any(|h| h.index == 0 && h.absolute_right));
+    }
+
+    #[test]
+    fn empty_entries_return_empty() {
+        let empty: Vec<Vec<SearchSource>> = Vec::new();
+        assert!(search(&empty, "sodium", 5, 0.0).is_empty());
+    }
+
+    #[test]
+    fn blur_results_respect_limit() {
+        let sources = vec![
+            vec![SearchSource::new_text("alpha", 1.0)],
+            vec![SearchSource::new_text("beta", 1.0)],
+            vec![SearchSource::new_text("gamma", 1.0)],
+        ];
+        let hits = search(&sources, "zzzz", 1, 0.0);
+        assert_eq!(hits.len(), 1);
+        assert!(!hits[0].absolute_right);
+    }
+
+    #[test]
+    fn exact_matches_are_not_limited_by_blur_count() {
+        let hits = search(&entries(), "sodium", 0, 0.0);
+        assert!(hits.iter().all(|h| h.absolute_right));
+        assert!(hits.len() >= 2);
+    }
+
+    #[test]
+    fn weighted_sources_change_ranking() {
+        let sources = vec![
+            vec![
+                SearchSource::new_text("Minecraft", 1.0),
+                SearchSource::new_text("Other", 1.0),
+            ],
+            vec![
+                SearchSource::new_text("Minecraft", 3.0),
+                SearchSource::new_text("Other", 1.0),
+            ],
+        ];
+        let hits = search(&sources, "minecraft", 5, 0.0);
+        assert_eq!(hits[0].index, 1);
+    }
+}

@@ -366,3 +366,135 @@ pub fn compute_sha1_file(path: &Path) -> Option<String> {
     let hash = hasher.finalize();
     Some(hash.iter().map(|b| format!("{:02x}", b)).collect())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use zip::write::{SimpleFileOptions, ZipWriter};
+
+    fn write_zip(path: &Path, entries: &[(&str, &[u8])]) {
+        let file = fs::File::create(path).unwrap();
+        let mut zip = ZipWriter::new(file);
+        let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        for (name, content) in entries {
+            zip.start_file(*name, options).unwrap();
+            zip.write_all(content).unwrap();
+        }
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn parses_fabric_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let jar = dir.path().join("sodium.jar");
+        write_zip(
+            &jar,
+            &[(
+                "fabric.mod.json",
+                br#"{
+                    "id": "sodium",
+                    "name": "Sodium",
+                    "version": "0.5.11",
+                    "description": "Modern rendering engine",
+                    "authors": ["jellysquid", {"name": "other"}]
+                }"#,
+            )],
+        );
+
+        let meta = parse_mod_jar(&jar);
+        assert_eq!(meta.name, "Sodium");
+        assert_eq!(meta.version, "0.5.11");
+        assert_eq!(meta.desc, "Modern rendering engine");
+        assert_eq!(meta.author, "jellysquid, other");
+        assert_eq!(meta.project_id, "sodium");
+    }
+
+    #[test]
+    fn parses_forge_toml_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let jar = dir.path().join("jei.jar");
+        write_zip(
+            &jar,
+            &[(
+                "META-INF/mods.toml",
+                br#"
+modLoader="javafml"
+loaderVersion="[47,)"
+[[mods]]
+modId="jei"
+version="15.2.0"
+displayName="Just Enough Items"
+authors=["mezz"]
+description="""
+JEI is a recipe viewer
+"""
+"#,
+            )],
+        );
+
+        let meta = parse_mod_jar(&jar);
+        assert_eq!(meta.name, "Just Enough Items");
+        assert_eq!(meta.version, "15.2.0");
+        assert_eq!(meta.author, "mezz");
+        assert_eq!(meta.project_id, "jei");
+        assert!(meta.desc.contains("recipe viewer"));
+    }
+
+    #[test]
+    fn parses_neoforge_toml_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let jar = dir.path().join("neoforge.jar");
+        write_zip(
+            &jar,
+            &[(
+                "META-INF/neoforge.mods.toml",
+                br#"
+[[mods]]
+modId="example"
+version="2.0.0"
+displayName="Example Mod"
+author="dev"
+description="NeoForge mod"
+"#,
+            )],
+        );
+
+        let meta = parse_mod_jar(&jar);
+        assert_eq!(meta.name, "Example Mod");
+        assert_eq!(meta.version, "2.0.0");
+        assert_eq!(meta.project_id, "example");
+    }
+
+    #[test]
+    fn invalid_or_missing_jar_returns_default_metadata() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("missing.jar");
+        let meta = parse_mod_jar(&missing);
+        assert_eq!(meta.version, "1.0");
+        assert!(meta.name.is_empty());
+
+        let broken = dir.path().join("broken.jar");
+        fs::write(&broken, b"not a zip").unwrap();
+        let meta = parse_mod_jar(&broken);
+        assert_eq!(meta.version, "1.0");
+    }
+
+    #[test]
+    fn metadata_is_cached_by_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let jar = dir.path().join("cached.jar");
+        write_zip(
+            &jar,
+            &[(
+                "fabric.mod.json",
+                br#"{"id":"cached","name":"Cached","version":"1.2.3"}"#,
+            )],
+        );
+
+        let first = parse_mod_jar(&jar);
+        let second = parse_mod_jar(&jar);
+        assert_eq!(first.name, second.name);
+        assert_eq!(first.version, second.version);
+    }
+}

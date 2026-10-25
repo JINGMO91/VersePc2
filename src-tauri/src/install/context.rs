@@ -282,4 +282,20 @@ mod tests {
 
         assert!(!dir.exists(), "本次新建的版本目录应被清理");
     }
+
+    #[test]
+    fn install_progress_stage_boundaries() {
+        assert_eq!(calc_progress(&InstallStage::VersionJson, 0), 0);
+        assert_eq!(calc_progress(&InstallStage::VersionJson, 100), 1);
+        assert_eq!(calc_progress(&InstallStage::Libraries, 100), 39);
+        assert_eq!(calc_progress(&InstallStage::Assets, 50), 59);
+        assert_eq!(calc_progress(&InstallStage::Finalizing, 100), 99);
+    }
+
+    #[test]
+    fn install_progress_clamps_percent_and_unknown_stage() {
+        assert_eq!(calc_progress(&InstallStage::Assets, 100), 78);
+        assert_eq!(calc_progress(&InstallStage::Assets, 150), 78);
+        assert_eq!(calc_progress(&InstallStage::Failed, 0), 99);
+    }
 }

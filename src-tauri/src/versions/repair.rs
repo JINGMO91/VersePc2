@@ -1,7 +1,7 @@
 // versions/repair.rs — 版本补全文件的异步修复会话
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
@@ -253,8 +253,21 @@ pub(crate) async fn run_repair_session(session_id: &str, version_id: &str, abort
         }
     }
 
-    // 复用依赖检查，获取所有缺失文件
-    let dep_result = crate::launch::dep_check::check_dependencies(version_id, &settings, None);
+    // 复用依赖检查，获取所有缺失文件（文件系统扫描放到阻塞线程，避免卡住异步运行时）
+    let settings_for_scan = settings.clone();
+    let version_for_scan = version_id.to_string();
+    let dep_result = match tokio::task::spawn_blocking(move || {
+        crate::launch::dep_check::check_dependencies(&version_for_scan, &settings_for_scan, None)
+    })
+    .await
+    {
+        Ok(result) => result,
+        Err(e) => {
+            finalize_repair_session(session_id, "failed", &format!("修复扫描失败: {}", e));
+            schedule_repair_cleanup(session_id);
+            return;
+        }
+    };
 
     let missing_files: Vec<_> = dep_result
         .missing_files
@@ -282,9 +295,11 @@ pub(crate) async fn run_repair_session(session_id: &str, version_id: &str, abort
     // 并发下载缺失文件
     const PARALLEL: usize = 8;
     let repaired = std::sync::Arc::new(std::sync::Mutex::new(0u32));
+    let processed = Arc::new(AtomicU32::new(0));
     // 为并发流克隆引用，保留原变量供完成阶段使用
     let abort_stream = abort.clone();
     let repaired_stream = repaired.clone();
+    let processed_stream = processed.clone();
 
     use futures_util::StreamExt;
     let files: Vec<_> = missing_files
@@ -297,15 +312,25 @@ pub(crate) async fn run_repair_session(session_id: &str, version_id: &str, abort
     futures_util::stream::iter(files)
         .for_each_concurrent(PARALLEL, move |(file, dest)| {
             let repaired_cur = repaired_stream.clone();
+            let processed_cur = processed_stream.clone();
             let abort_cur = abort_stream.clone();
             let source_cur = download_source.clone();
             async move {
                 if abort_cur.load(Ordering::SeqCst) {
                     return;
                 }
+                // 下载前先展示当前文件，避免网络慢时进度看起来一直停在 5%
+                {
+                    let mut guard = REPAIR_SESSIONS.lock().unwrap();
+                    if let Some(s) = guard.get_mut(session_id) {
+                        s.current_file = file.name.clone();
+                        s.message = format!("正在修复: {}", file.name);
+                    }
+                }
                 if let Some(parent) = dest.parent()
                     && let Err(e) = std::fs::create_dir_all(parent) {
                         eprintln!("[repair] 创建目录失败 {}: {}", parent.display(), e);
+                        record_repair_progress(session_id, &repaired_cur, &processed_cur, total, &file.name, false);
                         return;
                     }
                 let sha1 = if file.sha1.is_empty() { None } else { Some(file.sha1.clone()) };
@@ -321,23 +346,11 @@ pub(crate) async fn run_repair_session(session_id: &str, version_id: &str, abort
                 .await
                 {
                     Ok(()) => {
-                        let r = {
-                            let mut rc = repaired_cur.lock().unwrap();
-                            *rc += 1;
-                            *rc
-                        };
-                        let prog = 5.0 + (r as f64 / total.max(1) as f64) * 90.0;
-                        let mut guard = REPAIR_SESSIONS.lock().unwrap();
-                        if let Some(s) = guard.get_mut(session_id) {
-                            s.repaired_files = r;
-                            s.checked_files = r;
-                            s.progress = prog;
-                            s.current_file = file.name.clone();
-                            s.message = format!("正在修复: {}", file.name);
-                        }
+                        record_repair_progress(session_id, &repaired_cur, &processed_cur, total, &file.name, true);
                     }
                     Err(e) => {
                         eprintln!("[repair] 下载失败 {}: {}", file.name, e);
+                        record_repair_progress(session_id, &repaired_cur, &processed_cur, total, &file.name, false);
                     }
                 }
             }
@@ -360,6 +373,34 @@ pub(crate) async fn run_repair_session(session_id: &str, version_id: &str, abort
     schedule_repair_cleanup(session_id);
 }
 
+/// 记录单个文件的修复结果并推进进度（成功与失败都会推进，避免界面长时间停在 5%）
+fn record_repair_progress(
+    session_id: &str,
+    repaired: &Arc<Mutex<u32>>,
+    processed: &AtomicU32,
+    total: usize,
+    file_name: &str,
+    success: bool,
+) {
+    let done = processed.fetch_add(1, Ordering::SeqCst) + 1;
+    let repaired_count = if success {
+        let mut guard = repaired.lock().unwrap();
+        *guard += 1;
+        *guard
+    } else {
+        *repaired.lock().unwrap()
+    };
+    let progress = 5.0 + (done as f64 / total.max(1) as f64) * 90.0;
+    let mut guard = REPAIR_SESSIONS.lock().unwrap();
+    if let Some(s) = guard.get_mut(session_id) {
+        s.repaired_files = repaired_count;
+        s.checked_files = done;
+        s.progress = progress;
+        s.current_file = file_name.to_string();
+        s.message = format!("正在修复: {}", file_name);
+    }
+}
+
 /// 结束会话并写最终状态
 pub(crate) fn finalize_repair_session(session_id: &str, status: &str, message: &str) {
     let mut guard = REPAIR_SESSIONS.lock().unwrap();
@@ -378,4 +419,75 @@ pub(crate) fn schedule_repair_cleanup(session_id: &str) {
         tokio::time::sleep(Duration::from_secs(30)).await;
         REPAIR_SESSIONS.lock().unwrap().remove(&sid);
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn insert_session(id: &str) -> RepairSession {
+        let session = RepairSession {
+            version_id: "1.20.1".to_string(),
+            status: "running".to_string(),
+            progress: 5.0,
+            stage: "scanning".to_string(),
+            message: String::new(),
+            checked_files: 0,
+            total_files: 10,
+            missing_files: 10,
+            repaired_files: 0,
+            current_file: String::new(),
+            abort: Arc::new(AtomicBool::new(false)),
+            created_at: 0,
+        };
+        REPAIR_SESSIONS.lock().unwrap().insert(id.to_string(), session.clone());
+        session
+    }
+
+    #[test]
+    fn progress_advances_on_success_and_failure() {
+        let id = "test-repair-progress";
+        insert_session(id);
+        let repaired = Arc::new(Mutex::new(0u32));
+        let processed = Arc::new(AtomicU32::new(0));
+
+        record_repair_progress(id, &repaired, &processed, 10, "a.jar", true);
+        record_repair_progress(id, &repaired, &processed, 10, "b.jar", false);
+
+        let guard = REPAIR_SESSIONS.lock().unwrap();
+        let s = guard.get(id).unwrap();
+        assert_eq!(s.repaired_files, 1);
+        assert_eq!(s.checked_files, 2);
+        assert!((s.progress - 23.0).abs() < 1e-6);
+        drop(guard);
+        REPAIR_SESSIONS.lock().unwrap().remove(id);
+    }
+
+    #[test]
+    fn finalize_completed_sets_full_progress() {
+        let id = "test-repair-finalize";
+        insert_session(id);
+        finalize_repair_session(id, "completed", "文件修复完成！");
+        let guard = REPAIR_SESSIONS.lock().unwrap();
+        let s = guard.get(id).unwrap();
+        assert_eq!(s.status, "completed");
+        assert_eq!(s.progress, 100.0);
+        drop(guard);
+        REPAIR_SESSIONS.lock().unwrap().remove(id);
+    }
+
+    #[test]
+    fn finalize_failed_keeps_progress_and_message() {
+        let id = "test-repair-failed";
+        insert_session(id);
+        record_repair_progress(id, &Arc::new(Mutex::new(0)), &Arc::new(AtomicU32::new(0)), 4, "x.jar", false);
+        finalize_repair_session(id, "failed", "修复完成，3 个文件修复失败");
+        let guard = REPAIR_SESSIONS.lock().unwrap();
+        let s = guard.get(id).unwrap();
+        assert_eq!(s.status, "failed");
+        assert_eq!(s.message, "修复完成，3 个文件修复失败");
+        assert!(s.progress > 5.0 && s.progress < 100.0);
+        drop(guard);
+        REPAIR_SESSIONS.lock().unwrap().remove(id);
+    }
 }

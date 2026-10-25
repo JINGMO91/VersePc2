@@ -133,3 +133,63 @@ pub fn is_mc_version(s: &str) -> bool {
     let b = t.as_bytes();
     b[0].is_ascii_digit()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn name_to_version_parses_release_and_new_scheme() {
+        assert_eq!(name_to_version("1.20.1"), (20, 0, 1));
+        assert_eq!(name_to_version("1.21"), (21, 0, 0));
+        assert_eq!(name_to_version("26.3"), (26, 3, 0));
+        assert_eq!(name_to_version("26.3.1"), (26, 3, 1));
+        assert_eq!(name_to_version("1.8.9_forge"), (8, 0, 9));
+    }
+
+    #[test]
+    fn name_to_version_handles_special_editions() {
+        assert_eq!(name_to_version("25w14craftmine"), (21, 0, 4));
+        assert_eq!(name_to_version("24w14potato"), (20, 0, 4));
+        assert_eq!(name_to_version("2.0"), (5, 0, 1));
+        assert_eq!(name_to_version("not-a-version"), (9999, 0, 0));
+    }
+
+    #[test]
+    fn version_to_drop_scores_release_and_unknown() {
+        assert_eq!(version_to_drop("1.20.1"), 200);
+        assert_eq!(version_to_drop("1.12.2"), 120);
+        assert_eq!(version_to_drop("unknown"), 209);
+    }
+
+    #[test]
+    fn format_fit_accepts_supported_schemes() {
+        assert!(is_format_fit("1.20.1"));
+        assert!(is_format_fit("26.3"));
+        assert!(!is_format_fit("25.1"));
+        assert!(!is_format_fit(""));
+        assert!(!is_format_fit("snapshot"));
+    }
+
+    #[test]
+    fn snapshot_match_compares_like_with_like() {
+        assert!(version_snapshot_match("1.20.1", "1.20.1"));
+        assert!(!version_snapshot_match("1.20.1", "1.20.4"));
+        assert!(!version_snapshot_match("24w14a", "1.20.1"));
+        assert!(version_snapshot_match("24w14a", "24w14a"));
+    }
+
+    #[test]
+    fn prefix_match_ignores_patch_segment() {
+        assert!(version_prefix_match("1.20.1", "1.20.4"));
+        assert!(!version_prefix_match("1.21", "1.20"));
+    }
+
+    #[test]
+    fn mc_version_detects_leading_digit() {
+        assert!(is_mc_version("1.20.1"));
+        assert!(is_mc_version(" 26.3"));
+        assert!(!is_mc_version("snapshot"));
+        assert!(!is_mc_version(""));
+    }
+}

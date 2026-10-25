@@ -81,7 +81,7 @@ pub(crate) fn manifest_deps_to_json(deps: &MrpackDependencies) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::modpack::mrpack_native::group_jvm_tokens;
+    use crate::modpack::mrpack_native::{group_jvm_tokens, MrpackHashes};
 
     #[test]
     fn group_preserves_pair_flags() {
@@ -100,5 +100,82 @@ mod tests {
             assert_eq!(g[0].as_str().unwrap(), "--add-opens");
         }
         assert_eq!(groups[1][1].as_str().unwrap(), "java.base/java.util=ALL-UNNAMED");
+    }
+
+    #[test]
+    fn manifest_dependencies_are_serialized_by_loader_key() {
+        let deps = MrpackDependencies {
+            minecraft: Some("1.20.1".to_string()),
+            forge: Some("47.2.0".to_string()),
+            neoforge: None,
+            fabric_loader: Some("0.15.0".to_string()),
+            quilt_loader: None,
+        };
+        let value = manifest_deps_to_json(&deps);
+        assert_eq!(value["minecraft"], "1.20.1");
+        assert_eq!(value["forge"], "47.2.0");
+        assert_eq!(value["fabric-loader"], "0.15.0");
+        assert!(value.get("neoforge").is_none());
+        assert!(value.get("quilt-loader").is_none());
+    }
+
+    #[test]
+    fn manifest_check_only_keeps_existing_mod_files() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("mods")).unwrap();
+        std::fs::write(dir.path().join("mods").join("a.jar"), b"data").unwrap();
+
+        let manifest = MrpackManifest {
+            format_version: Some(1),
+            game: Some("minecraft".to_string()),
+            version_id: Some("1.0.0".to_string()),
+            name: None,
+            summary: None,
+            files: vec![
+                MrpackFile {
+                    path: Some("mods/a.jar".to_string()),
+                    hashes: MrpackHashes {
+                        sha1: Some("abc".to_string()),
+                        sha512: None,
+                    },
+                    downloads: vec!["https://example.com/a.jar".to_string()],
+                    file_size: Some(4),
+                    env: None,
+                    loaders: None,
+                },
+                MrpackFile {
+                    path: Some("mods/missing.jar".to_string()),
+                    hashes: MrpackHashes::default(),
+                    downloads: vec![],
+                    file_size: None,
+                    env: None,
+                    loaders: None,
+                },
+                MrpackFile {
+                    path: None,
+                    hashes: MrpackHashes::default(),
+                    downloads: vec![],
+                    file_size: None,
+                    env: None,
+                    loaders: None,
+                },
+            ],
+            dependencies: MrpackDependencies {
+                minecraft: Some("1.20.1".to_string()),
+                ..Default::default()
+            },
+        };
+
+        let value = build_mrpack_manifest_for_check(&manifest, dir.path(), "My Pack");
+        assert_eq!(value["format"], 1);
+        assert_eq!(value["name"], "My Pack");
+        assert_eq!(value["versionId"], "1.0.0");
+        assert_eq!(value["dependencies"]["minecraft"], "1.20.1");
+
+        let files = value["files"].as_array().unwrap();
+        assert_eq!(files.len(), 2, "缺失的 mods 文件应被排除");
+        assert_eq!(files[0]["path"], "mods/a.jar");
+        assert_eq!(files[0]["hashes"]["sha1"], "abc");
+        assert_eq!(files[1]["path"], "");
     }
 }

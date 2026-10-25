@@ -151,3 +151,45 @@ mod whoami {
             .unwrap_or_else(|_| "unknown".to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn token_encrypt_decrypt_roundtrip() {
+        let encrypted = encrypt_token("access-token-123").unwrap();
+        assert_ne!(encrypted, "access-token-123");
+        assert_eq!(decrypt_token(&encrypted).as_deref(), Some("access-token-123"));
+    }
+
+    #[test]
+    fn account_token_roundtrip_and_plain_passthrough() {
+        let encrypted = encrypt_account_token("token-abc");
+        assert!(encrypted.starts_with("enc:"));
+        assert_eq!(decrypt_account_token(&encrypted), "token-abc");
+
+        assert_eq!(encrypt_account_token("0"), "0");
+        assert_eq!(decrypt_account_token("0"), "0");
+        assert_eq!(encrypt_account_token(""), "");
+        assert_eq!(decrypt_account_token(""), "");
+        assert_eq!(decrypt_account_token("plain-token"), "plain-token");
+    }
+
+    #[test]
+    fn invalid_encrypted_payloads_return_none() {
+        assert_eq!(decrypt_token("no-separator"), None);
+        assert_eq!(decrypt_token("zz:00"), None);
+        assert_eq!(decrypt_token("00:00"), None);
+    }
+
+    #[test]
+    fn hex_codec_roundtrip_and_errors() {
+        let bytes = [0u8, 15, 255, 16];
+        let encoded = hex_encode(&bytes);
+        assert_eq!(encoded, "000fff10");
+        assert_eq!(hex_decode(&encoded), Some(bytes.to_vec()));
+        assert_eq!(hex_decode("abc"), None);
+        assert_eq!(hex_decode("zz"), None);
+    }
+}
