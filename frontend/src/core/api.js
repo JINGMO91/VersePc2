@@ -112,9 +112,14 @@ const _isTauri = !!(window.__TAURI__ || window.__TAURI_INTERNALS__ || (bridge &&
 
 async function _tauriApiProxy(method, path, params, body) {
     // 默认 30 秒超时，防止 Rust 端卡住时 init 流程永远阻塞。
-    // 启动依赖检查要遍历上万个资源文件，慢盘/机械盘上可能超过 30 秒，
-    // 单独放宽，避免误报"请求失败"而中断启动。
-    const _longRunningPaths = ['/api/launch/check', '/api/launch/download-deps'];
+    // 启动依赖检查、第三方认证服务器响应可能较慢，单独放宽，
+    // 避免误报"请求失败"或"请求超时"。
+    const _longRunningPaths = [
+        '/api/launch/check',
+        '/api/launch/download-deps',
+        '/api/accounts/thirdparty-login',
+        '/api/accounts/thirdparty-select-profile'
+    ];
     const _timeoutMs = _longRunningPaths.includes(path) ? 180000 : 30000;
     let _timer = null;
     const _timeoutP = new Promise((_, reject) => {

@@ -1,6 +1,6 @@
 import { API as API } from '../../core/api.js';
 import { loadAccounts as loadAccounts } from '../accounts/accounts-list.js';
-import { startMsAuth as startMsAuth, closeOfflineModal as closeOfflineModal, closeThirdPartyModal as closeThirdPartyModal, verifyThirdPartyServer as verifyThirdPartyServer, showProfileSelectModal as showProfileSelectModal } from '../accounts/accounts-auth.js';
+import { startMsAuth as startMsAuth, closeOfflineModal as closeOfflineModal, verifyThirdPartyServer as verifyThirdPartyServer } from '../accounts/accounts-auth.js';
 import { applyAccentColor as applyAccentColor } from './java.js';
 import { showToast as showToast, showModal as showModal, hideModal as hideModal, showConfirmDialog as showConfirmDialog } from '../misc/ui-components.js';
 import { getDOMElement as getDOMElement, throttle as throttle } from '../misc/utils.js';
@@ -77,22 +77,7 @@ function setupAccountButtons() {
     hideModal('add-account-modal');
   });
 
-  // 新版添加账号弹窗里的三卡片
-  const addA = document.getElementById('add-acct-ms');
-  if (addA) addA.addEventListener('click', () => {
-    hideModal('add-account-modal');
-    startMsAuth();
-  });
-  const addB = document.getElementById('add-acct-offline');
-  if (addB) addB.addEventListener('click', () => {
-    hideModal('add-account-modal');
-    showModal('offline-account-modal');
-  });
-  const addC = document.getElementById('add-acct-thirdparty');
-  if (addC) addC.addEventListener('click', () => {
-    hideModal('add-account-modal');
-    showModal('thirdparty-account-modal');
-  });
+  // 新版添加账号弹窗的三卡片已改为 Vue 模板事件（openMsAuthModal/openOfflineAccountModal/openThirdPartyAccountModal）
   const createOfflineBtn = document.getElementById('create-offline-btn');
   if (createOfflineBtn) createOfflineBtn.addEventListener('click', async () => {
     const offlineUsernameInput = document.getElementById('offline-username-input');
@@ -140,40 +125,7 @@ function setupAccountButtons() {
     });
   }
 
-  const tpLoginBtn = document.getElementById('tp-login-btn');
-  if (tpLoginBtn) tpLoginBtn.addEventListener('click', async () => {
-    const tpServerUrl = document.getElementById('tp-server-url');
-    const tpUsernameInput = document.getElementById('tp-username-input');
-    const tpPasswordInput = document.getElementById('tp-password-input');
-    const serverUrl = tpServerUrl ? tpServerUrl.value.trim() : '';
-    const username = tpUsernameInput ? tpUsernameInput.value.trim() : '';
-    const password = tpPasswordInput ? tpPasswordInput.value : '';
-    if (!serverUrl) { showToast('请输入认证服务器地址', 'error'); return; }
-    if (!username) { showToast('请输入邮箱或用户名', 'error'); return; }
-    if (!password) { showToast('请输入密码', 'error'); return; }
-
-    const btn = document.getElementById('tp-login-btn');
-    btn.disabled = true;
-    btn.textContent = '登录中...';
-    try {
-      const result = await API.loginThirdParty(serverUrl, username, password);
-      if (result.success) {
-        showToast(`欢迎，${result.account.username}！`, 'success');
-        closeThirdPartyModal();
-        await loadAccounts();
-      } else if (result.needSelectProfile) {
-        closeThirdPartyModal();
-        showProfileSelectModal(result.accessToken, result.clientToken, result.serverUrl, result.availableProfiles);
-      } else {
-        showToast(result.error || '登录失败', 'error');
-      }
-    } catch (e) {
-      showToast('登录失败: ' + (e.message || e.error || '未知错误'), 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '登录';
-    }
-  });
+  // 外置登录按钮已改为 Vue 模板事件（submitThirdPartyLogin），这里只保留服务器地址联动
 }
 
 function setupSettingsPage() {

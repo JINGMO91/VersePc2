@@ -1,7 +1,7 @@
 /* page-accounts.js - 账户页 Vue 组件（新版堆叠布局） */
 import { handleSkinUpload, handleCapeUpload } from '../../features/accounts/accounts.js';
 
-import { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount } from '../../features/accounts/accounts.js';
+import { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount, openMsAuthModal, openOfflineAccountModal, openThirdPartyAccountModal, submitThirdPartyLogin } from '../../features/accounts/accounts.js';
 import VButton from '@/components/verse/VButton.vue';
 import VInput from '@/components/verse/VInput.vue';
 
@@ -17,7 +17,7 @@ const PageAccounts = {
   components: { VButton, VInput },
   setup() {
     // handleSkinUpload / handleCapeUpload 原为内联 onchange 调用的全局函数，改为模板事件后必须暴露到作用域
-    return { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount, pickSkinFile, pickCapeFile, handleSkinUpload, handleCapeUpload };
+    return { closeMsAuthModal, copyMsCode, reopenMsAuthPage, closeOfflineModal, closeThirdPartyModal, closeProfileSelectModal, setSkinBg, showAccountList, copyDetailUuid, setAnim, fetchSessionCape, unselectCape, detailSelectAccount, detailRefreshSkin, detailDeleteAccount, openMsAuthModal, openOfflineAccountModal, openThirdPartyAccountModal, submitThirdPartyLogin, pickSkinFile, pickCapeFile, handleSkinUpload, handleCapeUpload };
   },
   template: `
           <div class="accounts-redesign">
@@ -52,7 +52,7 @@ const PageAccounts = {
                 </div>
                 <div class="add-acct-cards">
                   <!-- 微软 -->
-                  <button class="add-acct-card" id="add-acct-ms" data-type="microsoft">
+                  <button class="add-acct-card" id="add-acct-ms" data-type="microsoft" @click="openMsAuthModal()">
                     <div class="add-acct-card-icon add-acct-card-icon-ms">
                       <svg viewBox="0 0 23 23" width="34" height="34"><path fill="#f25022" d="M0 0h11v11H0z"/><path fill="#7fba00" d="M12 0h11v11H12z"/><path fill="#00a4ef" d="M0 12h11v11H0z"/><path fill="#ffb900" d="M12 12h11v11H12z"/></svg>
                     </div>
@@ -63,7 +63,7 @@ const PageAccounts = {
                   </button>
 
                   <!-- 离线 -->
-                  <button class="add-acct-card" id="add-acct-offline" data-type="offline">
+                  <button class="add-acct-card" id="add-acct-offline" data-type="offline" @click="openOfflineAccountModal()">
                     <div class="add-acct-card-icon add-acct-card-icon-offline">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>
                     </div>
@@ -74,7 +74,7 @@ const PageAccounts = {
                   </button>
 
                   <!-- 第三方 -->
-                  <button class="add-acct-card" id="add-acct-thirdparty" data-type="thirdparty">
+                  <button class="add-acct-card" id="add-acct-thirdparty" data-type="thirdparty" @click="openThirdPartyAccountModal()">
                     <div class="add-acct-card-icon add-acct-card-icon-thirdparty">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
                     </div>
@@ -175,7 +175,7 @@ const PageAccounts = {
                 </div>
                 <div class="modal-footer">
                   <VButton variant="secondary" @click="closeThirdPartyModal()">取消</VButton>
-                  <VButton id="tp-login-btn" variant="accent">登录</VButton>
+                  <VButton id="tp-login-btn" variant="accent" @click="submitThirdPartyLogin()">登录</VButton>
                 </div>
               </div>
             </div>

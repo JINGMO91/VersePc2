@@ -332,6 +332,15 @@ const PageHome = {
           if (!self.layoutReady) self.layoutReady = true;
         }, 200);
       }
+      // 页面从隐藏变为可见后重新应用布局：切页返回时页面尺寸可能刚恢复，
+      // 必须等可见尺寸稳定后再按持久化位置收敛控件，避免控件停在左上角。
+      window.addEventListener('versepc-page-shown', function (e) {
+        if (!e || !e.detail || e.detail.pageId !== 'page-home' || self.editingLayout) return;
+        requestAnimationFrame(function () {
+          self.applyLayout();
+          self.syncRunningCard();
+        });
+      });
       // 个性化页「恢复主页默认布局」
       window.addEventListener('versepc-home-layout-reset', function () {
         self.editingLayout = false;

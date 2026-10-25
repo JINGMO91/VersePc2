@@ -192,6 +192,59 @@ function closeProfileSelectModal() {
   S.tpPendingAuth = null;
 }
 
+function openMsAuthModal() {
+  hideModal('add-account-modal');
+  startMsAuth();
+}
+
+function openOfflineAccountModal() {
+  hideModal('add-account-modal');
+  showModal('offline-account-modal');
+}
+
+function openThirdPartyAccountModal() {
+  hideModal('add-account-modal');
+  showModal('thirdparty-account-modal');
+}
+
+async function submitThirdPartyLogin() {
+  const tpServerUrl = document.getElementById('tp-server-url');
+  const tpUsernameInput = document.getElementById('tp-username-input');
+  const tpPasswordInput = document.getElementById('tp-password-input');
+  const serverUrl = tpServerUrl ? tpServerUrl.value.trim() : '';
+  const username = tpUsernameInput ? tpUsernameInput.value.trim() : '';
+  const password = tpPasswordInput ? tpPasswordInput.value : '';
+  if (!serverUrl) { showToast('请输入认证服务器地址', 'error'); return; }
+  if (!username) { showToast('请输入邮箱或用户名', 'error'); return; }
+  if (!password) { showToast('请输入密码', 'error'); return; }
+
+  const btn = document.getElementById('tp-login-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '登录中...';
+  }
+  try {
+    const result = await API.loginThirdParty(serverUrl, username, password);
+    if (result.success) {
+      showToast(`欢迎，${result.account.username}！`, 'success');
+      closeThirdPartyModal();
+      await loadAccounts();
+    } else if (result.needSelectProfile) {
+      closeThirdPartyModal();
+      showProfileSelectModal(result.accessToken, result.clientToken, result.serverUrl, result.availableProfiles);
+    } else {
+      showToast(result.error || '登录失败', 'error');
+    }
+  } catch (e) {
+    showToast('登录失败: ' + (e.message || e.error || '未知错误'), 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '登录';
+    }
+  }
+}
+
 async function selectThirdPartyProfile(profileId, profileName) {
   if (!S.tpPendingAuth) return;
   showToast('正在选择角色...', 'info');
@@ -215,4 +268,4 @@ async function selectThirdPartyProfile(profileId, profileName) {
   }
 }
 
-export { startMsAuth, closeMsAuthModal, closeOfflineModal, copyMsCode, reopenMsAuthPage, closeThirdPartyModal, verifyThirdPartyServer, cropSkinHeadCanvas, showProfileSelectModal, closeProfileSelectModal, selectThirdPartyProfile };
+export { startMsAuth, closeMsAuthModal, closeOfflineModal, copyMsCode, reopenMsAuthPage, closeThirdPartyModal, verifyThirdPartyServer, cropSkinHeadCanvas, showProfileSelectModal, closeProfileSelectModal, selectThirdPartyProfile, openMsAuthModal, openOfflineAccountModal, openThirdPartyAccountModal, submitThirdPartyLogin };

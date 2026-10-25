@@ -83,6 +83,14 @@ function runPageExitAnim(pageEl, done) {
   }, 70);
 }
 
+// 页面变为可见后广播，供依赖尺寸的页面重新计算布局（主页控件位置等）
+function notifyPageShown(pageEl) {
+  if (!pageEl) return;
+  try {
+    window.dispatchEvent(new CustomEvent('versepc-page-shown', { detail: { pageId: pageEl.id } }));
+  } catch (e) {}
+}
+
 async function navigateToPage(pageName) {
   // 功能开关：下载/联机入口保留，进入时统一展示合规提示页
   const vf = VERSE_FEATURES || {};
@@ -133,6 +141,7 @@ async function navigateToPage(pageName) {
     target.classList.add('active');
     target.scrollTop = 0;
     runPageEnterAnim(target);
+    notifyPageShown(target);
     // 开服页：进入时刷新本地版本列表
     if (pageName === 'server-host') {
       setTimeout(() => runPageModule(PAGE_LOADERS.serverHost, 'initServerHostPage'), 50);
@@ -164,6 +173,7 @@ async function navigateToPage(pageName) {
           target.classList.add('active');
           target.scrollTop = 0;
           runPageEnterAnim(target);
+          notifyPageShown(target);
         } finally {
           setTimeout(() => {
             S._pageTransitionLock = false;
@@ -183,6 +193,7 @@ async function navigateToPage(pageName) {
     target.scrollTop = 0;
     target.style.animation = '';
     runPageEnterAnim(target);
+    notifyPageShown(target);
   }
 
   // ===== 页面切换完成后：恢复该页面之前被内存清理清掉的图片 src =====

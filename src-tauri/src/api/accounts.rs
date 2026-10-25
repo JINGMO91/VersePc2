@@ -312,27 +312,10 @@ async fn handle_thirdparty_login(body: &Option<Value>) -> ApiResult {
         profile = Some(available_profiles[0].clone());
     }
 
-    // 调用 /authserver/refresh 携带选中角色
-    let mut final_auth_result = auth_result.clone();
-    if let Some(prof) = &profile {
-        let refresh_url = format!("{}/authserver/refresh", server_url);
-        let refresh_body = json!({
-            "accessToken": access_token,
-            "clientToken": client_token,
-            "selectedProfile": prof,
-            "requestUser": true
-        });
-        if let Ok(refresh_result) = yggdrasil_request(&refresh_url, &refresh_body, 300).await {
-            // 合并刷新结果
-            if let Some(new_token) = refresh_result.get("accessToken").and_then(|v| v.as_str()) {
-                final_auth_result["accessToken"] = json!(new_token);
-            }
-            if let Some(new_prof) = refresh_result.get("selectedProfile") {
-                final_auth_result["selectedProfile"] = new_prof.clone();
-                profile = Some(new_prof.clone());
-            }
-        }
-    }
+    // authenticate 响应已包含 accessToken 与 selectedProfile，直接使用即可。
+    // 登录后立即调用 /authserver/refresh 会让 LittleSkin 等服务器多等数十秒，
+    // 极易触发前端请求超时；refresh 只在角色切换/令牌过期时调用。
+    let final_auth_result = auth_result.clone();
 
     let profile = match profile {
         Some(p) => p,

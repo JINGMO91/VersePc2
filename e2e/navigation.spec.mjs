@@ -107,6 +107,42 @@ test('主页布局编辑需要显式进入并确认，默认不再显示存档�
   await expect(page.locator('#home-launch-btn')).not.toHaveClass(/home-launch-btn-locked/);
 });
 
+test('主页布局切页返回后按保存位置重新收敛', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('versepc_home_layout_v1', JSON.stringify({
+      avatar: { x: 320, y: 180, s: 1 },
+      version: { x: 430, y: 320 },
+      launch: { x: 520, y: 430 },
+    }));
+  });
+  await installMockHost(page);
+  await page.goto('/');
+  await clickPage(page, 'home');
+  await expect(page.locator('.home-page')).not.toHaveClass(/home-layout-pending/, { timeout: 5000 });
+
+  const readPos = () => page.evaluate(() => {
+    const el = document.querySelector('.home-avatar-widget');
+    return { left: el.style.left, top: el.style.top };
+  });
+  const before = await readPos();
+  expect(before).toEqual({ left: '320px', top: '180px' });
+  await clickPage(page, 'accounts');
+  await expect.poll(() => activePageId(page), { timeout: 5000 }).toBe('page-accounts');
+
+  // 模拟返回主页前控件内联位置失效（旧版本会停在左上角）
+  await page.evaluate(() => {
+    document.querySelectorAll('.home-avatar-widget, .home-version-card-wrap, #home-launch-btn').forEach((el) => {
+      el.style.left = '0px';
+      el.style.top = '0px';
+    });
+  });
+
+  await clickPage(page, 'home');
+  await expect.poll(() => activePageId(page), { timeout: 5000 }).toBe('page-home');
+  await page.waitForTimeout(250);
+  expect(await readPos()).toEqual(before);
+});
+
 test('主页布局拖动只有确认后才写入存储，取消会还原', async ({ page }) => {
   await page.goto('/');
   await clickPage(page, 'home');
