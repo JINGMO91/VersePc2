@@ -184,11 +184,13 @@
     </div>
   </div>
 
-  <!-- 浮动侧边栏按钮：圆形，固定在窗口左上角（收起时汉堡，展开时关闭） -->
+  <!-- 浮动侧边栏按钮：仅简约导航使用（收起时汉堡，展开时关闭） -->
   <button class="sidebar-toggle-fab" id="sidebar-toggle-btn" title="展开/收起侧边栏" aria-label="展开或收起侧边栏" aria-expanded="false">
     <svg class="fab-icon-menu" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     <svg class="fab-icon-close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
   </button>
+  <!-- 经典导航收起后的左侧热区：鼠标移入时侧栏临时探出，移出后再次隐藏 -->
+  <div class="sidebar-hover-zone" id="sidebar-hover-zone" aria-hidden="true"></div>
 
   <!-- 应用主容器 -->
   <div id="app" style="position:relative;z-index:2;">
@@ -198,6 +200,11 @@
     <div class="main-container no-titlebar">
       <!-- 侧边导航栏 -->
       <nav class="sidebar">
+        <!-- 经典导航收起/固定按钮：绝对定位在侧栏顶部、主页选项原本位置的上方，不挤动导航项 -->
+        <button class="nav-btn nav-toggle-btn" id="classic-nav-toggle" title="收起导航栏" aria-label="收起导航栏" aria-expanded="true">
+          <svg class="nav-toggle-icon nav-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4L7 12L15 20"/></svg>
+          <svg class="nav-toggle-icon nav-toggle-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>
+        </button>
         <div class="sidebar-nav">
           <button class="nav-btn active" data-page="home" title="主页">
             <svg class="nav-icon-svg"><use href="#icon-home"/></svg>

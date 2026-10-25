@@ -59,6 +59,36 @@ body.classic-nav .sidebar-overlay {
     display: none !important;
 }
 
+/* 收起后：鼠标进入导航栏宽度范围时侧栏临时探出。
+   探出态用固定定位浮层呈现，不改变内容区宽度，移出后自动收回。 */
+.sidebar-hover-zone {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--classic-sidebar-width);
+    z-index: 99999;
+    display: none;
+    /* 判定由 mousemove 处理，热区本身不拦截点击 */
+    pointer-events: none;
+}
+
+body.classic-nav.classic-sidebar-collapsed .sidebar-hover-zone {
+    display: block;
+}
+
+body.classic-nav.classic-sidebar-collapsed.classic-sidebar-peek .sidebar {
+    width: var(--classic-sidebar-width);
+    padding-left: 6px;
+    padding-right: 6px;
+    /* 只恢复边框宽度/样式，颜色继续走主题（液态玻璃时为白色高光边） */
+    border-right-width: 1px;
+    border-right-style: solid;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+}
+
 /* 侧栏占位：内容区在侧栏展开时整体右移，居中范围也随之改变 */
 body.classic-nav .main-container {
     padding-left: var(--classic-sidebar-width);
@@ -69,7 +99,7 @@ body.classic-nav.classic-sidebar-collapsed .main-container {
     padding-left: 0;
 }
 
-/* 顶部拖拽带与悬浮按钮跟随侧栏宽度 */
+/* 顶部拖拽带跟随侧栏宽度 */
 body.classic-nav .global-drag-strip {
     left: var(--classic-sidebar-width);
     transition: left 0.45s var(--ease-out-expo);
@@ -79,21 +109,47 @@ body.classic-nav.classic-sidebar-collapsed .global-drag-strip {
     left: 0;
 }
 
+/* 经典导航的收起按钮放在侧栏列表内（主页选项上方），与导航项同列同风格；
+   左上角悬浮按钮只保留给简约导航使用 */
 body.classic-nav .sidebar-toggle-fab {
-    left: calc(var(--classic-sidebar-width) + 12px);
+    display: none;
 }
 
-body.classic-nav.classic-sidebar-collapsed .sidebar-toggle-fab {
-    left: 20px;
+body:not(.classic-nav) .nav-toggle-btn {
+    display: none;
 }
 
-/* 经典侧栏始终处于展开状态，圆形按钮固定显示汉堡图标 */
-body.classic-nav .sidebar-toggle-fab .fab-icon-close {
-    display: none !important;
+body.classic-nav .sidebar .nav-toggle-btn {
+    position: absolute;
+    top: 8px;
+    left: 6px;
+    right: 6px;
+    width: auto;
+    height: 48px;
+    min-height: 48px;
+    padding: 6px 2px;
+    justify-content: center;
+    z-index: 2;
 }
 
-body.classic-nav .sidebar-toggle-fab .fab-icon-menu {
-    display: block !important;
+body.classic-nav .nav-toggle-icon {
+    width: 24px;
+    height: 24px;
+}
+
+body.classic-nav .nav-toggle-pin {
+    display: none;
+    /* 图钉顺时针旋转 45°，与收起状态的视觉方向一致 */
+    transform: rotate(45deg);
+    transform-origin: 50% 50%;
+}
+
+body.classic-nav.classic-sidebar-collapsed .nav-toggle-chevron {
+    display: none;
+}
+
+body.classic-nav.classic-sidebar-collapsed .nav-toggle-pin {
+    display: block;
 }
 
 /* ============== 导航列表 ============== */

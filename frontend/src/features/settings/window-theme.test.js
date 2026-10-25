@@ -20,6 +20,9 @@ function buildDom() {
     <input type="checkbox" id="setting-window-mode" />
     <button id="exit-launcher-btn"></button>
     <button id="sidebar-toggle-btn" aria-expanded="false"></button>
+    <button id="classic-nav-toggle" aria-expanded="true"></button>
+    <div class="sidebar"></div>
+    <div class="sidebar-hover-zone" id="sidebar-hover-zone"></div>
     <div id="sidebar-overlay"></div>
     <div id="app"></div>
     <div class="theme-option" data-theme="dark"></div>
@@ -235,6 +238,77 @@ describe('setupWindowControls', () => {
     document.getElementById('sidebar-toggle-btn').click();
     expect(document.body.classList.contains('classic-sidebar-collapsed')).toBe(false);
     expect(localStorage.getItem('versepc_classic_sidebar_collapsed')).toBe('0');
+
+    // 经典模式下侧栏内的「<」/图钉按钮与悬浮按钮共用同一套逻辑
+    document.getElementById('classic-nav-toggle').click();
+    expect(document.body.classList.contains('classic-sidebar-collapsed')).toBe(true);
+    document.getElementById('classic-nav-toggle').click();
+    expect(document.body.classList.contains('classic-sidebar-collapsed')).toBe(false);
+  });
+
+  it('经典模式收起后悬停左侧热区临时探出，点击图钉重新固定', () => {
+    vi.useFakeTimers();
+    document.body.classList.add('classic-nav', 'classic-sidebar-collapsed');
+    mod.setupWindowControls();
+    const zone = document.getElementById('sidebar-hover-zone');
+
+    zone.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(true);
+
+    zone.dispatchEvent(new MouseEvent('mouseleave'));
+    vi.advanceTimersByTime(200);
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(false);
+
+    // 再次探出后点击图钉：固定导航栏并清除探出状态
+    zone.dispatchEvent(new MouseEvent('mouseenter'));
+    document.getElementById('classic-nav-toggle').click();
+    expect(document.body.classList.contains('classic-sidebar-collapsed')).toBe(false);
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(false);
+    expect(localStorage.getItem('versepc_classic_sidebar_collapsed')).toBe('0');
+    vi.useRealTimers();
+  });
+
+  it('呼出判定区与导航栏宽度一致：边界内探出，边界外不探出', () => {
+    vi.useFakeTimers();
+    document.body.classList.add('classic-nav', 'classic-sidebar-collapsed');
+    mod.setupWindowControls();
+
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 90, clientY: 200 }));
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(false);
+
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 70, clientY: 200 }));
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it('鼠标离开判定区后快速收回', () => {
+    vi.useFakeTimers();
+    document.body.classList.add('classic-nav', 'classic-sidebar-collapsed');
+    mod.setupWindowControls();
+
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 200 }));
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(true);
+
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 120, clientY: 200 }));
+    vi.advanceTimersByTime(100);
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it('鼠标进入导航栏后保持探出，移出后自动收回', () => {
+    vi.useFakeTimers();
+    document.body.classList.add('classic-nav', 'classic-sidebar-collapsed');
+    mod.setupWindowControls();
+
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 40, clientY: 200 }));
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(true);
+    vi.advanceTimersByTime(1500);
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(true);
+
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 400, clientY: 200 }));
+    vi.advanceTimersByTime(300);
+    expect(document.body.classList.contains('classic-sidebar-peek')).toBe(false);
+    vi.useRealTimers();
   });
 
   it('侧栏按钮在简约模式切换展开', () => {
