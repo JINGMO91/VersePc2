@@ -107,10 +107,12 @@ function applyNavigationMode(minimal) {
   const useMinimal = !!minimal;
   body.classList.toggle('minimal-nav', useMinimal);
   body.classList.toggle('classic-nav', !useMinimal);
+  body.classList.remove('classic-sidebar-peek');
   try {
     localStorage.setItem('versepc_nav_minimal', useMinimal ? '1' : '0');
   } catch (e) {}
 
+  let collapsed = false;
   if (useMinimal) {
     body.classList.remove('classic-sidebar-collapsed');
     let open = false;
@@ -121,17 +123,24 @@ function applyNavigationMode(minimal) {
     // 经典侧栏始终显示名称、点击导航不自动收起；这两个状态类只属于简约模式
     body.classList.remove('show-nav-labels');
     body.classList.remove('sidebar-keep-open');
-    let collapsed = false;
     try { collapsed = localStorage.getItem('versepc_classic_sidebar_collapsed') === '1'; } catch (e) {}
     body.classList.toggle('classic-sidebar-collapsed', collapsed);
   }
 
-  const toggleBtn = document.getElementById('sidebar-toggle-btn');
-  if (toggleBtn) {
+  const toggleBtns = [
+    document.getElementById('sidebar-toggle-btn'),
+    document.getElementById('classic-nav-toggle'),
+  ].filter(Boolean);
+  if (toggleBtns.length) {
     const expanded = useMinimal
       ? body.classList.contains('sidebar-open')
       : !body.classList.contains('classic-sidebar-collapsed');
-    toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    const label = useMinimal ? '展开/收起侧边栏' : (collapsed ? '固定导航栏' : '收起导航栏');
+    toggleBtns.forEach((btn) => {
+      btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+    });
   }
   // 导航栏宽度变化会影响 Vue 网格/卡片布局
   window.dispatchEvent(new Event('resize'));
@@ -154,15 +163,70 @@ function setupWindowControls() {
   // macOS 窗口同样是无边框（decorations:false），必须显示自绘的最小化/最大化/关闭按钮
   if (windowControls) windowControls.style.display = 'flex';
 
-  // 侧边导航：经典模式为左侧固定侧栏，简约模式为悬浮胶囊
-  const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-  if (sidebarToggleBtn) {
+  // 侧边导航：经典模式为左侧固定侧栏（收起按钮在侧栏列表内），简约模式为悬浮胶囊
+  const fabToggleBtn = document.getElementById('sidebar-toggle-btn');
+  const classicToggleBtn = document.getElementById('classic-nav-toggle');
+  const navToggleBtns = [fabToggleBtn, classicToggleBtn].filter(Boolean);
+  if (navToggleBtns.length) {
     const overlay = document.getElementById('sidebar-overlay');
+    const sidebarEl = document.querySelector('.sidebar');
+    const hoverZone = document.getElementById('sidebar-hover-zone');
+    const CLASSIC_PEEK = 'classic-sidebar-peek';
+    let peekTimer = 0;
+    // 点「<」收起后鼠标仍停在导航区域内，屏蔽这次停留期间的探出，移出后恢复
+    let peekSuppressed = false;
     const isClassicNav = () => document.body.classList.contains('classic-nav');
+
+    const syncToggle = () => {
+      const classic = isClassicNav();
+      const expanded = classic
+        ? !document.body.classList.contains('classic-sidebar-collapsed')
+        : document.body.classList.contains('sidebar-open');
+      const label = classic
+        ? (expanded ? '收起导航栏' : '固定导航栏')
+        : '展开/收起侧边栏';
+      navToggleBtns.forEach((btn) => {
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      });
+    };
+
+    const cancelPeekHide = () => {
+      if (peekTimer) {
+        clearTimeout(peekTimer);
+        peekTimer = 0;
+      }
+    };
+
+    const clearPeek = () => {
+      cancelPeekHide();
+      document.body.classList.remove(CLASSIC_PEEK);
+    };
+
+    const canPeek = () =>
+      isClassicNav() && document.body.classList.contains('classic-sidebar-collapsed');
+
+    // 收起后鼠标进入导航栏及其右侧一小段缓冲区域：侧栏以浮层形式临时探出
+    const revealPeek = () => {
+      if (peekSuppressed || !canPeek()) return;
+      cancelPeekHide();
+      document.body.classList.add(CLASSIC_PEEK);
+    };
+
+    // 移出后短暂延迟收回，避免边界抖动，但要做到基本即时
+    const schedulePeekHide = (delay = 80) => {
+      if (!document.body.classList.contains(CLASSIC_PEEK)) return;
+      cancelPeekHide();
+      peekTimer = setTimeout(() => {
+        peekTimer = 0;
+        document.body.classList.remove(CLASSIC_PEEK);
+      }, delay);
+    };
 
     const setSidebarOpen = (open) => {
       document.body.classList.toggle('sidebar-open', open);
-      sidebarToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      syncToggle();
       try { localStorage.setItem('versepc_sidebar_open', open ? '1' : '0'); } catch (e) {}
       // 触发 resize，让 Vue 组件（网格、卡片等依赖宽度的布局）重新适配
       window.dispatchEvent(new Event('resize'));
@@ -170,18 +234,61 @@ function setupWindowControls() {
 
     const setClassicCollapsed = (collapsed) => {
       document.body.classList.toggle('classic-sidebar-collapsed', collapsed);
-      sidebarToggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      if (collapsed) {
+        // 点「<」收起时鼠标还停在导航栏上，先屏蔽探出，等鼠标离开判定区再恢复
+        peekSuppressed = true;
+      } else {
+        peekSuppressed = false;
+        clearPeek();
+      }
+      syncToggle();
       try { localStorage.setItem('versepc_classic_sidebar_collapsed', collapsed ? '1' : '0'); } catch (e) {}
       window.dispatchEvent(new Event('resize'));
     };
 
-    sidebarToggleBtn.addEventListener('click', () => {
+    navToggleBtns.forEach((btn) => btn.addEventListener('click', () => {
       if (isClassicNav()) {
+        // 展开时点击「<」收起；收起/悬停探出时点击图钉重新固定
         setClassicCollapsed(!document.body.classList.contains('classic-sidebar-collapsed'));
       } else {
         setSidebarOpen(!document.body.classList.contains('sidebar-open'));
       }
+    }));
+
+    if (hoverZone) {
+      hoverZone.addEventListener('mouseenter', revealPeek);
+      hoverZone.addEventListener('mouseleave', schedulePeekHide);
+    }
+    if (sidebarEl) {
+      sidebarEl.addEventListener('mouseenter', revealPeek);
+      sidebarEl.addEventListener('mouseleave', schedulePeekHide);
+    }
+    // 呼出判定区域与导航栏宽度一致，并跟随「导航栏宽度」设置实时变化
+    const classicNavWidth = () => {
+      const raw = getComputedStyle(document.body).getPropertyValue('--classic-sidebar-width').trim();
+      const width = parseInt(raw, 10);
+      return Number.isFinite(width) && width > 0 ? width : 80;
+    };
+    document.addEventListener('mousemove', (e) => {
+      if (!isClassicNav() || !canPeek()) {
+        peekSuppressed = false;
+        return;
+      }
+      const navWidth = classicNavWidth();
+      // 离开导航栏判定区：立即清除抑制并尽快收回（已在计时中则不重复顺延）
+      if (e.clientX > navWidth) {
+        peekSuppressed = false;
+        if (!peekTimer) schedulePeekHide(80);
+        return;
+      }
+      // 仍处于刚收起时的抑制期：鼠标未离开判定区前不呼出
+      if (peekSuppressed) return;
+      if (document.body.classList.contains(CLASSIC_PEEK)) cancelPeekHide();
+      else revealPeek();
     });
+    // 悬停按钮同样视为进入导航区域，探出后按钮显示图钉
+    navToggleBtns.forEach((btn) => btn.addEventListener('mouseenter', revealPeek));
+    syncToggle();
 
     if (overlay) {
       overlay.addEventListener('click', () => {
@@ -209,7 +316,7 @@ function setupWindowControls() {
       try {
         if (localStorage.getItem('versepc_sidebar_open') === '1') {
           document.body.classList.add('sidebar-open');
-          sidebarToggleBtn.setAttribute('aria-expanded', 'true');
+          syncToggle();
         }
       } catch (e) {}
     }
