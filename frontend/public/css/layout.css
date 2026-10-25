@@ -1224,6 +1224,10 @@ body:has(#game-launch-overlay[style*="flex"]) .sidebar-toggle-fab {
     padding: 0 24px 24px 24px;
     text-align: center;
 }
+/* 布局应用前先隐藏控件，避免从 CSS 默认位置跳到持久化位置 */
+.home-page.home-layout-pending > * {
+    visibility: hidden;
+}
 .home-page-title.topbar-title {
     position: absolute;
     top: 14px;
