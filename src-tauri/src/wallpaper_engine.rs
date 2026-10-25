@@ -4,7 +4,7 @@
 //   2. 提供 wewp:// 自定义协议：为 web 类型壁纸按原相对路径提供本地文件服务，并注入 WE Web SDK 兼容层
 use regex::Regex;
 use serde_json::{json, Value};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
@@ -73,15 +73,70 @@ fn steam_active_user_id() -> Option<u32> {
     None
 }
 
-/// 定位创意工坊清单 appworkshop_431960.acf
-fn workshop_manifest_path() -> Option<PathBuf> {
+/// 当前账号：优先 Steam 运行时写入的 ActiveUser；Steam 未运行时该值会失效，
+/// 回退到 loginusers.vdf 中最近登录的账号，避免因读不到账号而退回“列出全部”。
+fn steam_current_user_id() -> Option<u32> {
+    steam_active_user_id().or_else(steam_last_login_user_id)
+}
+
+/// 从 Steam 的 config/loginusers.vdf 读取最近登录的账号（timestamp 最大者）。
+fn steam_last_login_user_id() -> Option<u32> {
+    let steam = steam_install_dir()?;
+    let raw = std::fs::read_to_string(steam.join("config").join("loginusers.vdf")).ok()?;
+    parse_last_login_user(&raw)
+}
+
+/// 解析 loginusers.vdf：键为 SteamID64，减去基址即 32 位账号 ID（即 ActiveUser 使用的 ID）。
+/// 取 timestamp 最大的条目作为最近登录账号；无 timestamp 时退化为首个可解析账号。
+fn parse_last_login_user(raw: &str) -> Option<u32> {
+    // SteamID64 = 76561197960265728 + 32 位账号 ID
+    const STEAM_ID64_BASE: u64 = 76_561_197_960_265_728;
+    let tokens = vdf_tokens(raw);
+    let mut best: Option<(u64, u32)> = None;
+    let mut i = 0usize;
+    while i + 1 < tokens.len() {
+        if tokens[i + 1] == "{"
+            && let Ok(steam_id64) = tokens[i].parse::<u64>()
+        {
+            let mut timestamp = 0u64;
+            let mut j = i + 2;
+            while j < tokens.len() && tokens[j] != "}" {
+                if tokens[j] == "timestamp" {
+                    timestamp = tokens
+                        .get(j + 1)
+                        .and_then(|v| v.parse::<u64>().ok())
+                        .unwrap_or(0);
+                    j += 1;
+                }
+                j += 1;
+            }
+            if let Some(id) = steam_id64
+                .checked_sub(STEAM_ID64_BASE)
+                .filter(|id| *id <= u32::MAX as u64)
+                .map(|id| id as u32)
+                .filter(|id| *id > 0)
+                && best.map(|(t, _)| timestamp > t).unwrap_or(true)
+            {
+                best = Some((timestamp, id));
+            }
+            i = j;
+        }
+        i += 1;
+    }
+    best.map(|(_, id)| id)
+}
+
+/// 收集全部 Steam 库的创意工坊清单 appworkshop_431960.acf。
+/// 壁纸内容可能分散在多个库，只读第一个库的清单会把其它库的订阅漏掉。
+fn workshop_manifest_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
     for lib in steam_library_folders() {
         let p = lib.join("workshop").join("appworkshop_431960.acf");
         if p.is_file() {
-            return Some(p);
+            paths.push(p);
         }
     }
-    None
+    paths
 }
 
 /// Valve KeyValues（VDF/ACF）词法切分：引号字符串、`{`、`}`、裸 token。
@@ -132,11 +187,13 @@ fn vdf_tokens(raw: &str) -> Vec<String> {
     out
 }
 
-/// 从 appworkshop_431960.acf 的 WorkshopItemDetails 中筛出当前账号订阅的作品 ID。
-/// 同一台机器可能有多个 Steam 账号，旧逻辑会把其他账号订阅/残留的壁纸也列出来。
-fn parse_subscribed_ids(raw: &str, active_user: u32) -> HashSet<String> {
+/// 解析 appworkshop_431960.acf 的 WorkshopItemDetails。
+/// 返回（清单里是否带 subscribedby 归属信息，作品 ID → 订阅该作品的账号列表）。
+/// 账号列表兼容单个 ID，以及家庭共享时逗号/分号分隔的多个 ID。
+fn parse_item_owners(raw: &str) -> (bool, HashMap<String, Vec<u32>>) {
     let tokens = vdf_tokens(raw);
-    let mut ids: HashSet<String> = HashSet::new();
+    let mut owners: HashMap<String, Vec<u32>> = HashMap::new();
+    let mut has_owner = false;
     let mut i = 0usize;
     while i < tokens.len() {
         if tokens[i] == "WorkshopItemDetails" && tokens.get(i + 1).map(|s| s == "{").unwrap_or(false) {
@@ -156,23 +213,25 @@ fn parse_subscribed_ids(raw: &str, active_user: u32) -> HashSet<String> {
                         let id = tokens[i].clone();
                         i += 2;
                         let mut inner = 1usize;
-                        let mut subscribed: Option<u32> = None;
+                        let mut account_ids: Vec<u32> = Vec::new();
                         while i < tokens.len() && inner > 0 {
                             match tokens[i].as_str() {
                                 "{" => inner += 1,
                                 "}" => inner -= 1,
                                 "subscribedby" => {
-                                    subscribed = tokens
+                                    has_owner = true;
+                                    account_ids = tokens
                                         .get(i + 1)
-                                        .and_then(|v| v.parse::<u32>().ok());
+                                        .map(|v| parse_owner_ids(v.as_str()))
+                                        .unwrap_or_default();
                                     i += 1;
                                 }
                                 _ => {}
                             }
                             i += 1;
                         }
-                        if subscribed == Some(active_user) {
-                            ids.insert(id);
+                        if !account_ids.is_empty() {
+                            owners.insert(id, account_ids);
                         }
                     }
                     _ => i += 1,
@@ -182,19 +241,51 @@ fn parse_subscribed_ids(raw: &str, active_user: u32) -> HashSet<String> {
             i += 1;
         }
     }
-    ids
+    (has_owner, owners)
 }
 
-/// 当前账号实际订阅的 WE 作品 ID 集合；取不到清单时返回 None（保持旧行为，列出全部）
-fn current_we_subscriptions() -> Option<HashSet<String>> {
-    let user = steam_active_user_id()?;
-    let raw = std::fs::read_to_string(workshop_manifest_path()?).ok()?;
-    let ids = parse_subscribed_ids(&raw, user);
-    if ids.is_empty() {
-        None
-    } else {
-        Some(ids)
+/// subscribedby 可能是单个账号 ID，也可能是家庭共享下逗号/分号分隔的多个 ID。
+fn parse_owner_ids(raw: &str) -> Vec<u32> {
+    raw.split(|c: char| c == ',' || c == ';' || c.is_whitespace())
+        .filter_map(|s| s.parse::<u32>().ok())
+        .filter(|id| *id > 0)
+        .collect()
+}
+
+/// 壁纸列表的账号过滤结果
+enum WeSubscriptions {
+    /// 已确认当前账号：只保留该账号订阅的作品（空集表示确实没有订阅）
+    Known(HashSet<String>),
+    /// 清单里没有任何账号归属信息（旧版 Steam），无法区分账号，只能保持列出全部
+    Unknown,
+}
+
+/// 当前账号实际订阅的 WE 作品 ID 集合。
+/// 同一台机器可能有多个 Steam 账号，workshop 目录是整机共享的，必须按 subscribedby 过滤，
+/// 否则会混入其他账号订阅/取消订阅后残留的壁纸。
+fn current_we_subscriptions() -> WeSubscriptions {
+    let mut has_owner = false;
+    let mut owners: HashMap<String, Vec<u32>> = HashMap::new();
+    for path in workshop_manifest_paths() {
+        if let Ok(raw) = std::fs::read_to_string(&path) {
+            let (manifest_has_owner, manifest_owners) = parse_item_owners(&raw);
+            has_owner = has_owner || manifest_has_owner;
+            owners.extend(manifest_owners);
+        }
     }
+    if !has_owner {
+        return WeSubscriptions::Unknown;
+    }
+    // 清单能区分账号却读不到当前账号时宁可不显示，也不能把其他账号的壁纸列进来
+    let Some(user) = steam_current_user_id() else {
+        return WeSubscriptions::Known(HashSet::new());
+    };
+    let ids = owners
+        .into_iter()
+        .filter(|(_, accounts)| accounts.contains(&user))
+        .map(|(id, _)| id)
+        .collect();
+    WeSubscriptions::Known(ids)
 }
 
 /// 遍历所有库，收集 WE 创意工坊下的壁纸项目目录
@@ -290,7 +381,7 @@ pub fn wallpaper_engine_list() -> Value {
     // 直接遍历会把其他账号订阅/取消订阅后残留的壁纸一起列出来。
     let subscribed = current_we_subscriptions();
     for dir in we_project_dirs() {
-        if let Some(ids) = &subscribed {
+        if let WeSubscriptions::Known(ids) = &subscribed {
             let id = dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if !ids.contains(id) {
                 continue;
@@ -594,4 +685,97 @@ fn forbidden_response() -> tauri::http::Response<Vec<u8>> {
         .header("Access-Control-Allow-Origin", "*")
         .body(Vec::new())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_last_login_user_picks_latest_timestamp() {
+        let raw = r#"
+"users"
+{
+    "76561197960265729"
+    {
+        "AccountName" "old"
+        "timestamp" "100"
+    }
+    "76561199492578030"
+    {
+        "AccountName" "recent"
+        "timestamp" "1792907014"
+    }
+}
+"#;
+        assert_eq!(parse_last_login_user(raw), Some(1532312302));
+    }
+
+    #[test]
+    fn parse_owner_ids_accepts_single_and_multiple() {
+        assert_eq!(parse_owner_ids("1532312302"), vec![1532312302]);
+        assert_eq!(
+            parse_owner_ids("1532312302,1909968719"),
+            vec![1532312302, 1909968719]
+        );
+        assert!(parse_owner_ids("0").is_empty());
+    }
+
+    #[test]
+    fn parse_item_owners_keeps_only_current_account() {
+        let raw = r#"
+"AppWorkshop"
+{
+    "WorkshopItemDetails"
+    {
+        "111"
+        {
+            "subscribedby" "1532312302"
+        }
+        "222"
+        {
+            "subscribedby" "1909968719"
+        }
+        "333"
+        {
+            "subscribedby" "1532312302,1909968719"
+        }
+    }
+}
+"#;
+        let (has_owner, owners) = parse_item_owners(raw);
+        assert!(has_owner);
+        assert_eq!(owners.len(), 3);
+        assert_eq!(owners["111"], vec![1532312302]);
+        assert_eq!(owners["333"], vec![1532312302, 1909968719]);
+
+        let mine: HashSet<String> = owners
+            .into_iter()
+            .filter(|(_, accounts)| accounts.contains(&1532312302))
+            .map(|(id, _)| id)
+            .collect();
+        assert_eq!(
+            mine,
+            HashSet::from(["111".to_string(), "333".to_string()])
+        );
+    }
+
+    #[test]
+    fn parse_item_owners_reports_missing_owner_info() {
+        let raw = r#"
+"AppWorkshop"
+{
+    "WorkshopItemDetails"
+    {
+        "111"
+        {
+            "manifest" "1"
+        }
+    }
+}
+"#;
+        let (has_owner, owners) = parse_item_owners(raw);
+        assert!(!has_owner);
+        assert!(owners.is_empty());
+    }
 }

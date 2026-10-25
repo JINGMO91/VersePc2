@@ -198,7 +198,9 @@ const PageSettingsPersonalize = (function () {
       pickWe() {
         const st = this.state;
         st.wePickerOpen = true;
-        if (!st.weWallpapers.length) this.loadWe();
+        // 每次打开都重新扫描：期间可能切换过 Steam 账号或更新了创意工坊订阅，
+        // 复用上次结果会把其他账号的壁纸继续显示出来。
+        this.loadWe();
         this.checkRendererStatus();
       },
       async checkRendererStatus() {
