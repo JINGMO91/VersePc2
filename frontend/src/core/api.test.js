@@ -244,4 +244,13 @@ describe('ErrorHandler', () => {
     ErrorHandler.handle(error);
     expect(notifier).toHaveBeenCalledWith(ERROR_MESSAGES.NETWORK_ERROR, 'warning');
   });
+
+  it('服务端错误使用 error 级别并展示映射文案', async () => {
+    const notifier = vi.fn();
+    setApiNotifier(notifier);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockFetchResponse(500, {}));
+    const error = await apiGet('/api/test').catch((e) => e);
+    ErrorHandler.handle(error);
+    expect(notifier).toHaveBeenCalledWith(ERROR_MESSAGES.SERVER_ERROR_500, 'error');
+  });
 });
