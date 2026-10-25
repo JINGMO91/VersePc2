@@ -43,6 +43,15 @@ pub async fn do_launch(
         quick_play_world.as_deref(),
     );
 
+    // 原生库解压不完整时直接给出可读错误，不要让 JVM 以退出码 -3 崩溃
+    if !launch_args.natives_missing.is_empty() {
+        return Err(format!(
+            "原生库解压不完整（缺失或大小不符：{}）。\n请在版本设置→文件修复中重试，或检查磁盘空间与杀毒软件是否拦截了 {}。",
+            launch_args.natives_missing.join("、"),
+            launch_args.natives_dir.display()
+        ));
+    }
+
     // 选择 Java 路径
     let java_path = super::dep_check::select_java_for_version(&version_id, &settings, &version_json);
     let java_path = if java_path.is_empty() {

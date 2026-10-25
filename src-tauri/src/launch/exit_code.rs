@@ -72,10 +72,19 @@ pub fn analyze_exit_code(code: i32, version_id: &str, data_dir: &Path) -> ExitAn
             analysis.reason = "JVM 崩溃（访问违规）".to_string();
             analysis.suggestion = "可能是显卡驱动不兼容或内存损坏，请更新显卡驱动和Java版本，尝试减少分配内存".to_string();
         }
+        -3 => {
+            analysis.reason = "原生库加载失败（退出码 -3）".to_string();
+            analysis.suggestion = "可能是 LWJGL/SDL 原生库缺失，或被 Windows 应用程序控制/杀毒软件拦截。\n请先在版本设置→文件修复中重新解压原生库，并检查杀毒软件白名单。".to_string();
+        }
         _ => {
             analysis.reason = format!("异常退出（退出码: {}）", code);
             analysis.suggestion = "请查看崩溃日志获取更多信息".to_string();
         }
+    }
+
+    // 扫描游戏日志：退出码 -3 通常是原生库加载失败，日志里会有具体 DLL 与拦截原因
+    if code == -3 {
+        refine_from_game_logs(data_dir, version_id, &mut analysis);
     }
 
     // 扫描崩溃日志
@@ -113,6 +122,37 @@ pub fn analyze_exit_code(code: i32, version_id: &str, data_dir: &Path) -> ExitAn
     }
 
     analysis
+}
+
+/// 根据游戏 latest/debug 日志细化原生库加载失败的原因
+fn refine_from_game_logs(data_dir: &Path, version_id: &str, analysis: &mut ExitAnalysis) {
+    let logs_dir = data_dir.join("versions").join(version_id).join("logs");
+    for name in ["latest.log", "debug.log"] {
+        let Ok(content) = std::fs::read_to_string(logs_dir.join(name)) else {
+            continue;
+        };
+        let lower = content.to_lowercase();
+        if lower.contains("an application control policy has blocked this file")
+            || lower.contains("smart app control")
+            || lower.contains("application control")
+        {
+            analysis.reason = "Windows 应用程序控制拦截了原生库".to_string();
+            analysis.suggestion = "Windows 11 的“智能应用控制”拦截了未签名的 LWJGL/SDL 原生库。\n1) 先在版本设置→文件修复中重新解压，并把启动器目录加入杀毒软件白名单\n2) 仍失败时，在 Windows 安全中心→应用和浏览器控制→智能应用控制中关闭后重启游戏（关闭后需重置系统才能重新开启）".to_string();
+            return;
+        }
+        if lower.contains("unsatisfiedlinkerror")
+            && (lower.contains("lwjgl") || lower.contains("sdl3") || lower.contains("openal"))
+        {
+            analysis.reason = "LWJGL/SDL 原生库加载失败".to_string();
+            analysis.suggestion = "原生库可能被安全软件拦截、路径过长或解压不完整。\n请执行版本设置→文件修复；检查 Windows 安全中心的应用控制与杀毒软件白名单；仍失败可尝试关闭智能应用控制后重启。".to_string();
+            return;
+        }
+        if lower.contains("failed to load a library") || lower.contains("failed to locate library") {
+            analysis.reason = "原生库加载失败".to_string();
+            analysis.suggestion = "请执行版本设置→文件修复重新解压原生库，并检查杀毒软件是否拦截了 data\\natives 目录。".to_string();
+            return;
+        }
+    }
 }
 
 /// 根据崩溃日志内容细化分析
@@ -184,6 +224,7 @@ mod tests {
         assert!(analyze_exit_code(134, "v", &dir).reason.contains("SIGABRT"));
         assert!(analyze_exit_code(139, "v", &dir).reason.contains("段错误"));
         assert!(analyze_exit_code(-1073741819, "v", &dir).reason.contains("JVM 崩溃"));
+        assert!(analyze_exit_code(-3, "v", &dir).reason.contains("原生库"));
         assert!(analyze_exit_code(-1, "v", &dir).is_crash);
         let _ = fs::remove_dir_all(&dir);
     }
@@ -212,6 +253,23 @@ mod tests {
         assert!(result.reason.contains("OutOfMemoryError"));
         assert!(result.crash_log_file.is_some());
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn native_control_block_refines_exit_minus_three() {
+        let dir = temp_data_dir("native-block");
+        let logs = dir.join("versions").join("26.3").join("logs");
+        fs::create_dir_all(&logs).unwrap();
+        fs::write(
+            logs.join("latest.log"),
+            "java.lang.UnsatisfiedLinkError: ... lwjgl_vma.dll\nAn Application Control policy has blocked this file",
+        )
+        .unwrap();
+
+        let result = analyze_exit_code(-3, "26.3", &dir);
+        assert!(result.reason.contains("应用程序控制"), "reason={}", result.reason);
+        assert!(result.suggestion.contains("智能应用控制"), "suggestion={}", result.suggestion);
+        let _ = fs::remove_dir_all(dir);
     }
 
     #[test]

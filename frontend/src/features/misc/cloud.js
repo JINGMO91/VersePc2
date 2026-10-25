@@ -106,6 +106,11 @@ function bindOverlayOnce() {
   ov.addEventListener('click', function (e) {
     if (e.target === ov) cloudDialogClose();
   });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var box = $('cloud-overlay');
+    if (box && !box.hidden) cloudDialogClose();
+  });
 }
 
 /* ---------- 登录/退出 ---------- */
@@ -514,12 +519,6 @@ function hideProgressSoon() {
     showProgress(false);
   }, 700);
 }
-
-document.addEventListener('keydown', function (e) {
-  if (e.key !== 'Escape') return;
-  var ov = $('cloud-overlay');
-  if (ov && !ov.hidden) cloudDialogClose();
-});
 
 registerActions({
   cloudDownload: (event, el, fileId) => cloudDownload(fileId),

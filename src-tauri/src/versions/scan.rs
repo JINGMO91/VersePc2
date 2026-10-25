@@ -475,8 +475,7 @@ pub(crate) fn mark_installed(remote_versions: &mut [Value], local_ids: &[String]
 pub(crate) fn is_april_fools_id(id: &str) -> bool {
     matches!(
         id,
-        "26.1.1"
-            | "26w14a"
+        "26w14a"
             | "25w14craftmine"
             | "24w14potato"
             | "23w13a_or_b"
@@ -517,6 +516,8 @@ mod tests {
         assert!(is_april_fools_id("26w14a"));
         assert!(!is_april_fools_id("1.20.1"));
         assert!(!is_april_fools_id(""));
+        // 26.1.1 是正式补丁版本，不能因为发布日期在 4 月 1 日就归入愚人节分类
+        assert!(!is_april_fools_id("26.1.1"));
     }
 
     #[test]

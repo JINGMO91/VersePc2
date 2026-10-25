@@ -28,6 +28,10 @@ pub struct LaunchArguments {
     pub args: Vec<String>,
     /// 决策出的最大内存（MB）
     pub max_mem_mb: u64,
+    /// 本次使用的 natives 解压目录
+    pub natives_dir: PathBuf,
+    /// 解压后仍缺失/大小不符的原生库文件名
+    pub natives_missing: Vec<String>,
 }
 
 /// 构建 Minecraft 启动参数
@@ -69,7 +73,8 @@ pub fn build_launch_arguments(
 
     // ============== Classpath 与 Natives ==============
     let classpath = build_classpath(version_json, external_version_dir, &libraries_dir);
-    let natives_dir = extract_natives_dir(version_json, &actual_version_id, external_version_dir, &data_dir);
+    let (natives_dir, natives_missing) =
+        extract_natives_dir(version_json, &actual_version_id, external_version_dir, &data_dir);
 
     // ============== 游戏目录决策 ==============
     let game_dir = resolve_game_dir(
@@ -539,6 +544,8 @@ pub fn build_launch_arguments(
     LaunchArguments {
         args: all_args,
         max_mem_mb,
+        natives_dir,
+        natives_missing,
     }
 }
 
