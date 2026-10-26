@@ -143,6 +143,71 @@ test('主页布局切页返回后按保存位置重新收敛', async ({ page }) 
   expect(await readPos()).toEqual(before);
 });
 
+test('主页返回时未保存位置的控件不会被入场动画推离居中位置', async ({ page }) => {
+  // 复现反馈：用户只保存了版本卡/启动按钮位置，标题和头像仍走默认居中。
+  // 旧实现会给主页控件套通用入场动画，动画期间 transform 覆盖 translateX(-50%)，
+  // 标题/头像先右移半个自身宽度，动画结束后再跳回；影响“返回主页弹跳卡顿”问题。
+  await page.addInitScript(() => {
+    localStorage.setItem('versepc_home_layout_v1', JSON.stringify({
+      version: { x: 430, y: 320 },
+      launch: { x: 520, y: 430 },
+    }));
+  });
+  await installMockHost(page);
+  await page.goto('/');
+  await clickPage(page, 'home');
+  await expect(page.locator('.home-page')).not.toHaveClass(/home-layout-pending/, { timeout: 5000 });
+  await clickPage(page, 'accounts');
+  await expect.poll(() => activePageId(page), { timeout: 5000 }).toBe('page-accounts');
+
+  // 返回前开始逐帧采样控件相对 .home-page 的位置，覆盖入场动画完整时段
+  await page.evaluate(() => {
+    window.__homeSamples = [];
+    const started = performance.now();
+    let activeAt = 0;
+    const sample = () => {
+      const home = document.getElementById('page-home');
+      const root = document.querySelector('.home-page');
+      if (home && home.classList.contains('active') && root) {
+        if (!activeAt) activeAt = performance.now();
+        const rootRect = root.getBoundingClientRect();
+        const read = (selector) => {
+          const el = document.querySelector(selector);
+          if (!el) return null;
+          const rect = el.getBoundingClientRect();
+          return { left: rect.left - rootRect.left, top: rect.top - rootRect.top };
+        };
+        window.__homeSamples.push({
+          t: performance.now() - activeAt,
+          title: read('.home-page-title'),
+          avatar: read('.home-avatar-widget'),
+          version: read('.home-version-card-wrap'),
+          launch: read('#home-launch-btn'),
+        });
+      }
+      if (performance.now() - started < 900) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
+
+  await clickPage(page, 'home');
+  await expect.poll(() => activePageId(page), { timeout: 5000 }).toBe('page-home');
+  await page.waitForTimeout(1000);
+
+  const samples = await page.evaluate(() => window.__homeSamples);
+  // 跳过页面刚激活时的尺寸收敛帧；旧实现的入场动画持续 380ms，仍会落在采样窗口内
+  const stableSamples = samples.filter((s) => s.t >= 150);
+  expect(stableSamples.length).toBeGreaterThan(10);
+  expect(await page.locator('#page-home .pc-enter-block').count()).toBe(0);
+
+  for (const key of ['title', 'avatar', 'version', 'launch']) {
+    const lefts = stableSamples.map((s) => s[key] && s[key].left).filter((v) => typeof v === 'number');
+    expect(lefts.length).toBeGreaterThan(10);
+    const drift = Math.max(...lefts) - Math.min(...lefts);
+    expect(drift, `${key} 在返回动画期间横向漂移`).toBeLessThan(1.5);
+  }
+});
+
 test('主页布局拖动只有确认后才写入存储，取消会还原', async ({ page }) => {
   await page.goto('/');
   await clickPage(page, 'home');
