@@ -116,6 +116,16 @@ describe('_collectPclBlocks / runPageEnterAnim', () => {
     expect(() => mod.runPageEnterAnim(null)).not.toThrow();
     expect(() => mod.runPageEnterAnim(document.createElement('div'))).not.toThrow();
   });
+
+  it('主页跳过通用入场动画，避免覆盖控件的居中 transform', () => {
+    const page = document.getElementById('page-home');
+    const card = page.querySelector('.card');
+
+    mod.runPageEnterAnim(page);
+
+    expect(card.classList.contains('pc-enter-block')).toBe(false);
+    expect(card.style.getPropertyValue('--pc-delay')).toBe('');
+  });
 });
 
 describe('runPageExitAnim', () => {

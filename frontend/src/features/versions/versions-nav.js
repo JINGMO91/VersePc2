@@ -63,6 +63,10 @@ function _collectPclBlocks(pageEl) {
 
 function runPageEnterAnim(pageEl) {
   if (!pageEl) return;
+  // 主页控件是绝对定位且依赖 transform: translateX(-50%) 居中，通用区块动画会把
+  // transform 覆盖成 translateY，动画结束后再恢复，表现为控件先出现在错位处再瞬移；
+  // 主页自身已有布局收敛逻辑，这里跳过通用入场动画。
+  if (pageEl.id === 'page-home') return;
   const blocks = _collectPclBlocks(pageEl);
   if (blocks.length === 0) return;
   pageEl.style.animation = 'none';
