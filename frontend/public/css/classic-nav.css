@@ -49,7 +49,10 @@ body.classic-nav.classic-sidebar-collapsed .sidebar {
     width: 0;
     padding-left: 0;
     padding-right: 0;
-    border-right: none;
+    /* 只收起边框宽度，保留 border-color 的主题取值：
+       若在这里写 border-right: none，会把颜色重置为 currentColor，
+       探出态只恢复宽度/样式时就会出现一条近黑色的硬线。 */
+    border-right-width: 0;
     opacity: 0;
     pointer-events: none;
     transform: translateX(-100%);

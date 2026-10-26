@@ -58,6 +58,7 @@ beforeEach(() => {
   S._currentDetailAccount = null;
   S._skinViewer = null;
   S._skinResizeObserver = null;
+  S._skinResizeTimer = null;
   S._currentSkinBg = 'white';
   S._avatarMemCache.clear();
 
@@ -81,6 +82,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  if (S?._skinResizeTimer) {
+    clearTimeout(S._skinResizeTimer);
+    S._skinResizeTimer = null;
+  }
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   document.body.innerHTML = '';
@@ -365,9 +370,15 @@ describe('initSkinViewer', () => {
       this.canvas = document.createElement('canvas');
       this.cameraLight = {};
       this.globalLight = {};
+      this.sizeCalls = [];
+      this.renderCalls = 0;
       MockSkinViewer.instance = this;
     }
-    setSize(width, height) { this.size = { width, height }; }
+    setSize(width, height) {
+      this.size = { width, height };
+      this.sizeCalls.push({ width, height });
+    }
+    render() { this.renderCalls += 1; }
     dispose() { this.disposed = true; }
   }
   class MockIdleAnimation {
@@ -426,5 +437,54 @@ describe('initSkinViewer', () => {
 
     expect(container.textContent).toContain('皮肤加载失败');
     expect(errSpy).toHaveBeenCalled();
+  });
+
+  it('容器尺寸连续变化时防抖，只在稳定后重设一次尺寸', async () => {
+    vi.useFakeTimers();
+    try {
+      const container = addSkinViewerContainer();
+      let width = 800;
+      Object.defineProperty(container, 'clientWidth', {
+        configurable: true, get: () => width,
+      });
+      Object.defineProperty(container, 'clientHeight', {
+        configurable: true, get: () => 420,
+      });
+      S._currentDetailAccount = { username: 'Steve', skinModel: 'default' };
+
+      const initPromise = mod.initSkinViewer('data:image/png;base64,abc', 'default');
+      await vi.advanceTimersByTimeAsync(100);
+      await initPromise;
+      const viewer = MockSkinViewer.instance;
+      expect(viewer.sizeCalls).toHaveLength(0);
+
+      // 模拟侧栏宽度过渡：连续多帧变化
+      width = 820;
+      roInstance.cb();
+      width = 840;
+      roInstance.cb();
+      width = 860;
+      roInstance.cb();
+
+      await vi.advanceTimersByTimeAsync(149);
+      expect(viewer.sizeCalls).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(viewer.sizeCalls).toEqual([{ width: 860, height: 420 }]);
+      expect(viewer.renderCalls).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('销毁查看器时清理待执行的尺寸防抖定时器', () => {
+    vi.useFakeTimers();
+    try {
+      S._skinResizeTimer = setTimeout(() => {}, 150);
+      mod.destroySkinViewer();
+      expect(S._skinResizeTimer).toBeNull();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

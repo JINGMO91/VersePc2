@@ -174,6 +174,13 @@ const PageHome = {
       if (!page.clientWidth || !page.clientHeight) return;
       const layout = force ? {} : loadHomeLayout();
       const pw = page.clientWidth, ph = page.clientHeight;
+      // 默认位置的横向基准取启动器窗口中心，而不是会随经典侧栏收放变宽的 .home-page 中心。
+      // 这样收起/固定导航栏时，未拖动过的默认控件不会整体横向漂移。
+      const pageRect = page.getBoundingClientRect();
+      const viewportWidth = document.documentElement.clientWidth || window.innerWidth || 0;
+      const defaultCenterLeft = viewportWidth > 0
+        ? (viewportWidth / 2) - pageRect.left
+        : pw / 2;
       for (const key of ['title', 'avatar', 'version', 'launch', 'running']) {
         const el = this.widgetByKey(key);
         if (!el) continue;
@@ -194,6 +201,9 @@ const PageHome = {
           el.style.right = '';
           el.style.bottom = '';
           el.style.transform = '';
+          // 居中控件以窗口中心为 left（CSS 的 translateX(-50%) 继续负责自身半宽修正）；
+          // 运行卡片保持 CSS 的左下停靠，不参与窗口居中。
+          if (key !== 'running') el.style.left = defaultCenterLeft + 'px';
         }
       }
       // 头像缩放（恢复默认时重置为 1）

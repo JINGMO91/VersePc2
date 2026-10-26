@@ -17,6 +17,7 @@ export const accountsState = {
   _currentDetailAccount: null,
   _skinViewer: null,
   _skinResizeObserver: null,
+  _skinResizeTimer: null,
   _currentSkinBg: 'white',
   _applyingMsSkin: false,
   tpPendingAuth: null,

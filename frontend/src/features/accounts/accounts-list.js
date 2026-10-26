@@ -542,6 +542,10 @@ function showAccountList() {
 }
 
 function destroySkinViewer() {
+  if (S._skinResizeTimer) {
+    clearTimeout(S._skinResizeTimer);
+    S._skinResizeTimer = null;
+  }
   if (S._skinResizeObserver) {
     try { S._skinResizeObserver.disconnect(); } catch (e) {}
     S._skinResizeObserver = null;
@@ -588,12 +592,25 @@ async function initSkinViewer(skinUrl, resolvedModel) {
     S._skinViewer.globalLight.intensity = 2.5;
     S._skinViewer.background = S._currentSkinBg === 'black' ? 0x000000 : 0xffffff;
     S._skinViewer.nameTag = S._currentDetailAccount ? S._currentDetailAccount.username : null;
+    // 导航栏收起/展开时，容器宽度会在 0.45s 过渡中逐帧变化；每帧 setSize 都会重建
+    // WebGL 画布并短暂清空，表现为人物预览闪烁。这里改为停止变化后再统一重设一次尺寸。
+    let lastSkinW = cw, lastSkinH = ch;
     S._skinResizeObserver = new ResizeObserver(() => {
-      if (S._skinViewer && container) {
+      if (!S._skinViewer || !container) return;
+      if (S._skinResizeTimer) clearTimeout(S._skinResizeTimer);
+      S._skinResizeTimer = setTimeout(() => {
+        S._skinResizeTimer = null;
+        if (!S._skinViewer || !container) return;
         const w = container.clientWidth;
         const h = container.clientHeight;
-        if (w > 0 && h > 0) S._skinViewer.setSize(w, h);
-      }
+        if (w <= 0 || h <= 0) return;
+        if (w === lastSkinW && h === lastSkinH) return;
+        lastSkinW = w;
+        lastSkinH = h;
+        S._skinViewer.setSize(w, h);
+        // setSize 会清空画布；立刻补渲染一帧，避免尺寸更新当帧出现空白闪烁
+        S._skinViewer.render();
+      }, 150);
     });
     S._skinResizeObserver.observe(container);
   } catch (e) {
